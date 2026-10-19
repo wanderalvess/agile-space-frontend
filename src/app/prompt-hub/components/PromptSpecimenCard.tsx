@@ -47,7 +47,7 @@ const VARIABLE_REGEX = /(?<!\$)\{\{([^}\n]{1,60})\}\}/g;
 const MAX_VISIBLE_TAGS = 3;
 
 function AuthorAvatar({ prompt }: { prompt: PromptItem }) {
-  return <InitialsAvatar name={prompt.authorName} className="h-5 w-5 text-[9px]" />;
+  return <InitialsAvatar name={prompt.authorName} className="h-5 w-5 text-xs" />;
 }
 
 export function PromptSpecimenCard({
@@ -145,14 +145,14 @@ export function PromptSpecimenCard({
       }}
       className={cn(
         'group relative flex h-full cursor-pointer flex-col rounded-xl border bg-card p-4 text-left transition-all duration-150',
-        'border-border/80 hover:border-foreground/30 hover:shadow-sm dark:hover:border-foreground/20',
+        'border-border/80 hover:border-foreground/30 hover:shadow-sm',
         featured && 'border-primary/40 bg-gradient-to-br from-card via-card to-primary/[0.03] shadow-sm',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1'
       )}
     >
       {/* 1. Header do Espécime: Tag técnica estruturada + Ações rápidas */}
       <header className="mb-2.5 flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+        <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
           {/* Spec Badge: Ficha técnica minimalista */}
           <span
             className={cn(
@@ -165,19 +165,19 @@ export function PromptSpecimenCard({
           </span>
 
           {hasVariables && (
-            <span className="rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            <span className="rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
               &#123;&#123;{variables.length}&#125;&#125;
             </span>
           )}
 
           {showStatus && (
-            <span className={cn('rounded-md px-1.5 py-0.5 text-[10px] font-medium', status.chip)}>
+            <span className={cn('rounded-md px-1.5 py-0.5 text-xs font-medium', status.chip)}>
               {status.label}
             </span>
           )}
 
           <span
-            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
             title={visibility.description}
           >
             <VisibilityIcon className="h-3 w-3" />
@@ -278,7 +278,7 @@ export function PromptSpecimenCard({
       {/* 3. Live Variable Peek: Se tem variáveis, mostra o contrato de entrada */}
       {hasVariables && (
         <div className="mb-2.5 flex flex-wrap items-center gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground font-semibold">
             Entradas:
           </span>
           {variables.slice(0, 2).map(v => (
@@ -290,7 +290,7 @@ export function PromptSpecimenCard({
             </span>
           ))}
           {variables.length > 2 && (
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               +{variables.length - 2}
             </span>
           )}
@@ -299,7 +299,7 @@ export function PromptSpecimenCard({
 
       {/* 4. Specimen Code Snippet: Prévia visual estruturada */}
       {snippet && !hasVariables && (
-        <div className="mb-2.5 flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/40 px-2 py-1.5 text-[11px] font-mono text-muted-foreground/80 dark:bg-muted/20">
+        <div className="mb-2.5 flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/40 px-2 py-1.5 text-xs font-mono text-muted-foreground">
           <Terminal className="h-3 w-3 shrink-0 text-muted-foreground/60" />
           <span className="line-clamp-1 truncate font-code">{snippet}</span>
         </div>
@@ -315,13 +315,13 @@ export function PromptSpecimenCard({
                 e.stopPropagation();
                 onSelectTag?.(tag);
               }}
-              className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               #{tag}
             </button>
           ))}
           {hiddenTagCount > 0 && (
-            <span className="px-1 py-0.5 text-[11px] text-muted-foreground">+{hiddenTagCount}</span>
+            <span className="px-1 py-0.5 text-xs text-muted-foreground">+{hiddenTagCount}</span>
           )}
         </div>
       )}
@@ -337,20 +337,20 @@ export function PromptSpecimenCard({
                 onSelectAuthor(prompt.authorId);
               }}
               title="Ver tudo desta pessoa"
-              className="truncate text-[11px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="truncate text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               {isOwner ? 'Você' : prompt.authorName?.split(' ')[0] || 'Membro'}
               {prompt.authorSquad ? ` · ${prompt.authorSquad}` : ''}
             </button>
           ) : (
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-xs text-muted-foreground">
               {isOwner ? 'Você' : prompt.authorName?.split(' ')[0] || 'Membro'}
               {prompt.authorSquad ? ` · ${prompt.authorSquad}` : ''}
             </span>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
           {(prompt.useCount ?? 0) > 0 && (
             <span title={`${prompt.useCount} execuções/cópias`} className="inline-flex items-center gap-0.5 font-mono">
               <ArrowUpRight className="h-3 w-3" />

@@ -383,6 +383,46 @@ html, body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18) !important;
 }
 
+/* Palco da apresentação (Modo Teatro da Review e a prévia dele): o fundo é escolhido por quem apresenta
+   (claro ou escuro) e não segue o tema do portal. Estas duas escalas refazem os tokens só dentro do palco,
+   assim o miolo usa text-foreground, bg-card, border-border etc. e lê bem sobre o fundo escolhido. */
+.stage-light {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 40% 94%;
+  --muted-foreground: 215 19% 30%;
+  --secondary: 210 40% 92%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 210 40% 92%;
+  --accent-foreground: 222 47% 11%;
+  --border: 214 25% 78%;
+  --input: 214 25% 78%;
+  --primary: 17 88% 40%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 17 88% 40%;
+  color: hsl(var(--foreground));
+}
+.stage-dark {
+  --background: 200 100% 6%;
+  --foreground: 210 40% 98%;
+  --card: 200 100% 9%;
+  --card-foreground: 210 40% 98%;
+  --muted: 200 70% 15%;
+  --muted-foreground: 200 30% 80%;
+  --secondary: 200 70% 15%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 200 70% 18%;
+  --accent-foreground: 210 40% 98%;
+  --border: 200 45% 28%;
+  --input: 200 45% 28%;
+  --primary: 25 100% 50%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --ring: 25 100% 50%;
+  color: hsl(var(--foreground));
+}
+
 /* Nordic light palette already defined above (.theme-nordic:not(.dark)) */
 
 /* Dark Mode Utility Overrides for Premium Aesthetic - Universal for all themes */

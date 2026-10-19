@@ -430,7 +430,7 @@ export function PromptEditor({
                   <ul className="space-y-1">
                     {similarItems.map(({ item, reason }) => (
                       <li key={item.id} className="flex items-baseline gap-2 text-xs">
-                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                           {SIMILARITY_REASON_LABEL[reason]}
                         </span>
                         <span className="min-w-0 truncate text-foreground">

@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, X, Ban, AlertTriangle, Maximize2, Minimize2, Check, Lock, PanelLeftClose, PanelLeftOpen, Timer, Flag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DANGER_BUTTON, SUCCESS_BUTTON, WARN_BUTTON, DANGER_HOVER } from '@/components/room-kit/tokens';
 import { ShowcaseSession, Decision } from './types';
 import { DECISION_LOCK_HINT } from './review-room-logic';
 
@@ -33,9 +34,9 @@ interface TeatroHeaderProps {
 }
 
 const DECISION_BUTTON_CONFIG = {
-  approved: { l: 'Aprovar', c: 'bg-emerald-600 text-white', icon: Check },
-  needs_adjustment: { l: 'Ajustar', c: 'bg-amber-600 text-white', icon: AlertTriangle },
-  rejected: { l: 'Rejeitar', c: 'bg-red-600 text-white', icon: Ban },
+  approved: { l: 'Aprovar', c: SUCCESS_BUTTON, icon: Check },
+  needs_adjustment: { l: 'Ajustar', c: WARN_BUTTON, icon: AlertTriangle },
+  rejected: { l: 'Rejeitar', c: DANGER_BUTTON, icon: Ban },
 } as const;
 
 // Cor do segmento de progresso por decisão já registrada.
@@ -63,8 +64,8 @@ export function TeatroHeader({
   const isLast = currentIndex === total - 1;
 
   const subtle = isLight
-    ? 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-    : 'border-white/10 bg-white/[0.06] text-white/80 hover:bg-white/15 hover:text-white';
+    ? 'border-border bg-muted text-foreground hover:bg-muted hover:text-foreground'
+    : 'border-border bg-foreground/[0.06] text-foreground hover:bg-foreground/15 hover:text-foreground';
   const iconBtn = cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors max-sm:h-11 max-sm:w-11', subtle, FOCUS);
 
   return (
@@ -76,7 +77,7 @@ export function TeatroHeader({
           exit={{ y: -100 }}
           className={cn(
             'z-50 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2 backdrop-blur-xl xl:gap-x-6 xl:px-6 lg:min-h-16 lg:flex-nowrap',
-            isLight ? 'border-slate-200 bg-white/85' : 'border-white/10 bg-[#001824]/90'
+            isLight ? 'border-border bg-card/85' : 'border-border bg-[#001824]/90'
           )}
         >
           {/* Navegação */}
@@ -103,9 +104,9 @@ export function TeatroHeader({
             >
               <span className="hidden lg:inline">Próxima</span> <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
             </button>
-            <span className={cn('ml-1 whitespace-nowrap text-sm font-bold tabular-nums', isLight ? 'text-slate-900' : 'text-white')}>
+            <span className={cn('ml-1 whitespace-nowrap text-sm font-bold tabular-nums', 'text-foreground')}>
               {currentIndex + 1}
-              <span className={cn('font-medium', isLight ? 'text-slate-500' : 'text-white/50')}> / {total}</span>
+              <span className={cn('font-medium', 'text-muted-foreground')}> / {total}</span>
             </span>
           </div>
 
@@ -131,13 +132,13 @@ export function TeatroHeader({
                       'h-1.5 min-w-[4px] flex-1 rounded-full transition-all duration-300 max-sm:h-3',
                       isActive
                         ? 'h-2 bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)] max-sm:h-3.5'
-                        : decided ?? (isLight ? 'bg-slate-300 hover:bg-slate-400' : 'bg-white/20 hover:bg-white/40')
+                        : decided ?? ('bg-foreground/20 hover:bg-foreground/40')
                     )}
                   />
                 );
               })}
             </nav>
-            <span className={cn('hidden items-center gap-1.5 whitespace-nowrap text-xs font-semibold tabular-nums sm:flex', isLight ? 'text-slate-600' : 'text-white/70')} title="Tempo de sessão">
+            <span className={cn('hidden items-center gap-1.5 whitespace-nowrap text-xs font-semibold tabular-nums sm:flex', 'text-muted-foreground')} title="Tempo de sessão">
               <Timer className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {sessionTimeLabel}
             </span>
           </div>
@@ -148,7 +149,7 @@ export function TeatroHeader({
             {task && (
               <div className="flex items-center gap-1.5" title={canDecide ? undefined : DECISION_LOCK_HINT}>
                 {!canDecide && (
-                  <span className={cn('hidden h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold xl:flex', isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-white/50')}>
+                  <span className={cn('hidden h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold xl:flex', isLight ? 'bg-muted text-muted-foreground' : 'bg-foreground/5 text-muted-foreground')}>
                     <Lock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Decisão restrita
                   </span>
                 )}
@@ -198,7 +199,7 @@ export function TeatroHeader({
               <Flag className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Finalizar
             </button>
 
-            <div className={cn('mx-1 hidden h-6 w-px sm:block', isLight ? 'bg-slate-200' : 'bg-white/15')} aria-hidden="true" />
+            <div className={cn('mx-1 hidden h-6 w-px sm:block', isLight ? 'bg-muted' : 'bg-foreground/15')} aria-hidden="true" />
 
             <button type="button" onClick={onToggleSidebar} title={sidebarCollapsed ? 'Mostrar painel lateral' : 'Recolher painel lateral'} aria-label={sidebarCollapsed ? 'Mostrar painel lateral' : 'Recolher painel lateral'} className={iconBtn}>
               {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
@@ -211,7 +212,7 @@ export function TeatroHeader({
               onClick={onClose}
               title="Encerrar a apresentação (Esc). A Review continua ao vivo."
               aria-label="Encerrar apresentação"
-              className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600 transition-colors hover:bg-red-600 hover:text-white max-sm:h-11 max-sm:w-11 dark:text-red-400', FOCUS)}
+              className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-700 transition-colors max-sm:h-11 max-sm:w-11 dark:text-red-300', DANGER_HOVER, FOCUS)}
             >
               <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </button>

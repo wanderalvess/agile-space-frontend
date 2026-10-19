@@ -6,6 +6,7 @@ import { X, Target, Layers, ArrowRight, TrendingUp } from 'lucide-react';
 import { ShowcaseSession } from './types';
 import { getDirectImageUrl, imageBackgroundCss, isImageBackground } from './utils';
 import { cn } from '@/lib/utils';
+import { DANGER_HOVER } from '@/components/room-kit/tokens';
 
 interface ShowcaseCoverProps {
   session: ShowcaseSession;
@@ -25,13 +26,13 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
     return tp.includes('história') || tp.includes('historia') || tp.includes('story') || tp.includes('recurso');
   }).length || 0;
 
-  const mute = isLight ? 'text-slate-500' : 'text-white/60';
+  const mute = 'text-muted-foreground';
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={cn('relative flex h-full w-full flex-col overflow-hidden', isLight ? 'bg-white' : 'bg-[#001824]')}
+      className={cn('relative flex h-full w-full flex-col overflow-hidden', isLight ? 'bg-card' : 'bg-[#001824]')}
     >
       {/* Fundo */}
       <div className="pointer-events-none absolute inset-0 z-0">
@@ -46,12 +47,12 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
               onError={() => setBgLoaded(false)}
             />
             {/* Véu para garantir contraste e leitura */}
-            <div className={cn('absolute inset-0 bg-gradient-to-r to-transparent', isLight ? 'from-white/95 via-white/80' : 'from-[#001824]/95 via-[#001824]/80')} />
-            <div className={cn('absolute inset-0 bg-gradient-to-t via-transparent to-transparent', isLight ? 'from-white/90' : 'from-[#001824]/90')} />
+            <div className={cn('absolute inset-0 bg-gradient-to-r to-transparent', 'from-background/95 via-background/80')} />
+            <div className={cn('absolute inset-0 bg-gradient-to-t via-transparent to-transparent', 'from-background/90')} />
           </>
         ) : (
           <div
-            className={cn('relative h-full w-full overflow-hidden', isLight ? 'bg-slate-50' : 'bg-[#001824]')}
+            className={cn('relative h-full w-full overflow-hidden', isLight ? 'bg-muted' : 'bg-[#001824]')}
             style={session.presentationBackground ? {
               background: isImageBackground(session.presentationBackground)
                 ? imageBackgroundCss(session.presentationBackground)
@@ -76,8 +77,8 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
           className={cn(
             'flex h-12 w-12 items-center justify-center rounded-2xl border backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
             isLight
-              ? 'border-slate-200/90 bg-white/80 text-slate-700 shadow-sm hover:border-red-500 hover:bg-red-500 hover:text-white'
-              : 'border-white/10 bg-white/5 text-white/70 hover:border-red-500 hover:bg-red-500 hover:text-white'
+              ? `border-border bg-card/80 text-foreground shadow-sm ${DANGER_HOVER}`
+              : `border-border bg-foreground/5 text-muted-foreground ${DANGER_HOVER}`
           )}
         >
           <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
@@ -97,14 +98,14 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
               {session.squadName && (
                 <div className={cn(
                   'inline-flex w-fit items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold backdrop-blur-md',
-                  isLight ? 'border-slate-200 bg-slate-100 text-slate-800' : 'border-white/15 bg-white/10 text-white'
+                  isLight ? 'border-border bg-muted text-foreground' : 'border-border bg-foreground/10 text-foreground'
                 )}>
                   <span aria-hidden="true" className="h-2 w-2 rounded-full bg-primary motion-safe:animate-pulse" />
                   {session.squadName}
                 </div>
               )}
               <h1
-                className={cn('m-0 break-words font-bold leading-[0.95] tracking-tight drop-shadow-xl', isLight ? 'text-slate-950' : 'text-white')}
+                className={cn('m-0 break-words font-bold leading-[0.95] tracking-tight drop-shadow-xl', 'text-foreground')}
                 style={{ fontSize: 'clamp(2.25rem, 5.5vw, 5.5rem)' }}
               >
                 {session.name || 'Review'}
@@ -115,16 +116,16 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
             <div className="flex items-center gap-6">
               <div className="flex flex-col">
                 <span className={cn('text-xs font-semibold', mute)}>Ciclo / período</span>
-                <span className={cn('mt-0.5 text-xl font-bold tracking-tight', isLight ? 'text-slate-900' : 'text-white')}>
+                <span className={cn('mt-0.5 text-xl font-bold tracking-tight', 'text-foreground')}>
                   {session.period || session.sprintName || 'Sprint atual'}
                 </span>
               </div>
               {totalTasks > 0 && (
                 <>
-                  <div className={cn('h-8 w-px', isLight ? 'bg-slate-300' : 'bg-white/15')} aria-hidden="true" />
+                  <div className={cn('h-8 w-px', isLight ? 'bg-muted' : 'bg-foreground/15')} aria-hidden="true" />
                   <div className="flex flex-col">
                     <span className={cn('text-xs font-semibold', mute)}>Entregas prontas</span>
-                    <span className={cn('mt-0.5 text-xl font-bold tabular-nums', isLight ? 'text-slate-900' : 'text-cyan-300')}>
+                    <span className={cn('mt-0.5 text-xl font-bold tabular-nums', isLight ? 'text-foreground' : 'text-cyan-300')}>
                       {totalTasks} {totalTasks === 1 ? 'item' : 'itens'}
                     </span>
                   </div>
@@ -151,7 +152,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
             transition={{ delay: 0.3, duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
             className={cn(
               'flex flex-col gap-6 rounded-[2rem] border p-6 shadow-2xl backdrop-blur-3xl md:p-10 lg:col-span-5',
-              isLight ? 'border-slate-200/90 bg-white/90 shadow-slate-200/60' : 'border-white/10 bg-[#001824]/80 shadow-black/60'
+              isLight ? 'border-border bg-card/90 shadow-black/10' : 'border-border bg-background/80 shadow-black/60'
             )}
           >
             <div className="flex flex-col gap-3">
@@ -159,23 +160,23 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                 <Target className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.5} aria-hidden="true" />
                 <span className={cn('text-xs font-semibold', mute)}>Objetivo da sprint</span>
               </div>
-              <p className={cn('m-0 max-h-[40vh] overflow-y-auto whitespace-pre-wrap break-words border-l-2 border-primary/60 py-1 pl-4 text-base font-medium leading-relaxed md:text-lg', isLight ? 'text-slate-800' : 'text-white/90')}>
+              <p className={cn('m-0 max-h-[40vh] overflow-y-auto whitespace-pre-wrap break-words border-l-2 border-primary/60 py-1 pl-4 text-base font-medium leading-relaxed md:text-lg', 'text-foreground')}>
                 {session.description || 'Demonstração técnica dos incrementos e entregas realizados durante o ciclo para validação dos stakeholders.'}
               </p>
             </div>
 
             {totalTasks > 0 && (
-              <div className={cn('grid grid-cols-2 gap-3 border-t pt-4', isLight ? 'border-slate-200' : 'border-white/10')}>
-                <div className={cn('rounded-2xl border p-3.5', isLight ? 'border-slate-200/60 bg-slate-50/80' : 'border-white/5 bg-white/[0.03]')}>
+              <div className={cn('grid grid-cols-2 gap-3 border-t pt-4', 'border-border')}>
+                <div className={cn('rounded-2xl border p-3.5', isLight ? 'border-border bg-muted/80' : 'border-border bg-foreground/[0.03]')}>
                   <div className="mb-1 flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} aria-hidden="true" />
                     <span className={cn('text-xs font-semibold', mute)}>Pauta da cerimônia</span>
                   </div>
-                  <p className={cn('m-0 text-xl font-bold tabular-nums', isLight ? 'text-slate-900' : 'text-white')}>
-                    {totalTasks} <span className="text-xs font-normal text-slate-400">cards</span>
+                  <p className={cn('m-0 text-xl font-bold tabular-nums', 'text-foreground')}>
+                    {totalTasks} <span className="text-xs font-normal text-muted-foreground">cards</span>
                   </p>
                 </div>
-                <div className={cn('rounded-2xl border p-3.5', isLight ? 'border-slate-200/60 bg-slate-50/80' : 'border-white/5 bg-white/[0.03]')}>
+                <div className={cn('rounded-2xl border p-3.5', isLight ? 'border-border bg-muted/80' : 'border-border bg-foreground/[0.03]')}>
                   <div className="mb-1 flex items-center gap-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-500" strokeWidth={1.5} aria-hidden="true" />
                     <span className={cn('text-xs font-semibold', mute)}>Tipo dominante</span>

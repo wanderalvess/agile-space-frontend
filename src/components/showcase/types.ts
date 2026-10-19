@@ -192,7 +192,7 @@ export const ISSUE_TYPES = [
  * escolhido para a apresentação (claro ou escuro), seja qual for o tema do portal.
  */
 export const DECISION = {
-  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-white/10 text-white/70', light: 'bg-slate-100 text-slate-600' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-foreground/10 text-muted-foreground', light: 'bg-muted text-muted-foreground' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   approved:         { label: 'Aprovado',   cls: TONES.success.chip, stageCls: { dark: 'bg-emerald-500/15 text-emerald-300', light: 'bg-emerald-100 text-emerald-800' }, icon: React.createElement(CheckCircle2, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   needs_adjustment: { label: 'Ajuste',     cls: TONES.warn.chip, stageCls: { dark: 'bg-amber-500/15 text-amber-300', light: 'bg-amber-100 text-amber-800' }, icon: React.createElement(AlertTriangle, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   rejected:         { label: 'Rejeitado',  cls: TONES.danger.chip, stageCls: { dark: 'bg-red-500/15 text-red-300', light: 'bg-red-100 text-red-800' }, icon: React.createElement(Ban, { className: 'h-3 w-3', strokeWidth: 1.5 }) },

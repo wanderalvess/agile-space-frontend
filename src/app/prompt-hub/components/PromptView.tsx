@@ -401,7 +401,7 @@ export function PromptView({
                           <button
                             onClick={() => setViewMode('formatted')}
                             className={cn(
-                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
                               viewMode === 'formatted' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
                             )}
                           >
@@ -410,7 +410,7 @@ export function PromptView({
                           <button
                             onClick={() => setViewMode('raw')}
                             className={cn(
-                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
                               viewMode === 'raw' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
                             )}
                           >
@@ -418,7 +418,7 @@ export function PromptView({
                           </button>
                         </div>
                       )}
-                      <span className="text-[11px] font-mono text-muted-foreground">
+                      <span className="text-xs font-mono text-muted-foreground">
                         {processedContent.length} chars · {processedContent.split('\n').length} linhas
                       </span>
                     </div>

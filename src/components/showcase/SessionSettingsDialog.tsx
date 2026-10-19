@@ -95,11 +95,11 @@ function PresentationPreview({ background, theme, task }: { background?: string;
   const desc = task?.evidence?.problem || task?.description || 'Evidência, contexto do negócio e resultados da entrega.';
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl shadow-lg transition-all duration-500" style={bgStyle}>
+    <div className={cn('relative h-full w-full overflow-hidden rounded-2xl shadow-lg transition-all duration-500', isLight ? 'stage-light' : 'stage-dark')} style={bgStyle}>
       <div className="absolute right-3 top-3 z-20">
         <span className={cn(
           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold backdrop-blur-md',
-          isLight ? 'border-slate-200 bg-white/90 text-slate-800' : 'border-white/10 bg-slate-950/80 text-white/90'
+          isLight ? 'border-border bg-card/90 text-foreground' : 'border-border bg-card/80 text-foreground'
         )}>
           {isLight ? <Sun className="h-3 w-3 shrink-0 text-amber-500" strokeWidth={1.5} aria-hidden="true" /> : <Moon className="h-3 w-3 shrink-0 text-cyan-300" strokeWidth={1.5} aria-hidden="true" />}
           {isLight ? 'Modo claro ativo' : 'Modo escuro ativo'}
@@ -109,32 +109,32 @@ function PresentationPreview({ background, theme, task }: { background?: string;
       <div className={cn(
         'absolute inset-y-0 left-0 flex w-[58%] max-w-[270px] flex-col justify-between border-r p-5 transition-all duration-300',
         isLight
-          ? (isGlass ? 'border-slate-200/90 bg-white/80 backdrop-blur-xl' : 'border-slate-200 bg-white/95 backdrop-blur-md')
-          : (isGlass ? 'border-white/10 bg-white/[0.03] backdrop-blur-2xl' : 'border-white/10 bg-[#001824]/95 backdrop-blur-2xl'),
+          ? (isGlass ? 'border-border bg-card/80 backdrop-blur-xl' : 'border-border bg-card/95 backdrop-blur-md')
+          : (isGlass ? 'border-border bg-foreground/[0.03] backdrop-blur-2xl' : 'border-border bg-[#001824]/95 backdrop-blur-2xl'),
         isMinimalist && 'border-r-0 shadow-none'
       )}>
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', task ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : (isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-white/70'))}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', task ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : (isLight ? 'bg-muted text-foreground' : 'bg-foreground/10 text-muted-foreground'))}>
               {badgeKey}
             </span>
             <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold', isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-300')}>
               <Check className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Aprovado
             </span>
           </div>
-          <h4 className={cn('m-0 line-clamp-2 text-[15px] font-bold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>{title}</h4>
-          <p className={cn('m-0 line-clamp-3 text-xs leading-relaxed', isLight ? 'text-slate-600' : 'text-white/60')}>{desc}</p>
+          <h4 className={cn('m-0 line-clamp-2 text-[15px] font-bold leading-tight', 'text-foreground')}>{title}</h4>
+          <p className={cn('m-0 line-clamp-3 text-xs leading-relaxed', 'text-muted-foreground')}>{desc}</p>
         </div>
-        <div className={cn('flex items-center justify-between border-t pt-3 text-xs', isLight ? 'border-slate-100 text-slate-500' : 'border-white/5 text-white/50')}>
+        <div className={cn('flex items-center justify-between border-t pt-3 text-xs', 'border-border text-muted-foreground')}>
           <span>Desenvolvedor</span>
-          <span className={cn('font-bold', isLight ? 'text-slate-800' : 'text-white/90')}>{task?.evidence?.dev || 'Ana Silva'}</span>
+          <span className={cn('font-bold', 'text-foreground')}>{task?.evidence?.dev || 'Ana Silva'}</span>
         </div>
       </div>
 
       <div className="absolute inset-y-0 left-[58%] right-0 flex items-center justify-center p-6">
         <div className={cn(
           'flex aspect-video w-full max-w-[210px] flex-col items-center justify-center gap-2 rounded-2xl border transition-all',
-          isLight ? 'border-slate-200/90 bg-white/80 text-slate-500' : 'border-white/10 bg-white/[0.03] text-white/50'
+          isLight ? 'border-border bg-card/80 text-muted-foreground' : 'border-border bg-foreground/[0.03] text-muted-foreground'
         )}>
           <Camera className="h-7 w-7 opacity-70" strokeWidth={1.5} aria-hidden="true" />
           <span className="text-xs opacity-80">Evidência / demo</span>
@@ -367,9 +367,9 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.url} className="h-full w-full object-cover" alt={p.name} />
-                  <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/35 to-transparent p-2 text-left">
-                    <span className="text-xs font-bold text-white">{p.name}</span>
-                    <span className="line-clamp-1 text-xs text-white/80">{p.description}</span>
+                  <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-background/85 via-background/35 to-transparent p-2 text-left">
+                    <span className="text-xs font-bold text-foreground">{p.name}</span>
+                    <span className="line-clamp-1 text-xs text-foreground">{p.description}</span>
                   </span>
                   {selected && (
                     <span className="absolute right-1.5 top-1.5 rounded-md bg-primary p-0.5 text-primary-foreground shadow-lg [.theme-totvs:not(.dark)_&]:text-foreground">
@@ -417,12 +417,12 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             <p className="m-0 max-w-[200px] text-xs leading-normal text-muted-foreground">Essa imagem não carregou. Confira se o link está correto e é público: alguns sites bloqueiam exibir a imagem fora deles.</p>
           </div>
         ) : coverUrl ? (
-          <div className="relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-border bg-black/10">
+          <div className="relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-border bg-background/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={getDirectImageUrl(coverUrl)} referrerPolicy="no-referrer" className="h-full w-full object-cover" alt="Visualização da capa" onError={() => setPreviewError(true)} />
-            <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-3.5">
+            <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-background/80 via-background/20 to-transparent p-3.5">
               <span className="text-xs font-semibold text-cyan-300">Visualização</span>
-              <h4 className="m-0 mt-1 truncate text-sm font-bold text-white">{session?.name || 'Sua Review'}</h4>
+              <h4 className="m-0 mt-1 truncate text-sm font-bold text-foreground">{session?.name || 'Sua Review'}</h4>
             </div>
           </div>
         ) : (
@@ -489,10 +489,10 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   >
                     <span
                       style={isImageBackground(p.value) ? { background: `center / cover no-repeat url(${p.value})` } : { background: p.value }}
-                      className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg', p.isLight ? 'border-2 border-border' : 'border border-white/15')}
+                      className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg', p.isLight ? 'border-2 border-border' : 'border border-border')}
                     >
                       {isSelected && (
-                        <span className={cn('flex h-[18px] w-[18px] items-center justify-center rounded-full shadow-md', p.isLight ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'bg-white text-slate-900')}>
+                        <span className={cn('flex h-[18px] w-[18px] items-center justify-center rounded-full shadow-md', p.isLight ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'bg-card text-foreground')}>
                           <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
                         </span>
                       )}
@@ -524,7 +524,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
                   <span className="flex h-full w-full items-center justify-center rounded-xl" style={isImageBackground(session?.presentationBackground) ? { background: `center / cover no-repeat url(${session?.presentationBackground})` } : { background: session?.presentationBackground || '#002233' }}>
-                    <Palette className={cn('h-4 w-4 drop-shadow', isLightBg ? 'text-slate-800' : 'text-white')} strokeWidth={1.5} aria-hidden="true" />
+                    <Palette className={cn('h-4 w-4 drop-shadow', 'text-foreground')} strokeWidth={1.5} aria-hidden="true" />
                   </span>
                 </label>
                 <input
