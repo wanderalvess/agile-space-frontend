@@ -249,6 +249,18 @@ describe('tempo real (WebSocket)', () => {
     expect(latest().participants.map((p: RetroParticipant) => p.id)).toEqual(['me', 'u4']);
   });
 
+  it('BOARD_DELETED de outra pessoa troca a sala pelo aviso "foi apagada"; um 404 em quadro aberto também', async () => {
+    await mount();
+    await emit('BOARD_DELETED', { boardId: 'b1' });
+    expect(screen.getByText('Esta retro foi apagada')).toBeTruthy();
+    expect(screen.queryByTestId('room')).toBeNull();
+    cleanup();
+    await mount();
+    api.getBoard.mockRejectedValue(new RetroApiError('Board não encontrado', 404));
+    await emit('REFRESH_BOARD');
+    await waitFor(() => expect(screen.getByText('Esta retro foi apagada')).toBeTruthy());
+  });
+
   it('REFRESH_BOARD e evento desconhecido recarregam', async () => {
     await mount();
     const before = api.getBoard.mock.calls.length;

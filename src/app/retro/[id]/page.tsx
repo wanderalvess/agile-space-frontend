@@ -76,6 +76,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
   // 'notfound' = o servidor disse que o quadro não existe; 'failed' = não deu pra carregar (rede, sessão, 5xx).
   const [loadError, setLoadError] = useState<null | 'notfound' | 'failed'>(null);
+  // A retro foi apagada por outra pessoa enquanto esta tela estava aberta.
+  const [boardDeleted, setBoardDeleted] = useState(false);
   const loadSeqRef = useRef(0);
   const cardsRef = useRef<RetroCardType[]>([]);
   const optimisticRef = useRef<RetroCardType[]>([]);
@@ -127,6 +129,13 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     setFeedbackSignal(Date.now());
   }, []);
 
+  const markDeletedByOthers = useCallback(() => {
+    if (leavingRef.current) return;
+    deletedRef.current = true;
+    removeLocalRoomMeta(boardId, typeof window === 'undefined' ? undefined : window.localStorage);
+    setBoardDeleted(true);
+  }, [boardId]);
+
   // Centralized data loading
   const reloadBoardData = useCallback(async () => {
     if (!isAuthenticated || deletedRef.current) return;
@@ -150,6 +159,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       // Já com o quadro na tela, uma falha de rede passageira não derruba nada: o próximo evento ou reconexão ressincroniza.
       if (!boardRef.current) {
         setLoadError(e instanceof RetroApiError && e.status === 404 ? 'notfound' : 'failed');
+      } else if (e instanceof RetroApiError && e.status === 404) {
+        // Quadro já aberto que passou a dar 404: foi apagado (o aviso do WebSocket pode ter se perdido).
+        markDeletedByOthers();
       }
     } finally {
       if (seq === loadSeqRef.current) {
@@ -158,7 +170,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         setAreParticipantsLoading(false);
       }
     }
-  }, [boardId, isAuthenticated]);
+  }, [boardId, isAuthenticated, markDeletedByOthers]);
 
   // Trocar de quadro (mesma página reaproveitada) não pode carregar estado do anterior.
   useEffect(() => {
@@ -175,6 +187,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     setAreParticipantsLoading(true);
     leavingRef.current = false;
     deletedRef.current = false;
+    setBoardDeleted(false);
   }, [boardId]);
 
   /** Aplica no estado um card devolvido pelo servidor (a resposta do POST vale mesmo se o eco do WebSocket se perder). */
@@ -271,6 +284,10 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
               setChatByChannel((prev) => ({ ...prev, [channelId]: (prev[channelId] || []).filter((m) => m.id !== messageId) }));
             }
             break;
+          case 'BOARD_DELETED':
+            // Quem apagou já saiu da página (deletedRef); as demais pessoas veem o aviso em vez de uma sala morta.
+            if (!deletedRef.current) markDeletedByOthers();
+            break;
           case 'TYPING':
             // Efêmero: nunca recarrega a sala (o tipo desconhecido recarregaria).
             onTypingEventRef.current(payload);
@@ -287,7 +304,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       if (socketRef.current === handle) socketRef.current = null;
       handle();
     };
-  }, [boardId, isAuthenticated, reloadBoardData, presenceBindings]);
+  }, [boardId, isAuthenticated, reloadBoardData, presenceBindings, markDeletedByOthers]);
 
   // Esc cancela a fusão em andamento.
   useEffect(() => {
@@ -985,6 +1002,17 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         action={<ModalButton variant="primary" onClick={() => router.push('/login')}>Ir para o login</ModalButton>}
       >
         Sua sessão expirou ou você ainda não entrou. Faça login e volte para este link.
+      </RoomMessage>
+    );
+  }
+
+  if (boardDeleted) {
+    return (
+      <RoomMessage
+        title="Esta retro foi apagada"
+        action={<ModalButton variant="primary" onClick={() => router.push('/retro')}>Voltar para as retros</ModalButton>}
+      >
+        Quem criou a retro removeu o quadro, com os cards e o chat. Não há mais o que fazer aqui.
       </RoomMessage>
     );
   }
