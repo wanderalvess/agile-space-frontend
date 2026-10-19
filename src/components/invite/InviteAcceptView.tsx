@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { BRAND_TEXT, FOCUS_RING } from '@/components/room-kit/tokens';
 import { AccessButton, AccessCard, AccessPage, CenteredHeading, StateTile } from '@/components/access/access-ui';
 import { isOtherEmailError, type Invite, type InvitePreview } from '@/lib/invite-api';
-import { UNAVAILABLE_TEXT, expiresInLabel, invitedByText, otherEmailText, type InviteView, type UnavailableKind } from '@/lib/invite-state';
+import { UNAVAILABLE_TEXT, expiresInLabel, otherEmailText, type InviteView, type UnavailableKind } from '@/lib/invite-state';
 
 export interface InviteAcceptViewProps {
   view: InviteView;
@@ -65,7 +65,6 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
 
   if ((view === 'normal' || view === 'visitante') && invite) {
     const expires = expiresInLabel(invite.expiresAt);
-    const invitedBy = invitedByText('invitedByName' in invite ? invite.invitedByName : null);
     const guest = view === 'visitante';
     const emailMasked = guest && 'emailMasked' in invite ? invite.emailMasked : null;
     return (
@@ -78,7 +77,6 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
               text={
                 <>
                   Você foi convidado pra entrar como <strong className="font-bold text-foreground">{invite.roleName}</strong>.
-                  {invitedBy && <> {invitedBy}.</>}
                 </>
               }
             />
