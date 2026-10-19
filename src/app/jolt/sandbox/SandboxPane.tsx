@@ -48,7 +48,7 @@ export function SandboxPane({
   return (
     <section className={cn('flex min-h-[260px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:min-h-0', className)}>
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
-        <h2 className="flex min-w-0 items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+        <h2 className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
           <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)} aria-hidden />
           <span className="truncate">{title}</span>
         </h2>
@@ -102,7 +102,7 @@ export function SandboxPane({
       </div>
 
       {(error || footer) && (
-        <footer className={cn('shrink-0 border-t px-3 py-1.5 text-[11px] font-semibold', error ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border/60 text-muted-foreground')}>
+        <footer className={cn('shrink-0 border-t px-3 py-1.5 text-xs font-semibold', error ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border/60 text-muted-foreground')}>
           {error ?? footer}
         </footer>
       )}

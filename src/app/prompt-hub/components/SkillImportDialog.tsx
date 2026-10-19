@@ -548,24 +548,24 @@ export function SkillImportDialog({
                               className="h-8 font-semibold text-sm w-64 bg-background"
                               placeholder="Nome da skill"
                             />
-                            <span className="text-[11px] text-muted-foreground font-mono">
+                            <span className="text-xs text-muted-foreground font-mono">
                               {item.relativePath}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             {hasErrors ? (
-                              <Badge variant="destructive" className="gap-1 text-[11px]">
+                              <Badge variant="destructive" className="gap-1 text-xs">
                                 <XCircle className="h-3 w-3" />
                                 Formato inválido
                               </Badge>
                             ) : hasWarnings ? (
-                              <Badge variant="outline" className="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px]">
+                              <Badge variant="outline" className="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs">
                                 <AlertTriangle className="h-3 w-3" />
                                 {item.validation.warnings.length} avisos
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px]">
+                              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Válida
                               </Badge>
@@ -599,14 +599,14 @@ export function SkillImportDialog({
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                           <div className="flex flex-wrap gap-1">
                             {item.tags.map(t => (
-                              <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0">
+                              <Badge key={t} variant="secondary" className="text-xs px-1.5 py-0">
                                 #{t}
                               </Badge>
                             ))}
                           </div>
 
                           {hasErrors && (
-                            <span className="text-[11px] text-destructive">
+                            <span className="text-xs text-destructive">
                               {item.validation.errors[0]}
                             </span>
                           )}

@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { Button } from '@/components/ui/button';
-import { ShieldAlert, ArrowLeft, Database, Check, SkipForward, X } from 'lucide-react';
+import { EmptyState, LoadingSkeleton, PageHeader, PageShell } from '@/components/page';
+import { ModalButton } from '@/components/room-kit';
+import { ShieldAlert, ArrowLeft, Check, SkipForward, X } from 'lucide-react';
 import { PromptItem } from '../types';
 import { promptApi } from '../api';
 
@@ -73,13 +73,13 @@ type SeedResult = { title: string; outcome: 'created' | 'skipped' | 'failed'; de
 
 export default function SeedPromptsPage() {
   const { session, isLoading: isUserLoading } = useAuth();
-  const { userProfile } = useUserContext();
+  const { userProfile, isInitializing } = useUserContext();
   const router = useRouter();
 
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<SeedResult[] | null>(null);
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
 
   async function runSeed() {
     if (!session || !isAdmin) return;
@@ -118,82 +118,71 @@ export default function SeedPromptsPage() {
     setIsRunning(false);
   }
 
-  if (isUserLoading) {
+  if (isUserLoading || isInitializing) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-950">
-        <AgileSpinner size="lg" variant="indigo" />
-      </div>
+      <PageShell documentTitle="Carga de dados iniciais" width="narrow">
+        <LoadingSkeleton variant="page" label="Verificando permissão" />
+      </PageShell>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-6 bg-slate-950 px-6 text-center">
-        <ShieldAlert className="h-16 w-16 text-rose-500" />
-        <p className="max-w-md text-lg font-bold text-white">
-          Área restrita. A carga de dados iniciais da biblioteca é exclusiva de administradores.
-        </p>
-        <Button
-          onClick={() => router.push('/prompt-hub')}
-          className="h-12 rounded-xl bg-slate-800 px-8 font-black uppercase tracking-widest text-white hover:bg-slate-700"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao Hub
-        </Button>
-      </div>
+      <PageShell documentTitle="Acesso restrito" width="narrow">
+        <EmptyState
+          icon={ShieldAlert}
+          title="Acesso restrito a administradores"
+          description="A carga de dados iniciais da biblioteca de IA só pode ser executada por quem tem perfil de administrador. Se você precisa dela, peça a um administrador do portal."
+          actions={
+            <ModalButton variant="primary" onClick={() => router.push('/prompt-hub')}>
+              <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" /> Voltar à biblioteca
+            </ModalButton>
+          }
+        />
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-8 bg-slate-950 px-6 py-16 text-white">
-      <div className="max-w-xl space-y-3 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-cyan-400">
-          <Database className="h-6 w-6" />
-        </div>
-        <h2 className="text-3xl font-black uppercase italic tracking-tighter">Carga de Dados Iniciais</h2>
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-          Grava {INITIAL_PROMPTS.length} modelos públicos de exemplo em <span className="text-slate-300">prompt_hub</span>
-        </p>
-        <p className="text-[11px] font-medium leading-relaxed text-slate-400">
-          Esta operação escreve direto no banco de produção. Itens já existentes são preservados —
-          nada é sobrescrito. Os modelos ficarão registrados com a sua conta como autora.
-        </p>
-      </div>
+    <PageShell documentTitle="Carga de dados iniciais" width="narrow">
+      <PageHeader
+        title="Carga de dados iniciais"
+        module="prompt-hub"
+        breadcrumb={[{ label: 'Biblioteca de IA', href: '/prompt-hub' }, { label: 'Carga de dados iniciais' }]}
+        subtitle={`Grava ${INITIAL_PROMPTS.length} modelos públicos de exemplo na biblioteca (prompt_hub).`}
+      />
+      <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+        Esta operação escreve direto no banco de produção. Itens já existentes são preservados e
+        nada é sobrescrito. Os modelos ficarão registrados com a sua conta como autora.
+      </p>
 
       {results && (
-        <div className="w-full max-w-md space-y-2">
+        <ul className="w-full max-w-md space-y-2" aria-label="Resultado da carga">
           {results.map(result => (
-            <div
+            <li
               key={result.title}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
             >
-              {result.outcome === 'created' && <Check className="h-4 w-4 shrink-0 text-emerald-400" />}
-              {result.outcome === 'skipped' && <SkipForward className="h-4 w-4 shrink-0 text-slate-500" />}
-              {result.outcome === 'failed' && <X className="h-4 w-4 shrink-0 text-rose-400" />}
-              <span className="flex-1 truncate text-xs font-bold">{result.title}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              {result.outcome === 'created' && <Check className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />}
+              {result.outcome === 'skipped' && <SkipForward className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+              {result.outcome === 'failed' && <X className="h-4 w-4 shrink-0 text-red-700 dark:text-red-300" aria-hidden="true" />}
+              <span className="flex-1 truncate text-sm font-semibold">{result.title}</span>
+              <span className="text-xs font-medium text-muted-foreground">
                 {result.detail || 'criado'}
               </span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      <div className="flex flex-col items-center gap-4 sm:flex-row">
-        <Button
-          onClick={runSeed}
-          disabled={isRunning}
-          className="h-14 rounded-2xl bg-white px-10 font-black uppercase tracking-widest text-slate-900 hover:bg-slate-100 disabled:opacity-50"
-        >
-          {isRunning ? 'Gravando...' : results ? 'Executar Novamente' : 'Executar Carga'}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/prompt-hub')}
-          className="font-black uppercase tracking-widest text-white/40 hover:text-white"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao Hub
-        </Button>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <ModalButton variant="primary" onClick={runSeed} disabled={isRunning} className="disabled:opacity-50">
+          {isRunning ? 'Gravando...' : results ? 'Executar novamente' : 'Executar carga'}
+        </ModalButton>
+        <ModalButton variant="ghost" onClick={() => router.push('/prompt-hub')}>
+          <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" /> Voltar à biblioteca
+        </ModalButton>
       </div>
-    </div>
+    </PageShell>
   );
 }

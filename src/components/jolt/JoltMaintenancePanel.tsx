@@ -33,9 +33,9 @@ interface JoltMaintenancePanelProps {
 }
 
 const USAGE_LABEL: Record<ClassifiedField['usage'], { text: string; className: string }> = {
-  mapped: { text: 'mapeado', className: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400' },
-  indirect: { text: 'em outra operação', className: 'border-amber-500/40 text-amber-600 dark:text-amber-400' },
-  unused: { text: 'sem uso', className: 'border-sky-500/40 text-sky-600 dark:text-sky-400' },
+  mapped: { text: 'mapeado', className: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' },
+  indirect: { text: 'em outra operação', className: 'border-amber-500/40 text-amber-700 dark:text-amber-300' },
+  unused: { text: 'sem uso', className: 'border-sky-500/40 text-sky-700 dark:text-sky-300' },
 };
 
 function formatExample(v: unknown): string {
@@ -118,7 +118,7 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[520px]">
         <SheetHeader className="shrink-0 space-y-1 border-b border-border px-5 py-4 text-left">
-          <SheetTitle className="flex items-center gap-2 text-base font-black uppercase tracking-tight">
+          <SheetTitle className="flex items-center gap-2 text-base font-bold uppercase tracking-tight">
             <Wrench className="h-4 w-4 text-primary" /> Manutenção do layout
           </SheetTitle>
           <SheetDescription className="text-xs leading-relaxed">
@@ -142,10 +142,10 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
             <>
               {/* ── Adicionar campo ── */}
               <section className="space-y-3" aria-labelledby="manut-add">
-                <h3 id="manut-add" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Adicionar campo</h3>
+                <h3 id="manut-add" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Adicionar campo</h3>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-foreground">Campo da entrada</label>
+                  <label className="text-xs font-bold text-foreground">Campo da entrada</label>
                   <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" aria-expanded={pickerOpen} className="h-9 w-full justify-between rounded-xl px-3 text-xs font-bold">
@@ -174,8 +174,8 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                                 className="flex items-center justify-between gap-2 text-xs"
                               >
                                 <span className="min-w-0 flex-1 truncate font-code">{f.label}</span>
-                                <span className="shrink-0 text-[10px] text-muted-foreground">{formatExample(f.example)}</span>
-                                <Badge variant="outline" className={cn('shrink-0 px-1.5 py-0 text-[9px] font-bold', USAGE_LABEL[f.usage].className)}>
+                                <span className="shrink-0 text-xs text-muted-foreground">{formatExample(f.example)}</span>
+                                <Badge variant="outline" className={cn('shrink-0 px-1.5 py-0 text-xs font-bold', USAGE_LABEL[f.usage].className)}>
                                   {USAGE_LABEL[f.usage].text}
                                 </Badge>
                                 <Check className={cn('h-3.5 w-3.5 shrink-0', selectedField?.label === f.label ? 'opacity-100' : 'opacity-0')} />
@@ -202,7 +202,7 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="manut-target" className="text-[11px] font-bold text-foreground">Nome na saída</label>
+                  <label htmlFor="manut-target" className="text-xs font-bold text-foreground">Nome na saída</label>
                   <Input
                     id="manut-target"
                     value={target}
@@ -213,7 +213,7 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                     placeholder="Ex.: vencimentoDias"
                     className="h-9 rounded-xl text-xs font-code"
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Só o nome já basta: o painel copia o padrão dos campos vizinhos (ex.: <span className="font-code">items.[&amp;1].</span>). Para um caminho diferente, digite o caminho completo.
                   </p>
                 </div>
@@ -228,8 +228,8 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                   >
                     {preview.ok ? (
                       <>
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Vai entrar na spec</p>
-                        <code className="block break-all font-code text-[11px] text-foreground">{preview.summary}</code>
+                        <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Vai entrar na spec</p>
+                        <code className="block break-all font-code text-xs text-foreground">{preview.summary}</code>
                       </>
                     ) : (
                       <p className="flex items-start gap-1.5"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {preview.reason}</p>
@@ -237,11 +237,11 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                   </div>
                 )}
 
-                <Button onClick={handleAdd} disabled={!preview?.ok} className="h-9 w-full gap-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider">
+                <Button onClick={handleAdd} disabled={!preview?.ok} className="h-9 w-full gap-1.5 rounded-xl text-xs font-bold uppercase tracking-wider">
                   <Plus className="h-3.5 w-3.5" /> Adicionar ao layout
                 </Button>
                 {canUndo && (
-                  <Button variant="ghost" onClick={handleUndo} className="h-8 w-full gap-1.5 rounded-xl text-[11px] font-bold">
+                  <Button variant="ghost" onClick={handleUndo} className="h-8 w-full gap-1.5 rounded-xl text-xs font-bold">
                     <Undo2 className="h-3.5 w-3.5" /> Desfazer a última alteração
                   </Button>
                 )}
@@ -249,9 +249,9 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
 
               {/* ── Campos sem uso ── */}
               <section className="space-y-2" aria-labelledby="manut-unused">
-                <h3 id="manut-unused" className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                <h3 id="manut-unused" className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Campos da entrada que a spec não usa
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{parsedInput ? unused.length : '—'}</Badge>
+                  <Badge variant="secondary" className="px-1.5 py-0 text-xs">{parsedInput ? unused.length : '—'}</Badge>
                 </h3>
                 {!parsedInput && <p className="text-xs text-muted-foreground">Cole o JSON de entrada para ver quais campos o layout ainda não usa.</p>}
                 {parsedInput && unused.length === 0 && <p className="text-xs text-muted-foreground">Todos os campos da entrada já são usados pelo layout.</p>}
@@ -269,22 +269,22 @@ export function JoltMaintenancePanel({ open, onOpenChange, specText, inputText, 
                           title="Usar este campo no formulário acima"
                         >
                           <span className="min-w-0 flex-1 truncate font-code">{f.label}</span>
-                          <span className="shrink-0 text-[10px] text-muted-foreground">{formatExample(f.example)}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatExample(f.example)}</span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 )}
                 {parsedInput && unused.length > 0 && (
-                  <p className="text-[11px] text-muted-foreground">Nem todo campo precisa entrar no layout: esta lista só mostra o que ele ainda ignora.</p>
+                  <p className="text-xs text-muted-foreground">Nem todo campo precisa entrar no layout: esta lista só mostra o que ele ainda ignora.</p>
                 )}
               </section>
 
               {/* ── Mapeamentos existentes ── */}
               <section className="space-y-2" aria-labelledby="manut-list">
-                <h3 id="manut-list" className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                <h3 id="manut-list" className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Mapeamentos do layout
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">{mappings.length}</Badge>
+                  <Badge variant="secondary" className="px-1.5 py-0 text-xs">{mappings.length}</Badge>
                 </h3>
                 {mappings.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Este layout ainda não tem nenhum mapeamento em uma operação shift.</p>
@@ -363,12 +363,12 @@ function MappingRow({ mapping, confirming, onConfirmChange, onChangeTarget, onRe
   return (
     <li className="rounded-xl border border-border p-2">
       <div className="mb-1 flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-code text-[11px] font-bold text-foreground" title={mapping.source}>{mapping.source}</span>
-        {mapping.conditional && <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[9px] font-bold">condicional</Badge>}
+        <span className="min-w-0 flex-1 truncate font-code text-xs font-bold text-foreground" title={mapping.source}>{mapping.source}</span>
+        {mapping.conditional && <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-xs font-bold">condicional</Badge>}
         {confirming ? (
           <span className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={onRemove} className="text-[10px] font-bold text-destructive hover:underline">Remover</button>
-            <button type="button" onClick={() => onConfirmChange(false)} className="text-[10px] font-bold text-muted-foreground hover:underline">Manter</button>
+            <button type="button" onClick={onRemove} className="text-xs font-bold text-destructive hover:underline">Remover</button>
+            <button type="button" onClick={() => onConfirmChange(false)} className="text-xs font-bold text-muted-foreground hover:underline">Manter</button>
           </span>
         ) : (
           <button
@@ -394,9 +394,9 @@ function MappingRow({ mapping, confirming, onConfirmChange, onChangeTarget, onRe
           }
         }}
         aria-label={`Destino de ${mapping.source}`}
-        className="h-7 rounded-lg px-2 font-code text-[11px]"
+        className="h-7 rounded-lg px-2 font-code text-xs"
       />
-      {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </li>
   );
 }

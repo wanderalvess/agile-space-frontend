@@ -21,11 +21,11 @@ interface GithubIntegrationBarProps {
   setIsLayoutPopoverOpen: (val: boolean) => void;
 }
 
-const boxClass = 'flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 h-7';
+const boxClass = 'flex items-center gap-2 bg-muted border border-border rounded-lg px-2.5 h-9';
 const triggerClass =
-  'h-7 w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 shadow-none focus:ring-0 text-slate-700 dark:text-slate-300';
+  'h-9 w-full bg-muted border-border text-xs font-medium rounded-lg px-2 shadow-none focus:ring-0 text-foreground';
 const itemClass =
-  'text-[10px] font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 cursor-pointer';
+  'text-xs font-medium hover:bg-muted focus:bg-muted bg-card text-foreground cursor-pointer';
 
 export function GithubIntegrationBar({
   currentTitle,
@@ -43,42 +43,42 @@ export function GithubIntegrationBar({
   const selectedRouteName = routes.find(r => r.path === routePath)?.name;
 
   return (
-    <div className="flex items-center px-6 py-2 border-b border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 shrink-0 gap-3 w-full">
+    <div className="flex flex-wrap items-center px-4 sm:px-6 py-2 border-b border-border bg-card shrink-0 gap-2 sm:gap-3 w-full">
       {/* Nome do layout */}
-      <div className={cn(boxClass, 'flex-[1.5] min-w-[120px]')}>
-        <Tag className="h-3 w-3 text-slate-400 dark:text-slate-500 shrink-0" />
+      <div className={cn(boxClass, 'flex-[1.5] basis-[140px] min-w-[120px]')}>
+        <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
         <Input
           value={currentTitle}
           onChange={(e) => setCurrentTitle(e.target.value)}
-          placeholder="NOME DO LAYOUT..."
+          placeholder="Nome do layout..."
           aria-label="Nome do layout"
-          className="h-full bg-transparent border-none text-[8px] md:text-[8px] font-black uppercase tracking-widest p-0 focus-visible:ring-0 placeholder:text-slate-400 dark:placeholder:text-slate-700 placeholder:text-[8px] placeholder:md:text-[8px] placeholder:tracking-widest text-slate-700 dark:text-slate-300 w-full"
+          className="h-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs text-foreground w-full"
         />
       </div>
 
       {/* URL de origem */}
-      <div className={cn(boxClass, 'flex-[2] min-w-[160px]')}>
-        <Globe className="h-3 w-3 text-slate-400 dark:text-slate-500 shrink-0" />
+      <div className={cn(boxClass, 'flex-[2] basis-[180px] min-w-[160px]')}>
+        <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
         <Input
           value={apiUrl}
           onChange={(e) => setApiUrl(e.target.value)}
-          placeholder="URL DE ORIGEM (OPCIONAL)..."
+          placeholder="URL de origem (opcional)..."
           aria-label="URL de origem"
-          className="h-full bg-transparent border-none text-[8px] md:text-[8px] font-black uppercase tracking-widest p-0 focus-visible:ring-0 text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-700 placeholder:text-[8px] placeholder:md:text-[8px] placeholder:tracking-widest w-full"
+          className="h-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 text-foreground placeholder:text-muted-foreground placeholder:text-xs w-full"
         />
       </div>
 
       {/* Repositório */}
-      <div className={cn(boxClass, 'flex-[1.5] min-w-[120px]')}>
+      <div className={cn(boxClass, 'flex-[1.5] basis-[140px] min-w-[120px]')}>
         <Input
           value={repoInput}
           onChange={(e) => setRepoInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') submitRepo();
           }}
-          placeholder="USUARIO/REPOSITORIO"
+          placeholder="usuario/repositorio"
           aria-label="Repositório de layouts no GitHub"
-          className="h-full w-full bg-transparent border-none text-[8px] md:text-[8px] font-black uppercase tracking-widest p-0 focus-visible:ring-0 placeholder:text-slate-400 dark:placeholder:text-slate-700 placeholder:text-[8px] placeholder:md:text-[8px] placeholder:tracking-widest text-slate-700 dark:text-slate-300"
+          className="h-full w-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs text-foreground"
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -87,12 +87,12 @@ export function GithubIntegrationBar({
               variant="ghost"
               size="icon"
               aria-label="Carregar layouts do repositório"
-              className="h-4 w-4 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 rounded shrink-0"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-accent rounded shrink-0"
             >
               <Wand2 className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
+          <TooltipContent className="bg-card border-border text-xs text-foreground">
             Carregar layouts do repositório
           </TooltipContent>
         </Tooltip>
@@ -102,9 +102,9 @@ export function GithubIntegrationBar({
       <div className="flex-[1.2] min-w-[110px]">
         <Select onValueChange={selectIntegration} value={integration} disabled={loadingTree || integrations.length === 0}>
           <SelectTrigger aria-label="Integração" className={triggerClass}>
-            <SelectValue placeholder={loadingTree || loadingTags ? '...' : '1. INTEGRAÇÃO'} />
+            <SelectValue placeholder={loadingTree || loadingTags ? '...' : '1. Integração'} />
           </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+          <SelectContent className="bg-card border-border text-foreground">
             {integrations.map(name => (
               <SelectItem key={name} value={name} className={itemClass}>{name}</SelectItem>
             ))}
@@ -121,21 +121,21 @@ export function GithubIntegrationBar({
               aria-label="Rota"
               aria-expanded={isLayoutPopoverOpen}
               disabled={!integration || loadingTree || loadingLayout || routes.length === 0}
-              className="h-7 w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="h-9 w-full bg-muted hover:bg-accent border border-border text-xs font-medium rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-foreground hover:text-foreground"
             >
               <span className="truncate max-w-[130px]">
                 {loadingLayout
-                  ? 'BAIXANDO...'
-                  : selectedRouteName ?? (!integration ? '2. ROTA' : routes.length === 0 ? 'SEM ROTAS' : '2. BUSCAR ROTA')}
+                  ? 'Baixando...'
+                  : selectedRouteName ?? (!integration ? '2. Rota' : routes.length === 0 ? 'Sem rotas' : '2. Buscar rota')}
               </span>
               <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[260px] p-0 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-xl overflow-hidden" align="end">
-            <Command className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-              <CommandInput placeholder="Digite para buscar..." className="h-9 text-[10px] uppercase font-bold border-none placeholder:text-slate-400 dark:placeholder:text-slate-600 bg-transparent text-slate-900 dark:text-white focus:ring-0" />
+          <PopoverContent className="w-[260px] p-0 border border-border shadow-2xl rounded-xl overflow-hidden" align="end">
+            <Command className="bg-card text-foreground">
+              <CommandInput placeholder="Digite para buscar..." className="h-9 text-xs font-medium border-none placeholder:text-muted-foreground bg-transparent text-foreground focus:ring-0" />
               <CommandList className="max-h-[240px] overflow-y-auto">
-                <CommandEmpty className="py-2 text-center text-[8px] font-black uppercase text-slate-400 dark:text-slate-600">Nenhuma rota encontrada</CommandEmpty>
+                <CommandEmpty className="py-2 text-center text-xs font-medium text-muted-foreground">Nenhuma rota encontrada</CommandEmpty>
                 <CommandGroup>
                   {routes.map((route) => (
                     <CommandItem
@@ -145,10 +145,10 @@ export function GithubIntegrationBar({
                         selectRoute(route.path);
                         setIsLayoutPopoverOpen(false);
                       }}
-                      className="text-[10px] font-bold uppercase cursor-pointer text-slate-700 dark:text-slate-300 flex items-center justify-between py-2 px-3 data-[selected=true]:!bg-slate-100 dark:data-[selected=true]:!bg-slate-800 transition-colors"
+                      className="text-xs font-medium cursor-pointer text-foreground flex items-center justify-between py-2 px-3 data-[selected=true]:!bg-muted dark:data-[selected=true]:!bg-secondary transition-colors"
                     >
                       <span className="truncate max-w-[200px]">{route.name}</span>
-                      <Check className={cn('h-3.5 w-3.5 text-blue-500 transition-opacity', routePath === route.path ? 'opacity-100' : 'opacity-0')} />
+                      <Check className={cn('h-3.5 w-3.5 text-primary transition-opacity', routePath === route.path ? 'opacity-100' : 'opacity-0')} />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -162,9 +162,9 @@ export function GithubIntegrationBar({
       <div className="flex-[1] min-w-[100px]">
         <Select onValueChange={selectVersion} value={version} disabled={loadingTags || tags.length === 0}>
           <SelectTrigger aria-label="Versão do repositório" className={triggerClass}>
-            <SelectValue placeholder={loadingTags ? '...' : '3. VERSÃO'} />
+            <SelectValue placeholder={loadingTags ? '...' : '3. Versão'} />
           </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+          <SelectContent className="bg-card border-border text-foreground">
             {tags.map((tag, i) => (
               <SelectItem key={tag} value={tag} className={itemClass}>
                 {tag}{i === 0 ? ' (mais recente)' : ''}

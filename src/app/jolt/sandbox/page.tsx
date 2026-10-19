@@ -604,7 +604,7 @@ export default function JoltSandboxPage() {
     return <LoadingScreen message="Carregando Jolt Sandbox..." />;
   }
 
-  const snippetItemClass = 'cursor-pointer rounded-lg text-[10px] font-bold uppercase';
+  const snippetItemClass = 'cursor-pointer rounded-lg text-xs font-bold uppercase';
 
   return (
     <PageShell documentTitle="Jolt Sandbox" width="wide" contentClassName="gap-4">
@@ -647,7 +647,7 @@ export default function JoltSandboxPage() {
         <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 bg-card/40 px-4 py-2 md:px-6">
           <div className="flex min-w-0 items-center gap-1.5">
             <Select onValueChange={handleLoadLayout} value={selectedLayoutId || ""}>
-              <SelectTrigger aria-label="Meus layouts salvos" className="h-8 w-[200px] max-w-full rounded-xl border-border bg-background px-3 text-[10px] font-black uppercase tracking-widest text-foreground">
+              <SelectTrigger aria-label="Meus layouts salvos" className="h-8 w-[200px] max-w-full rounded-xl border-border bg-background px-3 text-xs font-bold uppercase tracking-widest text-foreground">
                 <SelectValue placeholder="Meus layouts" />
               </SelectTrigger>
               <SelectContent>
@@ -661,21 +661,21 @@ export default function JoltSandboxPage() {
                 <Trash2 className="h-4 w-4" />
               </Button>
             ) : null}
-            <Button variant="outline" size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+            <Button variant="outline" size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-8 gap-1.5 rounded-xl text-xs font-bold uppercase tracking-wider">
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               {selectedLayoutId ? 'Atualizar' : 'Salvar'}
             </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Motor</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Motor</span>
             <div role="group" aria-label="Motor de execução" className="flex items-center rounded-xl border border-border bg-muted p-0.5">
               <button
                 type="button"
                 onClick={() => setEngineMode('local')}
                 aria-pressed={engineMode === 'local'}
                 className={cn(
-                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   engineMode === 'local' ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
                 title="Execução local rápida em JavaScript no navegador"
@@ -687,7 +687,7 @@ export default function JoltSandboxPage() {
                 onClick={() => setEngineMode('java')}
                 aria-pressed={engineMode === 'java'}
                 className={cn(
-                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   engineMode === 'java' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
                 title="Execução no backend oficial da Bazaarvoice em Java"
@@ -702,14 +702,14 @@ export default function JoltSandboxPage() {
               size="sm"
               onClick={handleCompareEngines}
               disabled={isLoading || isComparing}
-              className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+              className="h-8 gap-1.5 rounded-xl text-xs font-bold uppercase tracking-wider"
               title="Executa simultaneamente em JS e Java e compara os resultados"
             >
               {isComparing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitCompare className="h-3.5 w-3.5" />}
               Comparar
             </Button>
 
-            <Button size="sm" onClick={handleRunTransformation} disabled={isLoading} className="h-8 gap-1.5 rounded-xl px-5 text-[10px] font-black uppercase tracking-wider">
+            <Button size="sm" onClick={handleRunTransformation} disabled={isLoading} className="h-8 gap-1.5 rounded-xl px-5 text-xs font-bold uppercase tracking-wider">
               {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
               Executar
             </Button>
@@ -782,7 +782,7 @@ export default function JoltSandboxPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMaintenanceOpen(true)}
-                className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary"
+                className="h-7 gap-1 rounded-lg px-2 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary"
                 title="Acrescentar, trocar ou remover campos de um layout que já existe, sem refazer"
                 aria-label="Manutenção do layout"
               >
@@ -791,25 +791,25 @@ export default function JoltSandboxPage() {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground" title="Levar o layout completo (com a spec editada) de volta para o arquivo" aria-label="Layout completo">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground" title="Levar o layout completo (com a spec editada) de volta para o arquivo" aria-label="Layout completo">
                     <FileJson className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[210px] rounded-xl p-1">
-                  <div className="mb-1 border-b border-border px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Arquivo inteiro, com a spec atual</div>
+                  <div className="mb-1 border-b border-border px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Arquivo inteiro, com a spec atual</div>
                   <DropdownMenuItem onClick={handleCopyFullLayout} className={snippetItemClass}>Copiar layout completo</DropdownMenuItem>
                   <DropdownMenuItem onClick={handleDownloadFullLayout} className={snippetItemClass}>Baixar como .json</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary" title="Inserir um modelo de operação Jolt" aria-label="Modelos Jolt (snippets)">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary" title="Inserir um modelo de operação Jolt" aria-label="Modelos Jolt (snippets)">
                     <Sparkles className="h-3.5 w-3.5" />
                     <span className="hidden 2xl:inline">Modelos</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[190px] rounded-xl p-1">
-                  <div className="mb-1 border-b border-border px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Modelos Jolt (substituem a spec)</div>
+                  <div className="mb-1 border-b border-border px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Modelos Jolt (substituem a spec)</div>
                   <DropdownMenuItem onClick={() => handleInjectSnippet('shift')} className={snippetItemClass}>Shift (De/Para)</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleInjectSnippet('modify')} className={snippetItemClass}>Modify (Conversão)</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleInjectSnippet('default')} className={snippetItemClass}>Default (Valores Padrão)</DropdownMenuItem>
@@ -830,7 +830,7 @@ export default function JoltSandboxPage() {
             dotClass="bg-emerald-500"
             toolbar={
               executionStats ? (
-                <div className="mr-1 flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[10px] font-bold text-foreground">
+                <div className="mr-1 flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-bold text-foreground">
                   <span className={cn("h-1.5 w-1.5 rounded-full", executionStats.engine === 'java' ? "bg-purple-500" : "bg-primary")} aria-hidden />
                   <span>{executionStats.engine === 'java' ? 'Java Bazaarvoice' : 'JavaScript'}</span>
                   <span className="text-muted-foreground" aria-hidden>•</span>
@@ -857,7 +857,7 @@ export default function JoltSandboxPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <GitCompare className="h-5 w-5 text-primary" />
-                  <DialogTitle className="font-headline text-lg font-black uppercase tracking-tight">
+                  <DialogTitle className="font-headline text-lg font-bold uppercase tracking-tight">
                     Comparação de Motores JOLT
                   </DialogTitle>
                 </div>
@@ -895,7 +895,7 @@ export default function JoltSandboxPage() {
             {compareResult && compareResult.diffs.length > 0 && (
               <div className="mt-3 max-h-[170px] overflow-y-auto rounded-xl border border-destructive/30 bg-destructive/5 p-2" role="list" aria-label="Diferenças entre os motores">
                 {compareResult.diffs.slice(0, 50).map(d => (
-                  <div key={d.path + d.kind} role="listitem" className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-2 py-1 font-code text-[11px]">
+                  <div key={d.path + d.kind} role="listitem" className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-2 py-1 font-code text-xs">
                     <span className="font-bold text-foreground">{d.path}</span>
                     {d.kind === 'valor' && (
                       <span className="text-muted-foreground">
@@ -906,17 +906,17 @@ export default function JoltSandboxPage() {
                     {d.kind === 'so-java' && <span className="text-muted-foreground">só no Java: <span className="text-foreground">{describeValue(d.java)}</span></span>}
                   </div>
                 ))}
-                {compareResult.diffs.length > 50 && <p className="px-2 py-1 text-[11px] text-muted-foreground">e mais {compareResult.diffs.length - 50} diferenças…</p>}
+                {compareResult.diffs.length > 50 && <p className="px-2 py-1 text-xs text-muted-foreground">e mais {compareResult.diffs.length - 50} diferenças…</p>}
               </div>
             )}
             {compareResult && (
               <div className="mt-4 grid min-h-[350px] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
                 <div className="flex min-h-[200px] flex-col overflow-hidden rounded-xl border border-border bg-background">
                   <div className="flex items-center justify-between border-b border-border/60 bg-muted px-3 py-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-primary">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
                       JavaScript (Navegador)
                     </span>
-                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-[10px] text-foreground">
+                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-xs text-foreground">
                       {compareResult.localTime} ms
                     </span>
                   </div>
@@ -927,10 +927,10 @@ export default function JoltSandboxPage() {
 
                 <div className="flex min-h-[200px] flex-col overflow-hidden rounded-xl border border-border bg-background">
                   <div className="flex items-center justify-between border-b border-border/60 bg-muted px-3 py-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
                       Java Bazaarvoice (Backend Oficial)
                     </span>
-                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-[10px] text-foreground">
+                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-xs text-foreground">
                       {compareResult.javaTime} ms
                     </span>
                   </div>
@@ -947,14 +947,14 @@ export default function JoltSandboxPage() {
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent className="rounded-2xl border-border bg-card text-foreground shadow-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-headline text-xl font-black uppercase tracking-tight">Excluir Layout?</AlertDialogTitle>
+              <AlertDialogTitle className="font-headline text-xl font-bold uppercase tracking-tight">Excluir Layout?</AlertDialogTitle>
               <AlertDialogDescription className="text-sm font-medium text-muted-foreground">
                 O layout <strong className="text-foreground">"{currentTitle}"</strong> será removido permanentemente.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="rounded-xl text-[10px] font-bold uppercase tracking-widest">Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteLayout} className="rounded-xl border-none bg-destructive text-[10px] font-bold uppercase tracking-widest text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+              <AlertDialogCancel className="rounded-xl text-xs font-bold uppercase tracking-widest">Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteLayout} className="rounded-xl border-none bg-destructive text-xs font-bold uppercase tracking-widest text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

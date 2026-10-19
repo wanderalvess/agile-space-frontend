@@ -415,7 +415,7 @@ export default function JoltGeneratorPage() {
                 { id: 'saida', label: 'Saída esperada · API de destino', hint: 'Melhor com os valores do mesmo registro da entrada. Valores do contrato ("string", 0) também servem.', text: outputText, set: setOutputText, parsed: parsedOutput },
               ].map((box) => (
                 <div key={box.id} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-                  <label htmlFor={box.id} className="text-xs font-black uppercase tracking-wider text-muted-foreground">{box.label}</label>
+                  <label htmlFor={box.id} className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{box.label}</label>
                   <p className="text-xs text-muted-foreground">{box.hint}</p>
                   <textarea
                     id={box.id}
@@ -452,7 +452,7 @@ export default function JoltGeneratorPage() {
           <section aria-labelledby="regras-titulo" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h1 id="regras-titulo" className="font-headline text-2xl font-black tracking-tight">Como cada campo da saída é montado</h1>
+                <h1 id="regras-titulo" className="font-headline text-2xl font-bold tracking-tight">Como cada campo da saída é montado</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {result.mode === 'CONTRATO'
                     ? 'A saída é o exemplo do contrato, sem valores: cada origem foi sugerida pelo nome do campo e a regra pelo tipo. Confirme ou escolha o que está em laranja.'
@@ -561,7 +561,7 @@ export default function JoltGeneratorPage() {
                 const d = describeOperation(op, i, result.spec.length);
                 return (
                   <div key={i} className="rounded-xl border border-border bg-card p-4">
-                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Passo {i + 1}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Passo {i + 1}</span>
                     <code className="mt-1 block font-code text-[13px] font-semibold">{d.name}</code>
                     <p className="mt-1 text-[13px] text-muted-foreground">{d.what}</p>
                   </div>
@@ -596,7 +596,7 @@ export default function JoltGeneratorPage() {
                     <Button type="button" size="sm" onClick={openSandbox}>Abrir na Sandbox</Button>
                   </div>
                 </div>
-                <pre className="max-h-[640px] overflow-auto bg-slate-950 p-4 font-code text-xs leading-relaxed text-slate-100">{shownText}</pre>
+                <pre className="max-h-[640px] overflow-auto bg-card p-4 font-code text-xs leading-relaxed text-foreground">{shownText}</pre>
               </section>
               <div className="min-w-0 flex-[1_1_320px] lg:max-w-[440px]">
                 <RouteRecordPanel

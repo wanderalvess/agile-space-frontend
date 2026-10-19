@@ -90,23 +90,23 @@ function ModeCard({ mode }: { mode: Mode }) {
       <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl transition-transform duration-700 group-hover:scale-125 dark:bg-primary/10" />
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">{mode.icon}</div>
-        <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground">
+        <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
           {mode.tag}
         </span>
       </div>
-      <h2 className="relative z-10 mt-4 font-headline text-2xl font-black uppercase tracking-tight text-foreground transition-colors group-hover:text-primary">
+      <h2 className="relative z-10 mt-4 font-headline text-2xl font-bold uppercase tracking-tight text-foreground transition-colors group-hover:text-primary">
         {mode.title}
       </h2>
       <p className="relative z-10 mt-2 text-[13px] font-medium leading-relaxed text-muted-foreground">{mode.summary}</p>
 
       <div className="relative z-10 mt-5 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-background/60 p-3 text-xs">
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você entrega</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Você entrega</span>
         <span className="font-semibold text-foreground">{mode.input}</span>
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você recebe</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Você recebe</span>
         <span className="font-semibold text-foreground">{mode.output}</span>
       </div>
 
-      <h3 className="relative z-10 mt-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Use quando</h3>
+      <h3 className="relative z-10 mt-5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Use quando</h3>
       <ul className="relative z-10 mt-2 space-y-1.5">
         {mode.useWhen.map(item => (
           <li key={item} className="flex gap-2 text-[13px] font-medium leading-snug text-foreground">
@@ -149,14 +149,14 @@ export default function JoltHubPage() {
 
     <section aria-label="Fluxo recomendado" className="space-y-4">
       <div>
-        <h2 className="font-headline text-xl font-black uppercase tracking-tight">Os dois juntos funcionam melhor</h2>
+        <h2 className="font-headline text-xl font-bold uppercase tracking-tight">Os dois juntos funcionam melhor</h2>
         <p className="text-sm font-medium text-muted-foreground">Quem está começando costuma seguir este caminho.</p>
       </div>
       <ol className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {FLOW.map((step, i) => (
           <li key={step.title} className="relative rounded-2xl border border-border bg-card p-4">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{i + 1}</span>
-            <h3 className="mt-3 text-sm font-black uppercase tracking-tight">{step.title}</h3>
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{i + 1}</span>
+            <h3 className="mt-3 text-sm font-bold uppercase tracking-tight">{step.title}</h3>
             <p className="mt-1 text-xs font-medium leading-relaxed text-muted-foreground">{step.text}</p>
             {i < FLOW.length - 1 && <ArrowRight className="absolute -right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground md:block" aria-hidden />}
           </li>
@@ -166,7 +166,7 @@ export default function JoltHubPage() {
 
     <section aria-label="Referência das operações" className="space-y-4">
       <div>
-        <h2 className="font-headline text-xl font-black uppercase tracking-tight">As quatro operações do Jolt</h2>
+        <h2 className="font-headline text-xl font-bold uppercase tracking-tight">As quatro operações do Jolt</h2>
         <p className="text-sm font-medium text-muted-foreground">Toda spec combina estas operações, aplicadas em ordem.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -176,7 +176,7 @@ export default function JoltHubPage() {
               <Code2 className="h-4 w-4 text-primary" aria-hidden />
               <span className="font-code text-sm font-bold">{op.name}</span>
             </div>
-            <h3 className="text-xs font-black uppercase tracking-wider">{op.label}</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider">{op.label}</h3>
             <p className="text-xs font-medium leading-relaxed text-muted-foreground">{op.text}</p>
             <code className="mt-auto rounded-lg bg-muted px-2 py-1.5 font-code text-xs text-foreground">{op.spec}</code>
           </Card>

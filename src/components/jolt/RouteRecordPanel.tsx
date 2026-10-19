@@ -7,7 +7,7 @@ import type { KeyValue, RouteForm } from '@/lib/jolt-route-record';
 import { routeFormFromRecord } from '@/lib/jolt-route-record';
 
 const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground';
-const labelClass = 'flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground';
+const labelClass = 'flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground';
 
 function Rows({
   title,
@@ -20,7 +20,7 @@ function Rows({
 }) {
   return (
     <fieldset className="space-y-2">
-      <legend className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</legend>
+      <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</legend>
       {rows.map((row, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-2">
           <input
@@ -148,7 +148,7 @@ export function RouteRecordPanel({
         </label>
       </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Requisição</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Requisição</span>
         <div className="flex gap-2">
           <select aria-label="Método" value={form.method} onChange={(e) => set({ method: e.target.value })} className="h-10 rounded-lg border border-input bg-background px-2 text-sm font-bold">
             {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => (
@@ -177,7 +177,7 @@ export function RouteRecordPanel({
 
       {variables.length > 0 && (
         <div className="space-y-1.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Variáveis da rota</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Variáveis da rota</h3>
           <div className="flex flex-wrap gap-1.5">
             {variables.map((v) => (
               <code key={v} className="rounded-md bg-emerald-500/10 px-2 py-1 font-code text-[11.5px] text-emerald-800 dark:text-emerald-300">{`{{${v}}}`}</code>
