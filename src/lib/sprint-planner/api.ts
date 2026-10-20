@@ -370,7 +370,7 @@ export const backlogApi = {
 /** Segundos de espera de um 429 do sync ("Tente de novo em 240 s"); null se a mensagem não trouxer. */
 export function retryAfterSec(err: unknown): number | null {
   if (!(err instanceof CeremonyApiError) || err.status !== 429) return null;
-  const m = /em\s+(\d+)\s*s/i.exec(err.message);
+  const m = /em\s+(\d+)\s*s/i.exec(err.message);
   return m ? Number(m[1]) : null;
 }
 
