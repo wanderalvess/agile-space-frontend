@@ -134,6 +134,10 @@ describe('barras e selos do Cronograma (texto branco sobre a cor da fase)', () =
     'rose-700': '#be123c',
     'amber-800': '#92400e',
     'rose-800': '#9f1239',
+    'emerald-700': '#047857',
+    'orange-700': '#c2410c',
+    'fuchsia-700': '#a21caf',
+    'lime-700': '#4d7c0f',
   };
   it('as cores antigas ficavam abaixo de 4,5:1', () => {
     for (const [name, h] of Object.entries(OLD)) expect(contrastRatio(WHITE, hex(h)), name).toBeLessThan(AA_NORMAL);
@@ -141,12 +145,12 @@ describe('barras e selos do Cronograma (texto branco sobre a cor da fase)', () =
   it.each(Object.entries(NEW))('texto branco sobre %s >= 4,5:1', (_n, h) => {
     expect(contrastRatio(WHITE, hex(h))).toBeGreaterThanOrEqual(AA_NORMAL);
   });
-  it('o componente usa as cores novas e nenhuma 500/600 clara com texto branco', () => {
-    const src = read('src/components/squad/SquadPlansTimeline.tsx');
-    expect(src).not.toMatch(/bg: '[^']*bg-(purple|teal|amber|blue)-(500|600)/);
-    expect(src).not.toMatch(/\{ label: '[^']*', bg: '[^']*-(500|600)/);
+  it('as fases usam as cores novas (700/800) com texto branco e nenhuma 500/600 clara', () => {
+    const src = read('src/components/squad/cronograma/styles.ts');
+    expect(src).not.toMatch(/'bg-[a-z]+-(500|600) text-white/);
     expect(src).not.toMatch(/from-amber-500/);
-    expect(src).toMatch(/bg-cyan-800/);
+    expect(src).toMatch(/bg-cyan-800 text-white/);
+    for (const c of ['blue-700', 'teal-700', 'purple-700', 'amber-700']) expect(src).toContain(`bg-${c} text-white`);
   });
 });
 
@@ -166,7 +170,15 @@ describe('varredura dos arquivos tocados', () => {
     'src/app/manual/components/ManualHero.tsx',
     'src/app/manual/page.tsx',
     'src/components/showcase/ShowcaseCover.tsx',
-    'src/components/squad/SquadPlansTimeline.tsx',
+    'src/components/squad/cronograma/CronogramaView.tsx',
+    'src/components/squad/cronograma/CronogramaToolbar.tsx',
+    'src/components/squad/cronograma/GanttGrid.tsx',
+    'src/components/squad/cronograma/GanttBar.tsx',
+    'src/components/squad/cronograma/IssueSheet.tsx',
+    'src/components/squad/cronograma/DateFieldsDialog.tsx',
+    'src/components/squad/cronograma/InferredBanner.tsx',
+    'src/components/squad/cronograma/Summary.tsx',
+    'src/components/squad/cronograma/styles.ts',
     'src/app/knowledge/settings/page.tsx',
     'src/components/invite/InviteAcceptView.tsx',
   ];
@@ -205,6 +217,6 @@ describe('varredura dos arquivos tocados', () => {
     expect(read('src/components/layout/AppHeader.tsx')).toMatch(/-my-2 inline-flex items-center rounded-md py-2/);
     expect(read('src/components/page/PageHeader.tsx')).toMatch(/inline-flex min-h-6 items-center/);
     expect(read('src/components/ui/checkbox.tsx')).toMatch(/after:-inset-1/);
-    expect(read('src/components/squad/SquadPlansTimeline.tsx')).toMatch(/min-h-6 min-w-6/);
+    expect(read('src/components/squad/cronograma/GanttGrid.tsx')).toMatch(/min-h-6 min-w-6/);
   });
 });

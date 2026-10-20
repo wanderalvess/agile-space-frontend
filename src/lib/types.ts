@@ -927,7 +927,7 @@ export type SquadConfig = {
   // sem depender de heurística de texto. Ordem do array = ordem da fase no
   // workflow (ex: Codificação -> Code Review -> Teste QA -> Execução TI).
   // undefined/[] = cai no fallback de heurística por tipo (ver
-  // getDisciplineColorAndLabel em SquadPlansTimeline.tsx).
+  // resolveWorkflowPhase em lib/cronograma/phases.ts).
   phases?: SquadWorkflowPhase[];
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
@@ -1038,7 +1038,7 @@ export type SquadIssueSnapshot = {
   targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
   // true = targetStart/targetEnd vieram de campo de data real do Jira; false/
   // undefined = caiu no fallback (dueDate, ou created/updated) — ver
-  // squadIssueToPlansTask. Sem isso, a cascata de atraso do Plans não sabe
+  // toCronoTask (lib/cronograma/task.ts). Sem isso, a cascata de atraso do Plans não sabe
   // distinguir "prazo real estourado" de "chute em cima de data inventada".
   datesAreInferred?: boolean;
   // Posição no array fields.subtasks da issue pai (ordem de rank do Jira) —

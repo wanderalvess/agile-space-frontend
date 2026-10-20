@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { resolveWorkflowPhase, type PlansTask } from '../SquadPlansTimeline';
+import { resolveWorkflowPhase } from '../phases';
 
-const task = (type: string): PlansTask => ({ id: type, jiraKey: 'X-1', title: '', type, status: '', statusCategory: 'new', assigneeName: '', targetStart: '', targetEnd: '' }) as unknown as PlansTask;
+const task = (type: string) => ({ type });
 const order = (type: string) => resolveWorkflowPhase(task(type)).order;
 
 describe('ordem das fases da cascata sem fases configuradas', () => {
@@ -22,18 +22,30 @@ describe('ordem das fases da cascata sem fases configuradas', () => {
   it('tipo genérico (Sub-task) continua por último, sem corromper a sequência', () => {
     expect(order('Sub-task')).toBe(99);
     expect(order('')).toBe(99);
+    expect(resolveWorkflowPhase(task('Sub-task')).matched).toBe(false);
   });
 
   it('"dev" dentro de outra palavra não vira Codificação', () => {
     expect(order('Devolução')).toBe(99);
   });
 
-  it('fases configuradas pela squad mandam na ordem', () => {
+  it('"ti" dentro de outra palavra não vira Execução de TI', () => {
+    expect(resolveWorkflowPhase(task('Testes Automatizados')).kind).toBe('Auto');
+    expect(order('Notificação')).toBe(99);
+  });
+
+  it('fases configuradas pela squad mandam na ordem e na cor', () => {
     const phases = [
       { id: 'a', label: 'Teste', kind: 'QA', color: 'bg-amber-600', issueTypes: ['Teste QA'] },
       { id: 'b', label: 'Código', kind: 'DEV', color: 'bg-blue-600', issueTypes: ['Codificação'] },
     ] as never;
     expect(resolveWorkflowPhase(task('Teste QA'), phases).order).toBe(0);
     expect(resolveWorkflowPhase(task('Codificação'), phases).order).toBe(1);
+    expect(resolveWorkflowPhase(task('Codificação'), phases).configuredColor).toBe('bg-blue-600');
+  });
+
+  it('tipo fora da config cai na heurística', () => {
+    const phases = [{ id: 'a', label: 'Teste', kind: 'QA', color: 'bg-amber-600', issueTypes: ['Teste QA'] }] as never;
+    expect(resolveWorkflowPhase(task('Code Review'), phases).order).toBe(2);
   });
 });
