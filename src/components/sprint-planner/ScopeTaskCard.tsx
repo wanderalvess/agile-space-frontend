@@ -5,14 +5,7 @@ import { BRAND_TEXT, FOCUS_RING, StatusChip } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import type { BacklogParent } from '@/lib/sprint-planner/api';
 import { formatHours } from '@/lib/sprint-planner/format';
-import {
-  carryOverTimes,
-  divergenceMessages,
-  hasNoEstimate,
-  hasNoTitleHours,
-  parentHours,
-  unclassifiedCount,
-} from '@/lib/sprint-planner/scope';
+import { noticesFromBacklog, parentHours, type TaskNoticeData } from '@/lib/sprint-planner/scope';
 
 const ACTION =
   'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border bg-transparent text-foreground transition-colors hover:bg-accent disabled:opacity-50 max-sm:h-11 max-sm:w-11';
@@ -27,26 +20,30 @@ export function HoursChips({ dev, qa }: { dev: number; qa: number }) {
   );
 }
 
-/** Os avisos de uma tarefa (sobra, sem estimativa, divergência, tipos sem classificação). */
-export function TaskNotices({ task, onOpenTypes }: { task: BacklogParent; onOpenTypes?: () => void }) {
-  const messages = divergenceMessages(task);
-  const unclassified = unclassifiedCount(task);
-  const times = task.carryOver ? carryOverTimes(task) : null;
+/**
+ * Os avisos de uma tarefa (sobra, sem estimativa, divergência, tipos sem classificação). Servem à refinada
+ * (`noticesFromBacklog`) e ao item do plano (`noticesFromItem`, com as flags do servidor).
+ */
+export function TaskNotices({ notices, onOpenTypes }: { notices: TaskNoticeData; onOpenTypes?: () => void }) {
+  const { unclassified } = notices;
   return (
     <>
-      {times && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-foreground" data-testid={`sobra-${task.key}`}>
+      {notices.carryOver && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-foreground" data-testid={`sobra-${notices.key}`}>
           <StatusChip tone="warn"><RotateCcw aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} /> Veio da sprint anterior</StatusChip>
           <span className="tabular-nums text-muted-foreground">
-            Tempo Estimado {formatHours(times.estimated)} · Tempo Restante <strong className="text-foreground">{formatHours(times.remaining)}</strong>
+            Tempo Estimado {formatHours(notices.estimated)} · Tempo Restante <strong className="text-foreground">{formatHours(notices.remaining)}</strong>
           </span>
         </p>
       )}
-      {hasNoEstimate(task) && (
+      {notices.outOfBacklog && (
+        <p className="text-[13px] text-muted-foreground">Saiu das refinadas no Jira; valem as horas de quando entrou no plano.</p>
+      )}
+      {notices.noEstimate && (
         <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">Sem estimativa: peça o refinamento no Poker ou preencha o título e as subtarefas no Jira.</p>
       )}
-      {hasNoTitleHours(task) && <p className="text-[13px] text-muted-foreground">Sem horas no título: valem as subtarefas.</p>}
-      {messages.map((m) => (
+      {notices.noTitleHours && <p className="text-[13px] text-muted-foreground">Sem horas no título: valem as subtarefas.</p>}
+      {notices.divergences.map((m) => (
         <p key={m} className="flex items-start gap-1.5 text-[13px] text-amber-800 dark:text-amber-300">
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
           <span>{m}; ajuste a subtarefa no Jira.</span>
@@ -88,7 +85,7 @@ export function BacklogCard({
           <HoursChips dev={parentHours(task, 'DEV')} qa={parentHours(task, 'QA')} />
         </div>
         <p className="text-sm font-medium text-foreground [overflow-wrap:anywhere]">{task.title ?? 'Sem título'}</p>
-        <TaskNotices task={task} onOpenTypes={onOpenTypes} />
+        <TaskNotices notices={noticesFromBacklog(task)} onOpenTypes={onOpenTypes} />
       </div>
       {canEdit && (
         <button type="button" className={cn(ACTION, FOCUS_RING)} onClick={() => onAdd(task.key)} disabled={adding} aria-label={`Adicionar ${task.key} ao escopo`}>

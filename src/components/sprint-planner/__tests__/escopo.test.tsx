@@ -2,7 +2,10 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CeremonyApiError } from '../../../lib/ceremony-api';
-import type { BacklogParent, BacklogView, PlanView, Thermometer } from '../../../lib/sprint-planner/api';
+import type { BacklogParent, BacklogView, PlanItem, PlanView, Thermometer } from '../../../lib/sprint-planner/api';
+import { planItem, scopeTotalsOf, scopeViewOf } from '../../../lib/sprint-planner/__tests__/fixtures/scope';
+import { applyScope } from '../../../lib/sprint-planner/scope';
+import type { ScopeView } from '../../../lib/sprint-planner/api';
 
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -58,7 +61,7 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
     reserve: { mode: 'HORAS', pct: 12, focusPct: null, types: [] },
     syncedAt: null,
     capacity: { byClass: { DEV: 90, QA: 75 }, workingDays: 9, people: [] },
-    absences: [], holidays: [], items: [], assignments: [],
+    absences: [], holidays: [], items: [], scope: scopeTotalsOf([]), assignments: [], goalSavedInJira: false,
     thermometer: { DEV: thermo(0, 90), QA: thermo(0, 75) },
     permissions: { canEditPlan, canEditTypes: canEditPlan, myAccountId: 'a1' },
     updatedAt: null,
@@ -66,10 +69,21 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
   };
 }
 
-const withItem = (p: PlanView, t: BacklogParent, id = 'i1'): PlanView => ({
-  ...p,
-  items: [...p.items, { id, parentKey: t.key, title: t.title, titleDevHours: t.titleHours?.dev ?? null, titleQaHours: t.titleHours?.qa ?? null, sortOrder: p.items.length + 1, carryOver: t.carryOver }],
-});
+/** Item do plano no formato do backend para uma tarefa do backlog (horas: sobra = restante; senão título; senão subtarefas). */
+const itemOf = (t: BacklogParent, id: string, sortOrder: number): PlanItem => {
+  const dev = t.carryOver ? t.sumByClass.DEV ?? 0 : t.titleHours?.dev ?? t.sumByClass.DEV ?? 0;
+  const qa = t.carryOver ? t.sumByClass.QA ?? 0 : t.titleHours?.qa ?? t.sumByClass.QA ?? 0;
+  return planItem({
+    id, parentKey: t.key, title: t.title, sortOrder, carryOver: t.carryOver, titleDevHours: t.titleHours?.dev ?? null, titleQaHours: t.titleHours?.qa ?? null,
+    devHours: dev, qaHours: qa, subtaskDevH: t.sumByClass.DEV ?? 0, subtaskQaH: t.sumByClass.QA ?? 0,
+    divergenceDev: t.divergenceDev, divergenceQa: t.divergenceQa, divergent: t.divergent,
+  });
+};
+
+const withItem = (p: PlanView, t: BacklogParent, id = 'i1'): PlanView => {
+  const items = [...p.items, itemOf(t, id, p.items.length + 1)];
+  return { ...p, items, scope: scopeTotalsOf(items) };
+};
 
 function mockMedia(mobile: boolean) {
   window.matchMedia = ((q: string) => ({
@@ -79,7 +93,7 @@ function mockMedia(mobile: boolean) {
 }
 
 function renderStep(plan: PlanView, onOver: Partial<React.ComponentProps<typeof ScopeStep>> = {}) {
-  const props = { plan, onPlan: vi.fn(), onReload: vi.fn().mockResolvedValue(undefined), onPatch: vi.fn(), onOpenTypes: vi.fn(), ...onOver };
+  const props = { plan, onScope: vi.fn(), onReload: vi.fn().mockResolvedValue(undefined), onPatch: vi.fn(), onOpenTypes: vi.fn(), ...onOver };
   return { ...render(<ScopeStep {...props} />), props };
 }
 
@@ -110,7 +124,7 @@ describe('Escopo: barras', () => {
 
 describe('Escopo: selecionar e recalcular', () => {
   it('adiciona: barras se mexem na hora (provisório) e depois valem as do servidor', async () => {
-    let resolve!: (v: PlanView) => void;
+    let resolve!: (v: ScopeView) => void;
     h.api.addItems.mockReturnValue(new Promise((r) => { resolve = r; }));
     const p = planView({ thermometer: { DEV: thermo(80, 90), QA: thermo(60, 75) } });
     const { props, rerender } = renderStep(p);
@@ -123,17 +137,20 @@ describe('Escopo: selecionar e recalcular', () => {
     expect(screen.getByTestId('escopo-SQ-1')).toBeTruthy();
     expect(h.api.addItems).toHaveBeenCalledWith('SQ', 'p1', ['SQ-1']);
 
-    const fromServer = withItem({ ...p, thermometer: { DEV: thermo(91, 90), QA: thermo(64, 75) } }, task());
-    resolve(fromServer);
-    await waitFor(() => expect(props.onPlan).toHaveBeenCalledWith(fromServer));
+    // O POST devolve o ScopeView (201), não o PlanView.
+    const sv = scopeViewOf([itemOf(task(), 'i1', 1)], { DEV: thermo(91, 90), QA: thermo(64, 75) });
+    resolve(sv);
+    await waitFor(() => expect(props.onScope).toHaveBeenCalledWith(sv));
+    await waitFor(() => expect(props.onReload).toHaveBeenCalled()); // a versão do plano mudou: recarrega
+    const fromServer = applyScope(p, sv);
     rerender(<ScopeStep {...props} plan={fromServer} />);
     await waitFor(() => expect(screen.queryByText('Calculando')).toBeNull());
     expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 91/90 h · 101% · coberto pela reserva (12%)');
     expect(screen.queryByRole('button', { name: /Adicionar SQ-1/ })).toBeNull();
   });
 
-  it('remove: tira da lista na hora e chama o servidor', async () => {
-    h.api.removeItem.mockResolvedValue(null);
+  it('remove: tira da lista na hora, chama o servidor (204, sem corpo) e recarrega o plano', async () => {
+    h.api.removeItem.mockResolvedValue(undefined);
     const p = withItem(planView({ thermometer: { DEV: thermo(10, 90), QA: thermo(4, 75) } }), task());
     const { props } = renderStep(p);
     fireEvent.click(await screen.findByRole('button', { name: 'Remover SQ-1 do escopo' }));
@@ -169,7 +186,8 @@ describe('Escopo: sinalizações nas tarefas', () => {
       status: 'ok',
       data: view([divergent, none, carry], { unclassifiedTypes: [{ typeId: '7', typeName: 'Especificação', count: 1, hours: 3 }] }),
     });
-    const { props } = renderStep(planView());
+    const unclassifiedTypes = [{ typeId: '7', typeName: 'Especificação', count: 1, hours: 3 }];
+    const { props } = renderStep(planView({ scope: { ...scopeTotalsOf([]), unclassifiedCount: 1, unclassifiedHours: 3, unclassifiedTypes } }));
 
     const d = await screen.findByTestId('refinada-SQ-2');
     expect(d.textContent).toContain('Título diz DEV 18h, subtarefa Codificação tem 16h. Vale o título');

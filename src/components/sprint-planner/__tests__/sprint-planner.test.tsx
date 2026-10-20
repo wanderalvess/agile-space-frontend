@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CeremonyApiError } from '../../../lib/ceremony-api';
 import type { PlanSummary, PlanView, SubtaskType } from '../../../lib/sprint-planner/api';
+import { scopeTotalsOf } from '../../../lib/sprint-planner/__tests__/fixtures/scope';
 
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -56,7 +57,7 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
     },
     absences: [{ id: 'ab1', accountId: 'a2', startDate: '2026-10-23', endDate: '2026-10-23', hoursPerDay: null, reason: 'Consulta' }],
     holidays: [{ day: '2026-11-02', label: 'Finados' }],
-    items: [], assignments: [],
+    items: [], scope: scopeTotalsOf([]), assignments: [], goalSavedInJira: false,
     thermometer: {
       DEV: { allocatedHours: 0, capacityHours: 66, pct: 0, zone: 'VERDE', state: 'DENTRO_DA_CAPACIDADE', reservePct: 10, reserveLimitHours: 72.6 },
       QA: { allocatedHours: 30, capacityHours: 31.5, pct: 95.2, zone: 'VERMELHO', state: 'DENTRO_DA_CAPACIDADE', reservePct: 10, reserveLimitHours: 34.65 },
