@@ -154,7 +154,7 @@ describe('Criar plano', () => {
   });
 });
 
-function renderPlan(step: 'capacidade' | 'escopo' = 'capacidade') {
+function renderPlan(step: 'capacidade' | 'escopo' | 'distribuicao' = 'capacidade') {
   return render(<PlanScreen squadId="SQ" planId="p1" step={step} onStepChange={vi.fn()} />);
 }
 
@@ -222,8 +222,8 @@ describe('Capacidade', () => {
 
   it('etapas futuras são placeholders, sem dados', async () => {
     h.api.get.mockResolvedValue(planView());
-    renderPlan('escopo');
-    expect(await screen.findByText('Escopo chega na próxima entrega')).toBeTruthy();
+    renderPlan('distribuicao');
+    expect(await screen.findByText('Distribuição chega numa próxima entrega')).toBeTruthy();
     expect(screen.queryByTestId('total-DEV')).toBeNull();
   });
 });
