@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useToast } from '@/hooks/use-toast';
 import { teamApi, type TeamCandidate } from '@/app/squad/api';
@@ -27,6 +27,8 @@ export function useAddMember(args: { squadId: string; canManageTeam: boolean; re
   const [hoursText, setHoursText] = useState(formatHours(DEFAULT_DAILY_HOURS));
   const [candidates, setCandidates] = useState<TeamCandidate[]>([]);
   const [saving, setSaving] = useState(false);
+  // Trava síncrona contra duplo clique: o `saving` só vale depois do próximo render.
+  const inFlight = useRef(false);
 
   const reset = useCallback(() => {
     setName('');
@@ -79,12 +81,13 @@ export function useAddMember(args: { squadId: string; canManageTeam: boolean; re
       toast({ title: 'Informe o nome do integrante', variant: 'destructive' });
       return;
     }
-    if (!hoursValid) return;
+    if (!hoursValid || inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     try {
       const added = await teamApi.addMember(squadId, {
         ...(userId ? { userId } : {}),
-        ...(email.trim() ? { email: email.trim() } : {}),
+        ...(email.trim() ? { email: email.trim().toLowerCase() } : {}),
         displayName: name.trim() || undefined,
         roleName: role,
       });
@@ -97,6 +100,7 @@ export function useAddMember(args: { squadId: string; canManageTeam: boolean; re
     } catch (err: unknown) {
       toast({ title: 'Não foi possível adicionar', description: (err as Error)?.message || 'Tente novamente.', variant: 'destructive' });
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   }, [name, userId, email, role, hoursParsed, hoursValid, squadId, saveMemberCapacity, refreshMembers, reset, toast]);
