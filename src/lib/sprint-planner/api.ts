@@ -464,3 +464,143 @@ export function isConflict(err: unknown): boolean {
 export function statusOf(err: unknown): number | undefined {
   return err instanceof CeremonyApiError ? err.status : undefined;
 }
+
+// ---- Distribuição (E4: `GET/POST/DELETE/PUT .../sprint-plans/{id}/distribution`) ----
+
+export interface DistributionSubtask {
+  key: string;
+  title: string | null;
+  typeId: string | null;
+  typeName: string | null;
+  /** DEV e QA são distribuíveis; FORA ("Fora da conta") e SEM ("Sem classificação") vêm com canClaim=false. */
+  cls: 'DEV' | 'QA' | 'FORA' | 'SEM';
+  /** Subtarefa do tipo Code Review (etapa do meio da cadeia Codificação, Code Review, QA). */
+  codeReview: boolean;
+  estimateH: number;
+  remainingH: number;
+  countedH: number;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  /** yyyy-MM-dd; null = ainda sem data. */
+  startDate: string | null;
+  endDate: string | null;
+  /** Chave da subtarefa que precisa terminar antes desta começar (cadeia); null = sem antecessora. */
+  startsAfterKey: string | null;
+  /** Primeiro dia permitido para o início (fim da antecessora); null = sem restrição além da sprint. */
+  minStartDate: string | null;
+  canClaim: boolean;
+  canEditDates: boolean;
+  status: string | null;
+}
+
+export interface DistributionTask {
+  itemId: string;
+  parentKey: string;
+  title: string | null;
+  devHours: number;
+  qaHours: number;
+  subtasks: DistributionSubtask[];
+}
+
+export interface DistributionPerson {
+  accountId: string;
+  name: string;
+  role: string;
+  capacityHours: number;
+  allocatedHours: number;
+  freeHours: number;
+  pct: number | null;
+  zone: ThermoZone;
+  state: ThermoState;
+}
+
+export interface DistributionWarning {
+  code: string;
+  message: string;
+  subtaskKey: string | null;
+  accountId: string | null;
+}
+
+export interface DistributionView {
+  planId: string;
+  status: PlanStatus;
+  syncedAt: string | null;
+  canEditPlan: boolean;
+  myAccountId: string | null;
+  sprint: { startDate: string; endDate: string; holidays: Array<Holiday | string> };
+  tasks: DistributionTask[];
+  people: DistributionPerson[];
+  warnings: DistributionWarning[];
+}
+
+function isDistributionView(v: unknown): v is DistributionView {
+  const x = v as DistributionView | null;
+  return (
+    !!x && typeof x === 'object' && 'planId' in x && Array.isArray(x.tasks) && Array.isArray(x.people) && Array.isArray(x.warnings) &&
+    !!x.sprint && typeof x.sprint === 'object' && Array.isArray(x.sprint.holidays) && typeof x.sprint.startDate === 'string'
+  );
+}
+
+/** Valida a forma do `DistributionView`; qualquer outra coisa (corpo vazio, PlanView/ScopeView) vira erro em vez de tela errada. */
+export function parseDistributionView(data: unknown, fallback = 'Resposta inesperada do servidor.'): DistributionView {
+  if (!isDistributionView(data)) throw new CeremonyApiError(fallback, 502);
+  return data;
+}
+
+/** Erro de uma chamada da distribuição; o 422 de data pode trazer `minStartDate` (primeiro início possível). */
+export class DistributionApiError extends CeremonyApiError {
+  minStartDate: string | null;
+  constructor(message: string, status: number, minStartDate: string | null = null) {
+    super(message, status);
+    this.name = 'DistributionApiError';
+    this.minStartDate = minStartDate;
+  }
+}
+
+export function minStartDateOf(err: unknown): string | null {
+  return err instanceof DistributionApiError ? err.minStartDate : null;
+}
+
+async function distributionView(res: Response, fallback: string): Promise<DistributionView> {
+  if (!res.ok) {
+    let message = fallback;
+    let min: string | null = null;
+    if (res.status >= 400 && res.status < 500) {
+      try {
+        const body = JSON.parse(await res.text());
+        if (typeof body?.message === 'string' && body.message.trim()) message = body.message;
+        if (typeof body?.minStartDate === 'string') min = body.minStartDate.slice(0, 10);
+      } catch { /* corpo ilegível: fica o texto padrão */ }
+    }
+    throw new DistributionApiError(message, res.status, min);
+  }
+  return parseDistributionView(await res.json().catch(() => null), fallback);
+}
+
+export const distributionApi = {
+  async get(squadId: string, planId: string): Promise<DistributionView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/distribution`);
+    return distributionView(res, 'Não foi possível carregar a distribuição.');
+  },
+
+  /** Pega a subtarefa para mim (sem `accountId`) ou, pela liderança, para outra pessoa. 403/409/422 trazem a mensagem do servidor. */
+  async claim(squadId: string, planId: string, subtaskKey: string, accountId?: string): Promise<DistributionView> {
+    const body = accountId ? { subtaskKey, accountId } : { subtaskKey };
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/distribution/claim`, { method: 'POST', body: JSON.stringify(body) });
+    return distributionView(res, 'Não foi possível pegar a subtarefa.');
+  },
+
+  async release(squadId: string, planId: string, subtaskKey: string): Promise<DistributionView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/distribution/claim/${enc(subtaskKey)}`, { method: 'DELETE' });
+    return distributionView(res, 'Não foi possível soltar a subtarefa.');
+  },
+
+  /** Devolve a distribuição COM a cascata aplicada (o QA acompanha o DEV nos dois sentidos). */
+  async setDates(squadId: string, planId: string, subtaskKey: string, startDate: string, endDate: string): Promise<DistributionView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/distribution/dates/${enc(subtaskKey)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ startDate, endDate }),
+    });
+    return distributionView(res, 'Não foi possível salvar as datas.');
+  },
+};

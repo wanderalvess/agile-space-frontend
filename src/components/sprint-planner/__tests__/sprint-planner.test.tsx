@@ -223,8 +223,8 @@ describe('Capacidade', () => {
 
   it('etapas futuras são placeholders, sem dados', async () => {
     h.api.get.mockResolvedValue(planView());
-    renderPlan('distribuicao');
-    expect(await screen.findByText('Distribuição chega numa próxima entrega')).toBeTruthy();
+    renderPlan('revisao');
+    expect(await screen.findByText('Revisar e enviar chega numa próxima entrega')).toBeTruthy();
     expect(screen.queryByTestId('total-DEV')).toBeNull();
   });
 });
