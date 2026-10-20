@@ -31,17 +31,14 @@ import {
 } from '@/lib/sprint-planner/format';
 import { applyScope, canAdvanceFromScope } from '@/lib/sprint-planner/scope';
 import { CapacityStep } from './CapacityStep';
+import { DistributionStep } from './DistributionStep';
 import { ScopeStep } from './ScopeStep';
 
 type Load = { state: 'loading' } | { state: 'error'; notFound: boolean } | { state: 'ok'; plan: PlanView };
 
 export const CONFLICT_MESSAGE = 'Outra pessoa alterou este planejamento. Recarregamos a versão atual: confira e refaça a sua mudança.';
 
-const PLACEHOLDER: Record<Exclude<StepId, 'capacidade' | 'escopo'>, { title: string; description: string }> = {
-  distribuicao: {
-    title: 'Distribuição chega numa próxima entrega',
-    description: 'Aqui cada pessoa vai pegar as próprias subtarefas e marcar as datas; o QA começa quando o Code Review DEV termina.',
-  },
+const PLACEHOLDER: Record<'revisao', { title: string; description: string }> = {
   revisao: {
     title: 'Revisar e enviar chega numa próxima entrega',
     description: 'Aqui vai aparecer o resumo, as pendências e a prévia do que seria gravado no Jira. O envio ao Jira ainda não está disponível.',
@@ -228,8 +225,10 @@ export function PlanScreen({
             onPatch={onPatch}
             onOpenTypes={openTypes}
           />
+        ) : step === 'distribuicao' ? (
+          <DistributionStep squadId={squadId} planId={planId} planStatus={plan.status} />
         ) : (
-          <EmptyState icon={Hourglass} title={PLACEHOLDER[step].title} description={PLACEHOLDER[step].description} />
+          <EmptyState icon={Hourglass} title={PLACEHOLDER.revisao.title} description={PLACEHOLDER.revisao.description} />
         )}
       </div>
     </>
