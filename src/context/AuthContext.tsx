@@ -346,7 +346,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await authFetch(`${API_BASE_URL}/invites/${encodeURIComponent(token)}/accept`, { method: 'POST' });
     if (!res.ok) {
       // 429 vira InviteApiError (status 429) para a página do convite oferecer "Tentar de novo" em vez de "inválido".
-      if (res.status === 429) throw await inviteErrorFrom(res);
+      // 409 = convite de equipe esgotado: a página mostra a tela própria.
+      if (res.status === 429 || res.status === 409) throw await inviteErrorFrom(res);
       throw new Error(await parseErrorMessage(res, 'Não foi possível aceitar o convite.'));
     }
     const data: AuthResponse = await res.json();

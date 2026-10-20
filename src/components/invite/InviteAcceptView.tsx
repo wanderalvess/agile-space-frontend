@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { BRAND_TEXT, FOCUS_RING } from '@/components/room-kit/tokens';
 import { AccessButton, AccessCard, AccessPage, CenteredHeading, StateTile } from '@/components/access/access-ui';
 import { isOtherEmailError, type Invite, type InvitePreview } from '@/lib/invite-api';
-import { UNAVAILABLE_TEXT, expiresInLabel, otherEmailText, type InviteView, type UnavailableKind } from '@/lib/invite-state';
+import { UNAVAILABLE_TEXT, expiresInLabel, otherEmailText, vacanciesLabel, type InviteView, type UnavailableKind } from '@/lib/invite-state';
 
 export interface InviteAcceptViewProps {
   view: InviteView;
@@ -25,12 +25,14 @@ export interface InviteAcceptViewProps {
   onSkip: () => void;
   /** "Tentar de novo" na tela de limite de requisições (429). */
   onRetry?: () => void;
+  /** "Ir para a squad" na tela de quem já faz parte dela (convite de equipe). */
+  onGoSquad?: () => void;
 }
 
 const CHIP = 'inline-flex h-[30px] items-center rounded-full border border-border px-3.5 text-[13px] font-bold text-foreground';
 
 /** Telas da página do convite. Só desenho: quem busca o convite e aceita é a página. */
-export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSignIn, onSignUp, onSkip, onRetry }: InviteAcceptViewProps) {
+export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSignIn, onSignUp, onSkip, onRetry, onGoSquad }: InviteAcceptViewProps) {
   if (view === 'sessao') {
     return (
       <AccessPage>
@@ -65,20 +67,36 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
     );
   }
 
+  if (view === 'ja-membro' && invite) {
+    return (
+      <AccessPage>
+        <AccessCard role="status" className="items-center gap-[18px] text-center">
+          <StateTile icon={CheckCircle2} tone="success" />
+          <CenteredHeading title="Você já faz parte desta squad" text={`Squad ${invite.squadName || invite.squadId}. Este link não gasta uma vaga da sua conta.`} />
+          <AccessButton variant="primary" onClick={onGoSquad ?? onSkip}>
+            Ir para a squad
+          </AccessButton>
+        </AccessCard>
+      </AccessPage>
+    );
+  }
+
   if ((view === 'normal' || view === 'visitante') && invite) {
     const expires = expiresInLabel(invite.expiresAt);
     const guest = view === 'visitante';
     const emailMasked = guest && 'emailMasked' in invite ? invite.emailMasked : null;
+    const vacancies = vacanciesLabel(invite);
     return (
       <AccessPage>
         <AccessCard>
           <div className="flex flex-col items-center gap-3 text-center">
             <StateTile icon={Users} />
             <CenteredHeading
-              title="Convite para a squad"
+              title={vacancies ? `Convite para a squad ${invite.squadName || invite.squadId}` : 'Convite para a squad'}
               text={
                 <>
                   Você foi convidado para entrar como <strong className="font-bold text-foreground">{invite.roleName}</strong>.
+                  {vacancies && <> · {vacancies}</>}
                 </>
               }
             />
@@ -86,6 +104,7 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
           <div className="flex flex-wrap justify-center gap-2">
             <span className={CHIP}>Squad: {invite.squadName || invite.squadId}</span>
             <span className={CHIP}>Papel: {invite.roleName}</span>
+            {vacancies && <span className={CHIP}>{vacancies}</span>}
           </div>
           {guest && (
             <p className="text-center text-[13px] text-muted-foreground">
@@ -160,10 +179,10 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
   }
 
   // Estados de erro: inválido (mensagem do servidor), usado, cancelado, expirado e convite de outro e-mail.
-  const unavailable: UnavailableKind | null = view === 'usado' || view === 'cancelado' || view === 'expirado' ? view : null;
+  const unavailable: UnavailableKind | null = view === 'usado' || view === 'cancelado' || view === 'expirado' || view === 'esgotado' ? view : null;
   const otherEmail = view === 'outro-email' && error && isOtherEmailError(error);
   const tone = otherEmail ? 'brand' : unavailable ? 'warn' : 'danger';
-  const title = otherEmail ? 'Esse convite é para outro e-mail' : unavailable ? 'Convite indisponível' : 'Convite inválido';
+  const title = otherEmail ? 'Esse convite é para outro e-mail' : unavailable === 'esgotado' ? 'Convite esgotado' : unavailable ? 'Convite indisponível' : 'Convite inválido';
   const text = otherEmail
     ? otherEmailText(email, error)
     : unavailable

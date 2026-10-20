@@ -1,5 +1,5 @@
 import type { Invite } from '@/lib/invite-api';
-import { INVITE_ROLES } from './constants';
+import { INVITE_ROLES, TEAM_INVITE_MAX_DAYS, TEAM_INVITE_MAX_USES } from './constants';
 import { normalizeText } from './calc';
 import { csvDocument, csvLine, parseCsv } from './csv';
 
@@ -33,6 +33,46 @@ export function inviteExpiryLabel(invite: Pick<Invite, 'expiresAt'>, now: number
   const days = Math.floor((now - at) / DAY_MS);
   if (days === 0) return 'venceu hoje';
   return days === 1 ? 'venceu ontem' : `venceu há ${days} dias`;
+}
+
+// ---------------------------------------------------------------------------
+// Convite de equipe (link para várias pessoas)
+// ---------------------------------------------------------------------------
+
+export type TeamInviteCheck = { ok: true; maxUses: number | null; days: number } | { ok: false; error: string };
+
+/**
+ * Confere os campos do convite de equipe antes de chamar o servidor. Limite vazio = sem limite, só para ADMIN;
+ * quem não é ADMIN precisa informar um número de 1 a 200. Validade de 1 a 30 dias.
+ */
+export function validateTeamInvite(maxRaw: string, daysRaw: string, canUnlimited: boolean): TeamInviteCheck {
+  const maxText = maxRaw.trim();
+  let maxUses: number | null = null;
+  if (maxText === '') {
+    if (!canUnlimited) return { ok: false, error: 'Informe o limite de pessoas. Só administradores criam link sem limite.' };
+  } else {
+    const n = Number(maxText);
+    if (!Number.isInteger(n) || n < 1 || n > TEAM_INVITE_MAX_USES) {
+      return { ok: false, error: `O limite de pessoas deve ser um número de 1 a ${TEAM_INVITE_MAX_USES}.` };
+    }
+    maxUses = n;
+  }
+  const days = Number(daysRaw.trim());
+  if (!Number.isInteger(days) || days < 1 || days > TEAM_INVITE_MAX_DAYS) {
+    return { ok: false, error: `A validade deve ser de 1 a ${TEAM_INVITE_MAX_DAYS} dias.` };
+  }
+  return { ok: true, maxUses, days };
+}
+
+/** "usos 7/25" (ou "usos 7, sem limite") de um convite de equipe. */
+export function teamUsageLabel(invite: { maxUses?: number | null; usesCount?: number }): string {
+  const used = invite.usesCount ?? 0;
+  return invite.maxUses == null ? `usos ${used}, sem limite` : `usos ${used}/${invite.maxUses}`;
+}
+
+/** Convite de equipe sem vagas (o servidor o mantém PENDING até alguém revogar). */
+export function isTeamInviteFull(invite: { multiUse?: boolean; maxUses?: number | null; usesCount?: number }): boolean {
+  return !!invite.multiUse && invite.maxUses != null && (invite.usesCount ?? 0) >= invite.maxUses;
 }
 
 // ---------------------------------------------------------------------------
