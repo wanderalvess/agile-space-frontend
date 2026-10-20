@@ -44,9 +44,10 @@ export default function InviteAcceptPage() {
         if (cancelled) return;
         setInvite(data);
         setError(null);
-        // Sem conta: guarda o convite para o login voltar a ele mesmo se o returnUrl se perder.
+        // Sem conta: guarda o convite para o login voltar a ele mesmo se o returnUrl se perder. Em convite de equipe
+        // o servidor já manda o status derivado (PENDING/EXHAUSTED/EXPIRED/REVOKED), então esgotado cai no ramo abaixo.
         if (!hasSession && data.status === 'PENDING') savePendingInvite(token);
-        // Convite que não serve mais não deve puxar a pessoa de volta depois.
+        // Convite que não serve mais (usado, esgotado, vencido, revogado) não deve puxar a pessoa de volta depois.
         if (data.status !== 'PENDING') clearPendingInvite();
       })
       .catch((err: unknown) => {
@@ -105,6 +106,10 @@ export default function InviteAcceptPage() {
       accepting={isAccepting}
       onAccept={handleAccept}
       onRetry={handleRetry}
+      onGoSquad={() => {
+        clearPendingInvite();
+        router.push('/squad');
+      }}
       // Sair da conta leva ao /login?returnUrl=/invite/{token} (AuthGuard), e o convite reabre depois de entrar.
       onSwitchAccount={logout}
       onSignIn={() => router.push(loginUrlForInvite(token, 'login'))}

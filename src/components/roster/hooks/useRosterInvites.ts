@@ -56,6 +56,15 @@ export function useRosterInvites(squadId: string, eligible: boolean) {
     [squadId]
   );
 
+  /** Gera o convite de equipe (link multiuso) e devolve o link. */
+  const createTeam = useCallback(
+    async (roleName: string, maxUses: number | null, validityDays: number) => {
+      const invite = await inviteApi.createTeamInvite(squadId, roleName, maxUses, validityDays);
+      return inviteApi.buildInviteLink(invite.token);
+    },
+    [squadId]
+  );
+
   const copyLink = useCallback(
     async (link: string) => {
       const ok = await copyToClipboard(link);
@@ -79,5 +88,5 @@ export function useRosterInvites(squadId: string, eligible: boolean) {
     [squadId, toast]
   );
 
-  return { state, pending, error, canInvite, refresh, create, copyLink, revoke };
+  return { state, pending, error, canInvite, refresh, create, createTeam, copyLink, revoke };
 }

@@ -229,6 +229,7 @@ function RosterContent() {
         <div role={canApprove ? 'tabpanel' : undefined} id="roster-panel-time" aria-labelledby={canApprove ? 'roster-tab-time' : undefined} className="flex flex-col gap-5">
         <PendingInvites
           state={invites.state}
+          squadId={squadId}
           invites={invites.pending}
           error={invites.error}
           onCopy={invites.copyLink}
@@ -281,6 +282,8 @@ function RosterContent() {
         onOpenChange={setInviteOpen}
         squadId={squadId}
         create={invites.create}
+        createTeam={invites.createTeam}
+        canUnlimited={isAdminRole}
         copyLink={invites.copyLink}
         onCreated={invites.refresh}
       />
