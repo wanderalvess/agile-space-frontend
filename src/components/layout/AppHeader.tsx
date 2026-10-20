@@ -47,6 +47,13 @@ export interface AppHeaderProps {
   search?: { query: string; onQueryChange: (value: string) => void };
   /** Fixa o cabeçalho no topo ao rolar (padrão: sim, a partir de 1024 px). */
   sticky?: boolean;
+  /**
+   * Cabeçalho enxuto para quem ainda não entrou (ex.: página do convite): só a marca e o botão "Entrar", sem menu
+   * de módulos, busca nem sino. Quem chama decide quando usar (ex.: só sem sessão); sem ele, o cabeçalho completo de sempre.
+   */
+  minimal?: boolean;
+  /** Destino do "Entrar" no modo `minimal` (padrão: /login). */
+  signInHref?: string;
   className?: string;
 }
 
@@ -156,7 +163,7 @@ function MobileNav({ active, isAdmin }: { active: PrimaryNavKey | null; isAdmin:
  * menu da conta. A squad ativa é trocada aqui e em mais nenhum lugar, e o nome dela não se repete no resto do
  * cabeçalho. Salas ao vivo continuam com o `RoomTopBar`.
  */
-export function AppHeader({ squadControl, search, sticky = true, className }: AppHeaderProps) {
+export function AppHeader({ squadControl, search, sticky = true, minimal = false, signInHref = '/login', className }: AppHeaderProps) {
   const pathname = usePathname();
   const { userProfile } = useUserContext();
   const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
@@ -167,6 +174,24 @@ export function AppHeader({ squadControl, search, sticky = true, className }: Ap
     squadControl === undefined
       ? { squads: own.squads, scope: own.activeId ?? null, isMulti: own.isMulti, switchingTo: own.switchingTo, onPick: own.pick, allowAll: false }
       : squadControl;
+
+  if (minimal) {
+    return (
+      <header className={cn('z-40 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80', sticky && 'lg:sticky lg:top-0', className)}>
+        <div className="mx-auto flex max-w-[1680px] items-center gap-3 px-4 py-3 sm:px-8 2xl:px-12">
+          <Link href="/" aria-label="Portal Tech V&D, página inicial" className={cn('-my-2 inline-flex items-center rounded-md py-2', FOCUS_RING)}>
+            <BrandWordmark />
+          </Link>
+          <div className="ml-auto flex items-center gap-2.5">
+            <ThemeToggle className="h-10 w-10 rounded-[10px] max-sm:h-11 max-sm:w-11" />
+            <Link href={signInHref} className={cn('inline-flex h-10 items-center rounded-[10px] bg-primary px-4 text-sm font-semibold text-primary-foreground max-sm:min-h-11', FOCUS_RING)}>
+              Entrar
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header
