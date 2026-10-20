@@ -10,6 +10,7 @@ import type { DistributionPerson, DistributionView, PlanStatus } from '@/lib/spr
 import {
   allSubtasks, distributableTasks, ownershipOf, progressOf, warningTitle, type Ownership,
 } from '@/lib/sprint-planner/distribution';
+import { syncedAgo } from '@/lib/sprint-planner/scope';
 import { ZONE_TONE, formatHours, formatPct, formatRange } from '@/lib/sprint-planner/format';
 import { ZONE_BAR } from './CapacityThermometer';
 import { DistributionGantt } from './DistributionGantt';
@@ -153,7 +154,7 @@ export function DistributionStep({ squadId, planId, planStatus }: DistributionSt
     setBusyKey(key, true);
     const r = await claim(key, accountId);
     setBusyKey(key, false);
-    if (!r.ok && r.message && !r.message.startsWith('Outra pessoa')) toast({ title: 'Não foi possível pegar', description: r.message, variant: 'destructive' });
+    if (!r.ok && r.message && r.status === 422) toast({ title: 'Não foi possível pegar', description: r.message, variant: 'destructive' });
   };
   const onRelease = async (key: string) => {
     setBusyKey(key, true);
@@ -211,7 +212,7 @@ export function DistributionStep({ squadId, planId, planStatus }: DistributionSt
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {formatRange(view.sprint.startDate, view.sprint.endDate)}
-          {view.syncedAt ? ` · Jira sincronizado em ${view.syncedAt}` : ''}
+          {syncedAgo(view.syncedAt) ? ` · Jira sincronizado ${syncedAgo(view.syncedAt)}` : ''}
         </p>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="tempo-real">

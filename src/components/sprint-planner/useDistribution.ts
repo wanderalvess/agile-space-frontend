@@ -12,7 +12,7 @@ export type DistLoad = { state: 'loading' } | { state: 'error'; message: string 
 
 export const CLAIM_CONFLICT = 'Outra pessoa pegou antes. Atualizamos a lista.';
 
-export interface ActionResult { ok: boolean; message?: string; minStartDate?: string | null }
+export interface ActionResult { ok: boolean; message?: string; minStartDate?: string | null; status?: number }
 
 /**
  * Estado da Distribuição: carga, ações (pegar, soltar, datas) e tempo real. Toda ação devolve a `DistributionView`
@@ -87,11 +87,11 @@ export function useDistribution(squadId: string, planId: string, enabled: boolea
         const message = conflictMsg ?? errorMessage(e, fail);
         toast({ title: message, variant: 'destructive' });
         await reload(true);
-        return { ok: false, message };
+        return { ok: false, message, status: 409 };
       }
       const message = errorMessage(e, fail);
       if (statusOf(e) !== 422) toast({ title: fail, description: message, variant: 'destructive' });
-      return { ok: false, message, minStartDate: minStartDateOf(e) };
+      return { ok: false, message, minStartDate: minStartDateOf(e), status: statusOf(e) };
     }
   }, [apply, reload, toast]);
 
