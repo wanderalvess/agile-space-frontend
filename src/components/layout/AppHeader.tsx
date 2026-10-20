@@ -142,6 +142,7 @@ function MobileNav({ active, isAdmin }: { active: PrimaryNavKey | null; isAdmin:
         <nav aria-label="Menu principal" className="flex flex-col gap-1">
           {link('home', active === 'home')}
           {link('squad', active === 'squad')}
+          {link('sprint-planner', active === 'planejamento')}
           {link('workspace', active === 'workspace')}
           <p className={SHEET_GROUP}>{MODULE_GROUP_LABELS.rituais}</p>
           {RITUAL_MODULE_KEYS.map((key) => link(key, false))}
@@ -158,7 +159,7 @@ function MobileNav({ active, isAdmin }: { active: PrimaryNavKey | null; isAdmin:
 }
 
 /**
- * Cabeçalho padrão de toda página que não é sala. Marca em texto, navegação curta (Home, Squad, Meu espaço,
+ * Cabeçalho padrão de toda página que não é sala. Marca em texto, navegação curta (Home, Squad, Planejamento, Meu espaço,
  * Rituais, Admin só para admin), seletor da squad ativa (só com 2+ vínculos), busca de módulo, sino, tema e
  * menu da conta. A squad ativa é trocada aqui e em mais nenhum lugar, e o nome dela não se repete no resto do
  * cabeçalho. Salas ao vivo continuam com o `RoomTopBar`.
@@ -210,6 +211,7 @@ export function AppHeader({ squadControl, search, sticky = true, minimal = false
           {/* De 1024 a 1279 px o logo já leva à Home e o espaço é curto: o item Home só aparece a partir de 1280. */}
           <NavLink moduleKey="home" active={active === 'home'} className="lg:max-xl:hidden" />
           <NavLink moduleKey="squad" active={active === 'squad'} />
+          <NavLink moduleKey="sprint-planner" active={active === 'planejamento'} />
           <NavLink moduleKey="workspace" active={active === 'workspace'} />
           <RitualsMenu active={active === 'rituais'} />
           {isAdmin && <NavLink moduleKey="admin" active={active === 'admin'} label="Admin" />}
