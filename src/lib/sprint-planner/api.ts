@@ -192,6 +192,8 @@ export interface PlanView {
   /** A meta já foi gravada no Sprint goal do Jira. */
   goalSavedInJira: boolean;
   updatedAt: string | null;
+  /** Só na resposta do POST /status ao sair da Distribuição: avisos que não bloqueiam. Ausente/null nas demais. */
+  warnings?: DistributionWarning[] | null;
 }
 
 export interface CreatePlanRequest { jiraSprintId?: string | null; sprintName: string; startDate: string; endDate: string; goal?: string | null }
