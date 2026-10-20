@@ -93,7 +93,26 @@ export interface Thermometer {
 
 export interface Permissions { canEditPlan: boolean; canEditTypes: boolean; myAccountId: string | null }
 
-/** Item do escopo (`SprintPlanDtos.ItemView`). `devHours`/`qaHours` são opcionais: se o backend os mandar, valem; senão a tela usa o backlog. */
+/** Subtarefa da pai como entra na conta (`SprintPlanDtos.ScopeSubtaskView`): classe pelo tipo do Jira; só DEV/QA somam. */
+export interface ScopeSubtask {
+  key: string;
+  title: string | null;
+  typeId: string | null;
+  typeName: string | null;
+  cls: SubtaskClass;
+  estimateH: number;
+  remainingH: number;
+  /** Horas que a subtarefa conta (restante na sobra, estimado nos demais). */
+  countedH: number;
+  defaultHoursApplied: boolean;
+  assigneeId: string | null;
+  assigneeName: string | null;
+}
+
+/**
+ * Item do escopo (`SprintPlanDtos.ItemView`). `devHours`/`qaHours` são o que CONTA no total (regra do backend);
+ * `subtaskDevH`/`subtaskQaH` são a soma das subtarefas da classe, só para alerta de divergência.
+ */
 export interface PlanItem {
   id: string;
   parentKey: string;
@@ -102,8 +121,50 @@ export interface PlanItem {
   titleQaHours: number | null;
   sortOrder: number;
   carryOver: boolean;
-  devHours?: number | null;
-  qaHours?: number | null;
+  devHours: number;
+  qaHours: number;
+  subtaskDevH: number;
+  subtaskQaH: number;
+  subtaskDevEstimateH: number;
+  subtaskDevRemainingH: number;
+  subtaskQaEstimateH: number;
+  subtaskQaRemainingH: number;
+  divergenceDev: boolean;
+  divergenceQa: boolean;
+  divergent: boolean;
+  noEstimate: boolean;
+  /** false quando a pai saiu do backlog refinado depois de entrar no plano. */
+  inBacklog: boolean;
+  unclassifiedCount: number;
+  unclassifiedHours: number;
+  subtasks: ScopeSubtask[];
+}
+
+export interface ScopeUnclassifiedType { typeId: string | null; typeName: string | null; count: number; hours: number }
+
+/** `SprintPlanDtos.ScopeTotals`. */
+export interface ScopeTotals {
+  itemCount: number;
+  allocated: Record<string, number>;
+  carryOverCount: number;
+  carryOverDevHours: number;
+  carryOverQaHours: number;
+  divergentCount: number;
+  noEstimateCount: number;
+  unclassifiedCount: number;
+  unclassifiedHours: number;
+  unclassifiedTypes: ScopeUnclassifiedType[];
+}
+
+/** Resposta de `GET/POST /items` e `PUT /items/order` (`SprintPlanDtos.ScopeView`). */
+export interface ScopeView {
+  planId: string;
+  status: PlanStatus;
+  syncedAt: string | null;
+  items: PlanItem[];
+  totals: ScopeTotals;
+  thermometer: Record<string, Thermometer>;
+  canEditPlan: boolean;
 }
 
 export interface PlanView {
@@ -119,9 +180,12 @@ export interface PlanView {
   absences: AbsenceView[];
   holidays: Holiday[];
   items: PlanItem[];
+  scope: ScopeTotals;
   assignments: unknown[];
   thermometer: Record<string, Thermometer>;
   permissions: Permissions;
+  /** A meta já foi gravada no Sprint goal do Jira. */
+  goalSavedInJira: boolean;
   updatedAt: string | null;
 }
 
@@ -232,18 +296,20 @@ async function json<T>(res: Response, fallback: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function isPlanView(v: unknown): v is PlanView {
-  return !!v && typeof v === 'object' && Array.isArray((v as PlanView).items) && typeof (v as PlanView).thermometer === 'object' && 'id' in (v as object);
+function isScopeView(v: unknown): v is ScopeView {
+  const x = v as ScopeView | null;
+  return !!x && typeof x === 'object' && Array.isArray(x.items) && !!x.totals && typeof x.thermometer === 'object' && 'planId' in x;
 }
 
-async function planOrNull(res: Response, fallback: string): Promise<PlanView | null> {
+/** Valida a forma do `ScopeView`; qualquer outra coisa (corpo vazio, PlanView) vira erro em vez de dado errado na tela. */
+export function parseScopeView(data: unknown, fallback = 'Resposta inesperada do servidor.'): ScopeView {
+  if (!isScopeView(data)) throw new CeremonyApiError(fallback, 502);
+  return data;
+}
+
+async function scopeView(res: Response, fallback: string): Promise<ScopeView> {
   await ensureOk(res, fallback);
-  try {
-    const data: unknown = await res.json();
-    return isPlanView(data) ? data : null;
-  } catch {
-    return null;
-  }
+  return parseScopeView(await res.json().catch(() => null), fallback);
 }
 
 export const sprintPlanApi = {
@@ -293,23 +359,28 @@ export const sprintPlanApi = {
     await ensureOk(res, 'Não foi possível remover a ausência.');
   },
 
-  /**
-   * Escopo (E3). Contrato assumido (o backend E3 estava em andamento): POST `{ parentKeys }` e DELETE devolvem o `PlanView`
-   * atualizado; se vier outra coisa (204, itens soltos), devolvemos `null` e quem chamou recarrega o plano.
-   */
-  async addItems(squadId: string, planId: string, parentKeys: string[]): Promise<PlanView | null> {
+  /** Escopo (E3): GET devolve o `ScopeView` (itens, totais, termômetro e `canEditPlan`). */
+  async getScope(squadId: string, planId: string): Promise<ScopeView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/items`);
+    return scopeView(res, 'Não foi possível carregar o escopo.');
+  },
+
+  /** POST `{ parentKeys }` -> 201 com o `ScopeView` atualizado. 409 = pai já no plano; 422 = fora do backlog refinado ou da etapa. */
+  async addItems(squadId: string, planId: string, parentKeys: string[]): Promise<ScopeView> {
     const res = await authFetch(`${base(squadId)}/${enc(planId)}/items`, { method: 'POST', body: JSON.stringify({ parentKeys }) });
-    return planOrNull(res, 'Não foi possível adicionar ao escopo.');
+    return scopeView(res, 'Não foi possível adicionar ao escopo.');
   },
 
-  async removeItem(squadId: string, planId: string, itemId: string): Promise<PlanView | null> {
+  /** DELETE -> 204 sem corpo: quem chamou recarrega o escopo (`getScope`). */
+  async removeItem(squadId: string, planId: string, itemId: string): Promise<void> {
     const res = await authFetch(`${base(squadId)}/${enc(planId)}/items/${enc(itemId)}`, { method: 'DELETE' });
-    return planOrNull(res, 'Não foi possível tirar do escopo.');
+    await ensureOk(res, 'Não foi possível tirar do escopo.');
   },
 
-  async reorderItems(squadId: string, planId: string, orderedItemIds: string[]): Promise<PlanView | null> {
+  /** PUT `{ orderedItemIds }` -> 200 com o `ScopeView`. */
+  async reorderItems(squadId: string, planId: string, orderedItemIds: string[]): Promise<ScopeView> {
     const res = await authFetch(`${base(squadId)}/${enc(planId)}/items/order`, { method: 'PUT', body: JSON.stringify({ orderedItemIds }) });
-    return planOrNull(res, 'Não foi possível reordenar o escopo.');
+    return scopeView(res, 'Não foi possível reordenar o escopo.');
   },
 
   async replaceHolidays(squadId: string, planId: string, holidays: Holiday[]): Promise<Holiday[]> {

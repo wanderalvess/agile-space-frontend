@@ -1,10 +1,11 @@
 /**
  * Lógica de exibição do Escopo (E3). A regra de verdade é do backend (horas do item, termômetro, divergência):
- * aqui só se escolhe o que mostrar e se faz uma ESTIMATIVA provisória enquanto a resposta do servidor não chega.
- * Quando o plano volta do servidor, os números dele substituem a estimativa.
+ * os itens já chegam com `devHours`/`qaHours` (o que conta), flags de divergência e totais. Aqui só se escolhe o que
+ * mostrar e se faz uma ESTIMATIVA provisória (a partir do backlog) enquanto a resposta do servidor não chega; quando
+ * ela chega, os números dele substituem a estimativa.
  */
 
-import type { BacklogParent, BacklogView, PlanItem, PlanView, SubtaskClass, Thermometer, UnclassifiedType } from './api';
+import type { BacklogParent, BacklogView, PlanItem, PlanView, ScopeView, SubtaskClass, Thermometer, UnclassifiedType } from './api';
 
 export type Cls = 'DEV' | 'QA';
 export const CLASSES: readonly Cls[] = ['DEV', 'QA'];
@@ -33,22 +34,18 @@ export interface ScopeEntry {
   key: string;
   title: string | null;
   carryOver: boolean;
+  /** Horas que contam no total: `devHours`/`qaHours` do servidor; só na adição pendente vêm da estimativa local. */
   dev: number;
   qa: number;
   pending: boolean;
+  /** Item do plano (servidor); null enquanto pendente. */
+  item: PlanItem | null;
   backlog: BacklogParent | null;
-}
-
-function itemHours(item: PlanItem, backlog: BacklogParent | undefined, cls: Cls): number {
-  const direct = cls === 'DEV' ? item.devHours : item.qaHours;
-  if (typeof direct === 'number') return direct;
-  if (backlog) return parentHours(backlog, cls);
-  return (cls === 'DEV' ? item.titleDevHours : item.titleQaHours) ?? 0;
 }
 
 /**
  * O escopo "como a tela mostra agora": itens do plano (menos os que estão sendo tirados) + os que estão sendo
- * adicionados (a partir do backlog), na ordem do plano.
+ * adicionados (estimativa a partir do backlog), na ordem do plano.
  */
 export function buildScope(
   items: readonly PlanItem[],
@@ -64,16 +61,21 @@ export function buildScope(
     if (pendingRemove.has(it.id)) continue;
     const b = byKey.get(it.parentKey);
     out.push({
-      itemId: it.id, key: it.parentKey, title: it.title ?? b?.title ?? null, carryOver: it.carryOver || !!b?.carryOver,
-      dev: itemHours(it, b, 'DEV'), qa: itemHours(it, b, 'QA'), pending: false, backlog: b ?? null,
+      itemId: it.id, key: it.parentKey, title: it.title ?? b?.title ?? null, carryOver: it.carryOver,
+      dev: it.devHours ?? 0, qa: it.qaHours ?? 0, pending: false, item: it, backlog: b ?? null,
     });
   }
   for (const key of pendingAdd) {
     const b = byKey.get(key);
     if (!b || present.has(key)) continue;
-    out.push({ itemId: null, key, title: b.title, carryOver: b.carryOver, dev: parentHours(b, 'DEV'), qa: parentHours(b, 'QA'), pending: true, backlog: b });
+    out.push({ itemId: null, key, title: b.title, carryOver: b.carryOver, dev: parentHours(b, 'DEV'), qa: parentHours(b, 'QA'), pending: true, item: null, backlog: b });
   }
   return out;
+}
+
+/** Aplica a resposta de escopo do servidor (`ScopeView`) ao plano: itens, totais e termômetro. A versão do plano não vem nela. */
+export function applyScope(plan: PlanView, scope: ScopeView): PlanView {
+  return { ...plan, items: scope.items, scope: scope.totals, thermometer: scope.thermometer };
 }
 
 export function scopeTotals(entries: readonly ScopeEntry[]): Record<Cls, number> {
@@ -81,6 +83,14 @@ export function scopeTotals(entries: readonly ScopeEntry[]): Record<Cls, number>
     DEV: entries.reduce((s, e) => s + e.dev, 0),
     QA: entries.reduce((s, e) => s + e.qa, 0),
   };
+}
+
+/** Número de tarefas e horas DEV/QA do escopo: os totais do servidor; a soma local só enquanto há mudança pendente. */
+export function scopeSummary(plan: Pick<PlanView, 'scope' | 'thermometer'>, entries: readonly ScopeEntry[], estimated: boolean): { count: number; DEV: number; QA: number } {
+  const local = scopeTotals(entries);
+  if (estimated || !plan.scope) return { count: entries.length, ...local };
+  const alloc = (c: Cls) => plan.scope.allocated?.[c] ?? plan.thermometer?.[c]?.allocatedHours ?? local[c];
+  return { count: plan.scope.itemCount, DEV: alloc('DEV'), QA: alloc('QA') };
 }
 
 /**
@@ -111,8 +121,15 @@ function joinNames(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
 }
 
+function divergencePhrase(cls: Cls, title: number | null, names: string[], count: number, sum: number): string {
+  const who = count === 0
+    ? `não há subtarefa ${cls} (0h)`
+    : count === 1 ? `subtarefa ${names[0]} tem ${hoursShort(sum)}` : `subtarefas ${joinNames(names)} somam ${hoursShort(sum)}`;
+  return `Título diz ${cls} ${hoursShort(title)}, ${who}. Vale o título`;
+}
+
 /**
- * Frases de divergência título x subtarefas, uma por classe divergente:
+ * Frases de divergência título x subtarefas, uma por classe divergente (backlog):
  * "Título diz DEV 18h, subtarefa Codificação tem 16h. Vale o título".
  */
 export function divergenceMessages(p: BacklogParent): string[] {
@@ -123,13 +140,57 @@ export function divergenceMessages(p: BacklogParent): string[] {
     const title = cls === 'DEV' ? p.titleHours.dev : p.titleHours.qa;
     const subs = p.subtasks.filter((s) => s.subtaskClass === cls);
     const names = [...new Set(subs.map((s) => s.typeName ?? s.title ?? s.key))];
-    const sum = p.sumByClass?.[cls] ?? 0;
-    const who = subs.length === 0
-      ? `não há subtarefa ${cls} (0h)`
-      : subs.length === 1 ? `subtarefa ${names[0]} tem ${hoursShort(sum)}` : `subtarefas ${joinNames(names)} somam ${hoursShort(sum)}`;
-    out.push(`Título diz ${cls} ${hoursShort(title)}, ${who}. Vale o título`);
+    out.push(divergencePhrase(cls, title, names, subs.length, p.sumByClass?.[cls] ?? 0));
   }
   return out;
+}
+
+/** O mesmo, para um item do plano: a flag e as somas vêm do servidor (`divergenceDev/Qa`, `subtaskDevH/QaH`). */
+export function itemDivergenceMessages(i: PlanItem): string[] {
+  const out: string[] = [];
+  for (const cls of CLASSES) {
+    const flagged = cls === 'DEV' ? i.divergenceDev : i.divergenceQa;
+    const title = cls === 'DEV' ? i.titleDevHours : i.titleQaHours;
+    if (!flagged || title == null) continue;
+    const subs = (i.subtasks ?? []).filter((s) => s.cls === cls);
+    const names = [...new Set(subs.map((s) => s.typeName ?? s.title ?? s.key))];
+    out.push(divergencePhrase(cls, title, names, subs.length, (cls === 'DEV' ? i.subtaskDevH : i.subtaskQaH) ?? 0));
+  }
+  return out;
+}
+
+/** Os avisos de uma tarefa, no mesmo formato para a refinada (backlog) e para o item do plano (servidor). */
+export interface TaskNoticeData {
+  key: string;
+  carryOver: boolean;
+  /** Tempo Estimado / Restante das subtarefas DEV+QA (só mostrado na sobra). */
+  estimated: number;
+  remaining: number;
+  noEstimate: boolean;
+  noTitleHours: boolean;
+  divergences: string[];
+  unclassified: number;
+  /** A pai saiu do backlog refinado depois de entrar no plano (valem as horas gravadas na inclusão). */
+  outOfBacklog: boolean;
+}
+
+export function noticesFromBacklog(p: BacklogParent): TaskNoticeData {
+  const t = carryOverTimes(p);
+  return {
+    key: p.key, carryOver: p.carryOver, estimated: t.estimated, remaining: t.remaining, noEstimate: hasNoEstimate(p),
+    noTitleHours: hasNoTitleHours(p), divergences: divergenceMessages(p), unclassified: unclassifiedCount(p), outOfBacklog: false,
+  };
+}
+
+export function noticesFromItem(i: PlanItem): TaskNoticeData {
+  return {
+    key: i.parentKey, carryOver: i.carryOver,
+    estimated: (i.subtaskDevEstimateH ?? 0) + (i.subtaskQaEstimateH ?? 0),
+    remaining: (i.subtaskDevRemainingH ?? 0) + (i.subtaskQaRemainingH ?? 0),
+    noEstimate: !!i.noEstimate,
+    noTitleHours: !i.carryOver && !i.noEstimate && i.titleDevHours == null && i.titleQaHours == null,
+    divergences: itemDivergenceMessages(i), unclassified: i.unclassifiedCount ?? 0, outOfBacklog: i.inBacklog === false,
+  };
 }
 
 /** Tempo Estimado e Tempo Restante (subtarefas DEV e QA) da sobra, para o destaque do carry-over. */
@@ -198,5 +259,5 @@ export function syncedAgo(syncedAt: string | null | undefined, now: number = Dat
 
 /** Plano pode avançar da etapa Escopo? (o backend também exige: 422). */
 export function canAdvanceFromScope(plan: Pick<PlanView, 'items'>): boolean {
-  return plan.items.length >= 1;
+  return (plan.items?.length ?? 0) >= 1;
 }

@@ -29,7 +29,7 @@ import {
   stepOfStatus,
   type StepId,
 } from '@/lib/sprint-planner/format';
-import { canAdvanceFromScope } from '@/lib/sprint-planner/scope';
+import { applyScope, canAdvanceFromScope } from '@/lib/sprint-planner/scope';
 import { CapacityStep } from './CapacityStep';
 import { ScopeStep } from './ScopeStep';
 
@@ -223,7 +223,7 @@ export function PlanScreen({
         ) : step === 'escopo' ? (
           <ScopeStep
             plan={plan}
-            onPlan={(p) => setLoad({ state: 'ok', plan: p })}
+            onScope={(sv) => setLoad((prev) => (prev.state === 'ok' ? { state: 'ok', plan: applyScope(prev.plan, sv) } : prev))}
             onReload={() => reload(true)}
             onPatch={onPatch}
             onOpenTypes={openTypes}

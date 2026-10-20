@@ -6,7 +6,7 @@ import { FOCUS_RING, PresentationBar, StatusChip } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import type { PlanView, Thermometer } from '@/lib/sprint-planner/api';
 import { formatHours, formatRange, formatWorkingDays } from '@/lib/sprint-planner/format';
-import { scopeTotals, type ScopeEntry } from '@/lib/sprint-planner/scope';
+import type { ScopeEntry } from '@/lib/sprint-planner/scope';
 import { ScopeBars } from './ScopeBars';
 import { HoursChips } from './ScopeTaskCard';
 
@@ -19,18 +19,20 @@ type Layout = 'grade' | 'lista';
 export function ScopePresentation({
   plan,
   entries,
+  summary,
   thermometer,
   syncedLabel,
   onExit,
 }: {
   plan: PlanView;
   entries: ScopeEntry[];
+  /** Tarefas e horas do escopo (totais do servidor, ou a estimativa enquanto há mudança pendente). */
+  summary: { count: number; DEV: number; QA: number };
   thermometer: Record<string, Thermometer>;
   syncedLabel: string | null;
   onExit: () => void;
 }) {
   const [layout, setLayout] = useState<Layout>('grade');
-  const totals = scopeTotals(entries);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onExit(); };
@@ -73,15 +75,15 @@ export function ScopePresentation({
         <section aria-label="Números do escopo" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-[12px] border border-border bg-card p-4">
             <span className="block text-xs font-semibold text-muted-foreground">Tarefas no escopo</span>
-            <strong className="text-3xl tabular-nums" data-testid="pres-total-tarefas">{entries.length}</strong>
+            <strong className="text-3xl tabular-nums" data-testid="pres-total-tarefas">{summary.count}</strong>
           </div>
           <div className="rounded-[12px] border border-border bg-card p-4">
             <span className="block text-xs font-semibold text-muted-foreground">Horas DEV</span>
-            <strong className="text-3xl tabular-nums" data-testid="pres-total-DEV">{formatHours(totals.DEV)}</strong>
+            <strong className="text-3xl tabular-nums" data-testid="pres-total-DEV">{formatHours(summary.DEV)}</strong>
           </div>
           <div className="rounded-[12px] border border-border bg-card p-4">
             <span className="block text-xs font-semibold text-muted-foreground">Horas QA</span>
-            <strong className="text-3xl tabular-nums" data-testid="pres-total-QA">{formatHours(totals.QA)}</strong>
+            <strong className="text-3xl tabular-nums" data-testid="pres-total-QA">{formatHours(summary.QA)}</strong>
           </div>
         </section>
 

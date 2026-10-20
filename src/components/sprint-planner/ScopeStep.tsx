@@ -16,6 +16,7 @@ import {
   type BacklogView,
   type PatchPlanRequest,
   type PlanView,
+  type ScopeView,
 } from '@/lib/sprint-planner/api';
 import {
   CLASSES,
@@ -23,7 +24,8 @@ import {
   buildScope,
   estimateThermometer,
   filterBacklog,
-  scopeTotals,
+  noticesFromItem,
+  scopeSummary,
   syncedAgo,
   unclassifiedSummary,
   type ScopeFilter,
@@ -37,8 +39,9 @@ type MobileTab = 'sprint' | 'refinadas';
 
 export interface ScopeStepProps {
   plan: PlanView;
-  /** Troca o plano pela resposta do servidor (já com totais e termômetro novos). */
-  onPlan: (plan: PlanView) => void;
+  /** Aplica ao plano o `ScopeView` devolvido pelo servidor (itens, totais e termômetro novos). */
+  onScope: (scope: ScopeView) => void;
+  /** Recarrega o plano inteiro: o escopo mexe na versão do plano e o `ScopeView` não a traz. */
   onReload: () => Promise<void>;
   onPatch: (body: Omit<PatchPlanRequest, 'version'>) => void;
   /** Leva à seção de tipos de subtarefa (etapa Capacidade). */
@@ -48,7 +51,7 @@ export interface ScopeStepProps {
 const FILTERS = Object.keys(FILTER_LABEL) as ScopeFilter[];
 const SYNC_CONFLICT = 'Já existe uma sincronização em andamento para esta squad. Aguarde alguns instantes e tente de novo.';
 
-function GoalCard({ goal, canEdit, onSave }: { goal: string | null; canEdit: boolean; onSave: (goal: string) => void }) {
+function GoalCard({ goal, savedInJira, canEdit, onSave }: { goal: string | null; savedInJira?: boolean; canEdit: boolean; onSave: (goal: string) => void }) {
   const [draft, setDraft] = useState(goal ?? '');
   useEffect(() => { setDraft(goal ?? ''); }, [goal]);
   const dirty = draft.trim() !== (goal ?? '').trim();
@@ -56,7 +59,7 @@ function GoalCard({ goal, canEdit, onSave }: { goal: string | null; canEdit: boo
     <section aria-labelledby="escopo-meta" className={cn(PAGE_CARD, 'flex flex-col gap-2 p-4 sm:p-5')}>
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="escopo-meta" className="text-base font-bold text-foreground">Meta da sprint</h2>
-        <StatusChip tone="neutral">Campo Sprint goal do Jira</StatusChip>
+        <StatusChip tone={savedInJira ? 'success' : 'neutral'}>{savedInJira ? 'Já gravada no Sprint goal do Jira' : 'Campo Sprint goal do Jira'}</StatusChip>
       </header>
       {canEdit ? (
         <>
@@ -89,7 +92,7 @@ function GoalCard({ goal, canEdit, onSave }: { goal: string | null; canEdit: boo
  * Etapa 2: Escopo. Esquerda, as refinadas do Jira; direita, "Nesta sprint". A liderança adiciona e tira tarefas e as
  * barras DEV/QA se mexem na hora (estimativa provisória até o servidor responder); o membro só acompanha.
  */
-export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: ScopeStepProps) {
+export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: ScopeStepProps) {
   const { toast } = useToast();
   const canEdit = plan.permissions.canEditPlan;
   const mobile = useBelowBreakpoint(1024);
@@ -156,8 +159,8 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
   const add = async (keys: string[]) => {
     setPendingAdd((p) => new Set([...p, ...keys]));
     try {
-      const updated = await sprintPlanApi.addItems(plan.squadId, plan.id, keys);
-      if (updated) onPlan(updated); else await onReload();
+      onScope(await sprintPlanApi.addItems(plan.squadId, plan.id, keys));
+      await onReload();
     } catch (e) {
       await failure(e, 'Não foi possível adicionar ao escopo');
     } finally {
@@ -168,8 +171,8 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
   const remove = async (itemId: string) => {
     setPendingRemove((p) => new Set([...p, itemId]));
     try {
-      const updated = await sprintPlanApi.removeItem(plan.squadId, plan.id, itemId);
-      if (updated) onPlan(updated); else await onReload();
+      await sprintPlanApi.removeItem(plan.squadId, plan.id, itemId); // 204 sem corpo
+      await onReload();
     } catch (e) {
       await failure(e, 'Não foi possível tirar do escopo');
     } finally {
@@ -202,11 +205,13 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
 
   const syncedAt = backlog.state === 'ok' ? backlog.data.syncedAt ?? plan.syncedAt : plan.syncedAt;
   const syncedLabel = syncedAgo(syncedAt);
-  const unclassified = unclassifiedSummary(backlog.state === 'ok' ? backlog.data.unclassifiedTypes : []);
-  const totals = scopeTotals(entries);
+  // Subtarefas sem classificação das tarefas que JÁ estão no escopo (são as que ficam fora do total); sem o resumo do
+  // servidor, cai nas do backlog inteiro.
+  const unclassified = unclassifiedSummary(plan.scope ? plan.scope.unclassifiedTypes ?? [] : backlog.state === 'ok' ? backlog.data.unclassifiedTypes : []);
+  const summary = scopeSummary(plan, entries, estimated);
 
   if (presenting) {
-    return <ScopePresentation plan={plan} entries={entries} thermometer={thermometer} syncedLabel={syncedLabel} onExit={() => setPresenting(false)} />;
+    return <ScopePresentation plan={plan} entries={entries} summary={summary} thermometer={thermometer} syncedLabel={syncedLabel} onExit={() => setPresenting(false)} />;
   }
 
   const syncButton = canEdit ? (
@@ -294,7 +299,7 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="escopo-sprint" className="text-base font-bold text-foreground">Nesta sprint</h2>
         <span className="text-[13px] tabular-nums text-muted-foreground" data-testid="escopo-totais">
-          {entries.length} {entries.length === 1 ? 'tarefa' : 'tarefas'} · DEV {totals.DEV.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h · QA {totals.QA.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h
+          {summary.count} {summary.count === 1 ? 'tarefa' : 'tarefas'} · DEV {summary.DEV.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h · QA {summary.QA.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h
         </span>
       </header>
       {entries.length === 0 ? (
@@ -313,8 +318,8 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
                   <HoursChips dev={e.dev} qa={e.qa} />
                 </div>
                 <p className="text-sm font-medium text-foreground [overflow-wrap:anywhere]">{e.title ?? 'Sem título'}</p>
-                {e.backlog ? (
-                  <TaskNotices task={e.backlog} onOpenTypes={onOpenTypes} />
+                {e.item ? (
+                  <TaskNotices notices={noticesFromItem(e.item)} onOpenTypes={onOpenTypes} />
                 ) : e.carryOver ? (
                   <p><StatusChip tone="warn">Veio da sprint anterior</StatusChip></p>
                 ) : null}
@@ -367,7 +372,7 @@ export function ScopeStep({ plan, onPlan, onReload, onPatch, onOpenTypes }: Scop
         </p>
       )}
 
-      <GoalCard goal={plan.goal} canEdit={canEdit} onSave={(goal) => onPatch({ goal })} />
+      <GoalCard goal={plan.goal} savedInJira={plan.goalSavedInJira} canEdit={canEdit} onSave={(goal) => onPatch({ goal })} />
 
       {unclassified && (
         <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-amber-700/40 bg-amber-500/10 px-4 py-3 text-[13px] text-foreground" data-testid="escopo-sem-classificacao">
