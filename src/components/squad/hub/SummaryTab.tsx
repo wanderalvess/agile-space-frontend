@@ -41,6 +41,8 @@ export interface SummaryTabProps {
   sync: { syncState: JiraSyncState; syncError: string | null; runJiraSync: () => Promise<void> };
   /** Gerencia o time (mesma regra do roster): vê "Configurar" no aviso de capacidade. */
   canManageTeam: boolean;
+  /** Pode reimportar o time do Jira (o servidor só aceita liderança do projeto/admin): é quem vê "Importar do Jira". */
+  canImportJira: boolean;
   /** Pode abrir a tela de Pessoas (SQUAD_PEOPLE_ADMIN_ROLES). */
   canOpenPeople: boolean;
   /** Sincronização do cabeçalho em andamento ou sprint histórica em tela: some o convite para sincronizar. */
@@ -56,6 +58,7 @@ export function SummaryTab({
   userRole,
   sync,
   canManageTeam,
+  canImportJira,
   canOpenPeople,
   canSyncNow,
   onSyncNow,
@@ -156,14 +159,16 @@ export function SummaryTab({
       <LinkedTeamWelcome showPainelLink={false} />
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <ModalButton
-          onClick={() => setJiraImportOpen(true)}
-          disabled={!hasSquad}
-          className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
-          title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
-        >
-          <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
-        </ModalButton>
+        {canImportJira && (
+          <ModalButton
+            onClick={() => setJiraImportOpen(true)}
+            disabled={!hasSquad}
+            className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
+            title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
+          >
+            <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
+          </ModalButton>
+        )}
         <ModalButton
           onClick={handleRefresh}
           disabled={isRefreshing || !hasSquad}
