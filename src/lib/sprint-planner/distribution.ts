@@ -58,7 +58,8 @@ export function chainNote(s: DistributionSubtask, byKey: Map<string, Distributio
 }
 
 /** O início fica travado (acompanha a antecessora): é o caso do QA depois do Code Review. */
-export const startIsLocked = (s: DistributionSubtask): boolean => s.cls === 'QA' && !!s.startsAfterKey;
+export const startIsLocked = (s: DistributionSubtask): boolean =>
+  s.cls === 'QA' && !!s.startsAfterKey && !!(s.startDate || s.minStartDate);
 
 /** Feriados da sprint como mapa dia (número) -> rótulo. Aceita "yyyy-MM-dd" ou { day, label }. */
 export function sprintHolidayDays(view: DistributionView): Map<number, string | null> {
@@ -72,8 +73,8 @@ export function sprintHolidayDays(view: DistributionView): Map<number, string | 
 }
 
 /**
- * Pré-validação só para UX (o servidor decide): fim depois do início, dentro da sprint, em dia útil e não antes do
- * `minStartDate`. Devolve a mensagem ou null.
+ * Pré-validação só para UX (o servidor decide): fim depois do início, dentro da sprint e não antes do `minStartDate`.
+ * Não barra fim de semana nem feriado: o servidor aceita (feriado só vira aviso) e conta a cascata em dias úteis. Devolve a mensagem ou null.
  */
 export function validateDates(s: DistributionSubtask, view: DistributionView, start: string, end: string): string | null {
   const a = parseDay(start);
@@ -84,7 +85,6 @@ export function validateDates(s: DistributionSubtask, view: DistributionView, st
   const hi = parseDay(view.sprint.endDate);
   if (lo !== null && a < lo) return `O início não pode ser antes da sprint (${formatDay(view.sprint.startDate)}).`;
   if (hi !== null && b > hi) return `O fim não pode ser depois da sprint (${formatDay(view.sprint.endDate)}).`;
-  if (isWeekendDay(a) || isWeekendDay(b)) return 'Use dias úteis (não vale sábado nem domingo).';
   const min = parseDay(s.minStartDate);
   if (min !== null && a < min) {
     return `O início não pode ser antes de ${formatDay(s.minStartDate)}${s.startsAfterKey ? `, quando ${s.startsAfterKey} termina` : ''}.`;
@@ -99,9 +99,9 @@ export function nextBusinessIso(iso: string): string {
   return isoOfDay(d);
 }
 
-/** Quem a liderança pode escolher: as pessoas do papel da subtarefa primeiro. */
+/** Quem a liderança pode escolher: só o papel da subtarefa (outro papel o servidor recusa com 422), por nome. */
 export function assignablePeople(people: DistributionPerson[], cls: 'DEV' | 'QA'): DistributionPerson[] {
-  return [...people].sort((x, y) => Number(y.role === cls) - Number(x.role === cls) || x.name.localeCompare(y.name, 'pt-BR'));
+  return people.filter((p) => p.role === cls).sort((x, y) => x.name.localeCompare(y.name, 'pt-BR'));
 }
 
 export interface Progress { withDates: number; total: number; missing: DistributionPerson[] }
