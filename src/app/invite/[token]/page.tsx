@@ -96,7 +96,7 @@ export default function InviteAcceptPage() {
   const view = inviteView({ authLoading, hasSession, invite, error, accepted });
 
   return (
-    <PageShell documentTitle="Convite" header={{ squadControl: null }} width="narrow" contentClassName="gap-0 p-0 sm:p-0 2xl:px-0 pb-0 sm:pb-0 pt-0 sm:pt-0">
+    <PageShell documentTitle="Convite" header={{ squadControl: null, minimal: !hasSession, signInHref: loginUrlForInvite(token, 'login') }} width="narrow" contentClassName="gap-0 p-0 sm:p-0 2xl:px-0 pb-0 sm:pb-0 pt-0 sm:pt-0">
     <InviteAcceptView
       view={view}
       invite={invite}

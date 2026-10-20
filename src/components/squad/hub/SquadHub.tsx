@@ -60,7 +60,7 @@ const LABEL = 'hidden xl:inline';
 export function SquadHub() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { userProfile, isInitializing } = useUserContext();
+  const { userProfile, isInitializing, isLeadership: isSquadLead } = useUserContext();
   const { toast } = useToast();
 
   const location = resolveHubLocation(searchParams.get('tab'), searchParams.get('view'));
@@ -78,7 +78,8 @@ export function SquadHub() {
   const hasSquad = !!rawSquadId && rawSquadId !== 'Sem Time';
   const squadId = hasSquad ? rawSquadId : '';
   const role = userProfile?.role as string | undefined;
-  const isLeadership = !!role && (SQUAD_ADMIN_ROLES as string[]).includes(role);
+  // Liderança = cargo de gestão OU bandeira de liderança no vínculo da squad ativa (é o que o servidor usa).
+  const isLeadership = (!!role && (SQUAD_ADMIN_ROLES as string[]).includes(role)) || !!isSquadLead;
   const isLeadershipViewer = !!role && (SQUAD_LEADERSHIP_VIEW_ROLES as string[]).includes(role);
   const isPeopleAdmin = !!role && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(role);
   const { canManageTeam } = useCanManageTeam(squadId);
@@ -285,7 +286,7 @@ export function SquadHub() {
           <span className={LABEL}>Pessoas</span>
         </ModalButton>
       )}
-      <ModalButton className={ACTION} onClick={() => setIsSettingsOpen(true)} title="Configurar a squad (projeto e conexão com o Jira)" aria-label="Configurar a squad">
+      <ModalButton className={ACTION} onClick={() => setIsSettingsOpen(true)} title={isLeadership ? 'Configurar a squad (projeto e conexão com o Jira)' : 'Conectar o seu Jira (a configuração da squad é da liderança)'} aria-label="Configurar a squad">
         <Settings2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         <span className={LABEL}>Configurar</span>
       </ModalButton>
@@ -342,6 +343,7 @@ export function SquadHub() {
                 userRole={role}
                 sync={summarySync}
                 canManageTeam={canManageTeam && isPeopleAdmin}
+                canImportJira={canManageTeam}
                 canOpenPeople={isPeopleAdmin}
                 canSyncNow={viewingSprintId === null && !isSyncing}
                 onSyncNow={() => handleSync()}

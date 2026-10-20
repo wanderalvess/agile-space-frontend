@@ -41,6 +41,26 @@ beforeEach(() => {
   setSession(1);
 });
 
+describe('AppHeader minimal (convite para visitante)', () => {
+  it('mostra só a marca e o Entrar, sem menu de módulos nem busca', () => {
+    render(<AppHeader minimal signInHref="/login?returnUrl=%2Finvite%2Fabc" />);
+    expect(screen.queryByRole('navigation', { name: 'Principal' })).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByLabelText('Notificações')).toBeNull();
+    expect(screen.queryByText('Rituais')).toBeNull();
+    expect(screen.getByLabelText(/Portal Tech V&D, página inicial/)).toBeTruthy();
+    const entrar = screen.getByRole('link', { name: 'Entrar' });
+    expect(entrar.getAttribute('href')).toBe('/login?returnUrl=%2Finvite%2Fabc');
+  });
+
+  it('sem minimal o cabeçalho continua completo', () => {
+    render(<AppHeader />);
+    expect(screen.getByRole('navigation', { name: 'Principal' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Entrar' })).toBeNull();
+  });
+});
+
 describe('AppHeader', () => {
   it('traz a navegação curta: Home, Squad, Meu espaço, Rituais e Admin (admin)', () => {
     render(<AppHeader />);
