@@ -472,7 +472,8 @@ export interface DistributionSubtask {
   title: string | null;
   typeId: string | null;
   typeName: string | null;
-  cls: SubtaskClass;
+  /** DEV e QA são distribuíveis; FORA ("Fora da conta") e SEM ("Sem classificação") vêm com canClaim=false. */
+  cls: 'DEV' | 'QA' | 'FORA' | 'SEM';
   /** Subtarefa do tipo Code Review (etapa do meio da cadeia Codificação, Code Review, QA). */
   codeReview: boolean;
   estimateH: number;

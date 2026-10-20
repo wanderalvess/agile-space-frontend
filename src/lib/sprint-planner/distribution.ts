@@ -135,10 +135,13 @@ export function dateChanges(prev: DistributionView, next: DistributionView): Dat
 }
 
 const WARNING_LABEL: Record<string, string> = {
-  OVER_CAPACITY: 'Acima da capacidade',
-  NO_ASSIGNEE: 'Sem dono',
-  NO_DATES: 'Sem datas',
+  PERSON_OVER_CAPACITY: 'Acima da capacidade',
+  SUBTASK_UNASSIGNED: 'Sem dono',
+  SUBTASK_NO_DATES: 'Sem datas',
+  DATES_OUTSIDE_SPRINT: 'Fora da sprint',
+  TASK_ON_HOLIDAY: 'Em feriado',
   QA_BEFORE_DEV: 'QA antes do DEV',
+  CODE_REVIEW_BEFORE_CODING: 'Code Review antes da Codificação',
 };
 
 export function warningTitle(code: string): string {
