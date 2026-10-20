@@ -183,7 +183,7 @@ function RosterContent() {
   if (approverOnly) {
     return (
       <PageShell documentTitle="Pedidos de vínculo">
-        <PageHeader title="Pedidos de vínculo" breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Pedidos de vínculo' }]} />
+        <PageHeader title="Pedidos de vínculo" module="roster" breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Pedidos de vínculo' }]} />
         {requestsPanel}
       </PageShell>
     );
