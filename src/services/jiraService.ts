@@ -834,7 +834,7 @@ export const fetchJiraIssues = async (
     // Jira) vs. fallback fabricado (created/updated, timestamp de auditoria,
     // não data de plano). datesAreInferred avisa quem consome que a fase caiu
     // no fallback — sem isso, uma cascata de atraso calcula em cima de uma
-    // data inventada sem avisar ninguém (ver Jira Plans / SquadPlansTimeline).
+    // data inventada sem avisar ninguém (ver Cronograma da squad).
     const realTargetStart = toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start);
     const realTargetEnd = toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end);
 

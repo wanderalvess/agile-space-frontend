@@ -45,7 +45,7 @@ const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard
   ssr: false,
   loading: () => <LoadingSkeleton variant="cards" rows={3} label="Carregando o quadro" />,
 });
-const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then((m) => m.SquadPlansTimeline), {
+const CronogramaView = dynamic(() => import('@/components/squad/cronograma/CronogramaView').then((m) => m.CronogramaView), {
   ssr: false,
   loading: () => <LoadingSkeleton variant="table" label="Carregando o cronograma" />,
 });
@@ -359,7 +359,13 @@ export function SquadHub() {
             )}
 
             {tab === 'cronograma' && (
-              <SquadPlansTimeline jiraConnected={jiraConnected} onConnectJira={() => setIsSettingsOpen(true)} onSync={() => handleSync()} />
+              <CronogramaView
+                squadId={squadId}
+                jiraConnected={jiraConnected}
+                onConnectJira={() => setIsSettingsOpen(true)}
+                onSync={() => handleSync()}
+                canConfigure={isLeadership}
+              />
             )}
 
             {tab === 'metricas' && (

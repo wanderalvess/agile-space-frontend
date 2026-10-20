@@ -3,7 +3,7 @@
  * Os filtros só escondem linhas; a cascata e a sugestão sempre são calculadas com a história inteira.
  */
 import {
-  dayFromYmd, parseDay, ptNum, todayDay, ymdOfDay, type Pt,
+  dayFromYmd, parseDay, ptNum, shiftPt, todayDay, ymdOfDay, type Pt,
 } from './dates';
 import type { PlannedTask, StoryModel } from './schedule';
 import { personKeyOf, type CronoTask } from './task';
@@ -183,4 +183,18 @@ export function barGeometry(span: { start: Pt; end: Pt }, axisStart: number, axi
   const left = (cs - lo) * dayWidth;
   const width = Math.max(minWidth, (ce - cs) * dayWidth);
   return { left, width, clippedStart: s < lo, clippedEnd: e > hi };
+}
+
+export interface TaskSpans {
+  /** Parte "normal" da barra: início efetivo até o fim planejado (já empurrado por fases anteriores). */
+  solid: { start: Pt; end: Pt };
+  /** Atraso próprio: do fim planejado até o fim previsto. */
+  slip: { start: Pt; end: Pt } | null;
+}
+
+export function taskSpans(p: PlannedTask): TaskSpans | null {
+  if (!p.planned || !p.effective) return null;
+  if (p.slip.own <= 0) return { solid: p.effective, slip: null };
+  const solidEnd = shiftPt(p.planned.end, p.slip.pushed);
+  return { solid: { start: p.effective.start, end: solidEnd }, slip: { start: solidEnd, end: p.effective.end } };
 }

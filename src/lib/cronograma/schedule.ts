@@ -135,7 +135,7 @@ function spanOfStamps(t: CronoTask): Span | null {
   const a = t.start ?? t.end;
   const b = t.end ?? t.start;
   if (!a || !b) return null;
-  let start = stampStartPt(a);
+  const start = stampStartPt(a);
   let end = stampEndPt(b);
   if (ptNum(end) < ptNum(start)) end = { day: start.day, frac: 1 };
   return { start, end };

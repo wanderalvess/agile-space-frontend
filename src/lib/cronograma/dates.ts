@@ -217,3 +217,10 @@ export function formatHours(h: number): string {
   const mm = total % 60;
   return mm === 0 ? `${hh}h` : `${hh}h${pad2(mm)}`;
 }
+
+/** Posição de "agora" dentro da jornada (0 a 1) para a linha de hoje. */
+export function nowFrac(nowMs: number): number {
+  const local = nowMs + JORNADA.fusoMin * 60_000;
+  const day = Math.floor(local / MS_DIA);
+  return fracOfMinutes(Math.floor((local - day * MS_DIA) / 60_000));
+}
