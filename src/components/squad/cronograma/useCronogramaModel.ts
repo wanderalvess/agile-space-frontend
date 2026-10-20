@@ -27,6 +27,7 @@ interface Input {
   squadDefaultHours?: number;
   source: DateSource;
   sprintStartDay: number | null;
+  sprintEndDay: number | null;
   sim: Simulation | null;
   nowMs: number;
 }
@@ -35,7 +36,7 @@ interface Input {
  * Modelo do Cronograma com memoização por etapa: tarefas e histórias só mudam com as issues; a sugestão só com
  * horas/pessoas/relógio; a simulação recalcula UMA história, não a sprint inteira.
  */
-export function useCronogramaModel({ issues, phases, members, squadDefaultHours, source, sprintStartDay, sim, nowMs }: Input) {
+export function useCronogramaModel({ issues, phases, members, squadDefaultHours, source, sprintStartDay, sprintEndDay, sim, nowMs }: Input) {
   const tasks = useMemo(() => issues.map(toCronoTask), [issues]);
   const groups = useMemo(() => groupStories(tasks), [tasks]);
   const capacityOf = useMemo(() => buildCapacityResolver(members, squadDefaultHours), [members, squadDefaultHours]);
@@ -46,15 +47,15 @@ export function useCronogramaModel({ issues, phases, members, squadDefaultHours,
   );
 
   const base = useMemo<StoryModel[]>(
-    () => groups.map((g) => buildStory(g, { phases, nowMs, source, sprintStartDay, capacityOf }, suggestions, null)),
-    [groups, phases, nowMs, source, sprintStartDay, capacityOf, suggestions],
+    () => groups.map((g) => buildStory(g, { phases, nowMs, source, sprintStartDay, sprintEndDay, capacityOf }, suggestions, null)),
+    [groups, phases, nowMs, source, sprintStartDay, sprintEndDay, capacityOf, suggestions],
   );
 
   const simulated = useMemo<StoryModel | null>(() => {
     if (!sim || sim.days <= 0) return null;
     const g = groups.find((x) => x.children.some((c) => c.key === sim.key));
-    return g ? buildStory(g, { phases, nowMs, source, sprintStartDay, capacityOf }, suggestions, sim) : null;
-  }, [sim, groups, phases, nowMs, source, sprintStartDay, capacityOf, suggestions]);
+    return g ? buildStory(g, { phases, nowMs, source, sprintStartDay, sprintEndDay, capacityOf }, suggestions, sim) : null;
+  }, [sim, groups, phases, nowMs, source, sprintStartDay, sprintEndDay, capacityOf, suggestions]);
 
   const stories = useMemo(
     () => (simulated ? base.map((s) => (s.key === simulated.key ? simulated : s)) : base),

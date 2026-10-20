@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, memo, useMemo, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, memo, useEffect, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { dowShort, formatDay, formatHours, isWeekendDay, nowFrac, todayDay, ymdOfDay } from '@/lib/cronograma/dates';
@@ -37,7 +37,7 @@ function rowHeight(r: GanttRow): number {
 
 function StatusChip({ status, category }: { status: string; category: string }) {
   return (
-    <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold ${STATUS_CHIP[statusTone(status, category)]}`} title={`Status no Jira: ${status || 'sem status'}`}>
+    <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold max-sm:hidden ${STATUS_CHIP[statusTone(status, category)]}`} title={`Status no Jira: ${status || 'sem status'}`}>
       {statusLabel(status)}
     </span>
   );
@@ -47,8 +47,8 @@ function LeftCell({ width, children, tint }: { width: number; children: React.Re
   return (
     <div
       role="rowheader"
-      className={`sticky left-0 z-20 flex shrink-0 items-center gap-2 border-r border-border px-3 ${tint ? 'bg-muted' : 'bg-card'}`}
-      style={{ width, maxWidth: '75vw' }}
+      className={`sticky left-0 z-20 flex max-w-[46vw] shrink-0 items-center gap-2 border-r border-border px-3 md:max-w-[75vw] ${tint ? 'bg-muted' : 'bg-card'}`}
+      style={{ width }}
     >
       {children}
     </div>
@@ -75,6 +75,16 @@ const GanttGridImpl = ({ rows, days, dayWidth, leftWidth, onLeftWidth, grouping,
   const chartW = days.length * dayWidth;
   const today = todayDay(nowMs);
   const todayX = days.length > 0 && today >= axisStart && today <= axisEnd ? (today - axisStart + nowFrac(nowMs)) * dayWidth : null;
+
+  // Ao abrir (e ao trocar o período), leva a linha de hoje para perto da borda da coluna fixa: em tela estreita
+  // o início da sprint pode estar a vários dias de distância do que importa agora.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (el && todayX !== null) el.scrollLeft = Math.max(0, todayX - 96);
+    // Só ao abrir ou trocar o período: zoom e relógio não podem puxar a rolagem de volta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [axisStart, days.length]);
 
   const dayHeaders = useMemo(
     () => days.map((d) => ({ d, weekend: isWeekendDay(d), isToday: d === today, n: String(ymdOfDay(d).d), dow: dowShort(d) })),
@@ -154,7 +164,7 @@ const GanttGridImpl = ({ rows, days, dayWidth, leftWidth, onLeftWidth, grouping,
   };
 
   return (
-    <div className="overflow-x-auto" onKeyDown={onGridKey}>
+    <div ref={scroller} className="overflow-x-auto" onKeyDown={onGridKey}>
       <div role="grid" aria-label="Cronograma da sprint" aria-rowcount={rows.length + 1} className="relative" style={{ width: leftWidth + chartW, minWidth: '100%' }}>
         {/* Fundo: colunas dos dias, finais de semana sombreados e a linha de hoje */}
         <div aria-hidden="true" className="pointer-events-none absolute bottom-0 top-0 z-0 flex" style={{ left: leftWidth, width: chartW }}>
@@ -171,8 +181,8 @@ const GanttGridImpl = ({ rows, days, dayWidth, leftWidth, onLeftWidth, grouping,
         <div role="row" className="relative z-10 flex border-b border-border" style={{ height: HEADER_H }}>
           <div
             role="columnheader"
-            className="sticky left-0 z-20 flex shrink-0 items-end border-r border-border bg-card px-4 pb-2 text-xs font-semibold text-muted-foreground"
-            style={{ width: leftWidth, maxWidth: '75vw' }}
+            className="sticky left-0 z-20 flex max-w-[46vw] shrink-0 items-end border-r border-border bg-card px-4 pb-2 text-xs font-semibold text-muted-foreground md:max-w-[75vw]"
+            style={{ width: leftWidth }}
           >
             {grouping === 'story' ? 'História e fases' : 'Pessoa'}
             <div
@@ -254,7 +264,7 @@ const GanttGridImpl = ({ rows, days, dayWidth, leftWidth, onLeftWidth, grouping,
                     sub={`${t.key}${t.assigneeName ? ` · ${t.assigneeName}` : ' · sem responsável'}`}
                     onClick={() => onSelect({ kind: 'task', key: t.key })}
                   />
-                  {t.assigneeName && <InitialsAvatar name={t.assigneeName} className="h-6 w-6 shrink-0 text-xs" />}
+                  {t.assigneeName && <InitialsAvatar name={t.assigneeName} className="h-6 w-6 shrink-0 text-xs max-sm:hidden" />}
                   {p.slip.shift > 0
                     ? <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-bold ${WARN_CHIP}`}>+{p.slip.shift} d</span>
                     : <StatusChip status={t.status} category={t.statusCategory} />}

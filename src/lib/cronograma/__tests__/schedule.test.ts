@@ -105,6 +105,14 @@ describe('buildModel com datas aproximadas', () => {
     expect(h.tasks[0].suggestion).not.toBeNull();
   });
 
+  it('data aproximada inteira fora da sprint não vira barra: cai na sugestão', () => {
+    const win = { sprintStartDay: d(13), sprintEndDay: d(30) };
+    const [h] = buildModel(tasks(), ctx(win));
+    expect(h.tasks.every((t) => t.origin === 'sugestao')).toBe(true);
+    const inside = tasks().map((t) => (t.parentKey ? { ...t, start: parseStamp('2026-10-15'), end: parseStamp('2026-10-16') } : t));
+    expect(buildModel(inside, ctx(win))[0].tasks.every((t) => t.origin === 'aproximada')).toBe(true);
+  });
+
   it('sem nenhuma data e com horas, cai na sugestão automaticamente', () => {
     const [h] = buildModel([story(), sub('DEV', 'Codificação', { estimateSec: 8.2 * 3600 })], ctx());
     expect(h.tasks[0].origin).toBe('sugestao');
@@ -185,5 +193,26 @@ describe('filtros, linhas e geometria', () => {
     expect(barGeometry({ start: { day: d(1), frac: 0 }, end: { day: d(2), frac: 1 } }, d(19), d(23), 100)).toBeNull();
     const clipped = barGeometry({ start: { day: d(10), frac: 0 }, end: { day: d(21), frac: 1 } }, d(19), d(23), 100)!;
     expect(clipped).toMatchObject({ left: 0, clippedStart: true, clippedEnd: false });
+  });
+});
+
+describe('desempenho', () => {
+  it('uma sprint com 600 subtarefas monta o modelo sem travar', () => {
+    const tasks: CronoTask[] = [];
+    for (let s = 0; s < 120; s += 1) {
+      tasks.push(task({ key: `S-${s}`, type: 'Story' }));
+      ['Codificação', 'Testes Automatizados', 'Code Review', 'Teste QA', 'Execução TI'].forEach((type, i) => {
+        tasks.push(task({
+          key: `S-${s}-${i}`, type, parentKey: `S-${s}`, assigneeId: `p${(s + i) % 12}`, assigneeName: `Pessoa ${(s + i) % 12}`,
+          estimateSec: (4 + i) * 3600, ...real('2026-10-14T09:00:00-03:00', '2026-10-28T18:00:00-03:00'),
+        }));
+      });
+    }
+    const t0 = performance.now();
+    const model = buildModel(tasks, ctx({ source: 'horas' }));
+    const ms = performance.now() - t0;
+    expect(model).toHaveLength(120);
+    expect(model[0].tasks).toHaveLength(5);
+    expect(ms).toBeLessThan(1500);
   });
 });

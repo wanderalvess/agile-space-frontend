@@ -73,6 +73,7 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
     squadDefaultHours: config?.defaultDailyCapacityHours,
     source,
     sprintStartDay: sprint.start,
+    sprintEndDay: sprint.end,
     sim,
     nowMs,
   });
@@ -126,7 +127,7 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
   const subtitle = `${activeRollup?.sprintName || issues[0]?.sprintName || 'Sprint'} · ${formatDay(sprint.start)} a ${formatDay(sprint.end)}`;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">

@@ -27,9 +27,9 @@ export function InferredBanner({ inferred, total, suggesting, canConfigure, onSu
             ? 'As subtarefas desta sprint estão sem "Data e Hora de Início" e "Data e Hora de Fim" no Jira.'
             : `${inferred} de ${total} subtarefas estão sem "Data e Hora de Início" e "Data e Hora de Fim" no Jira.`}
         </strong>{' '}
-        As barras tracejadas usam a data de criação e a de última edição, que não dizem quando o trabalho deve acontecer.
-        Por isso o portal não declara atraso. Preencha os campos ou use a sugestão pelas horas: cada fase começa quando a
-        anterior termina e cada pessoa segue a própria capacidade diária.
+        {suggesting
+          ? 'As barras com contorno são a sugestão do portal: cada fase começa quando a anterior termina e cada pessoa segue a própria capacidade diária. Preencha os campos no Jira para usar as datas de lá.'
+          : 'As barras tracejadas usam a data de criação e a de última edição, que não dizem quando o trabalho deve acontecer. Por isso o portal não declara atraso. Preencha os campos ou use a sugestão pelas horas: cada fase começa quando a anterior termina e cada pessoa segue a própria capacidade diária.'}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={onSuggest} disabled={suggesting} className="h-10 rounded-xl px-4 font-semibold">

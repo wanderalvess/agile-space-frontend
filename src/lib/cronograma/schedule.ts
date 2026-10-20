@@ -70,6 +70,8 @@ export interface BuildContext {
   nowMs: number;
   source: DateSource;
   sprintStartDay?: number | null;
+  /** Fim da sprint: datas aproximadas que caem inteiras fora da sprint não servem de barra. */
+  sprintEndDay?: number | null;
   capacityOf: ResolvedCapacityFn;
 }
 
@@ -164,7 +166,12 @@ export function buildStory(
     const suggestion = suggestions.get(task.key) ?? null;
     const capacity = ctx.capacityOf(task.assigneeId, task.assigneeName);
     const real = hasRealDates(task);
-    const approx = task.start || task.end ? spanOfStamps(task) : null;
+    let approx = task.start || task.end ? spanOfStamps(task) : null;
+    // Data inventada (criação/última edição) inteira fora da sprint não diz nada sobre quando o trabalho acontece.
+    if (approx && ctx.sprintStartDay != null && ctx.sprintEndDay != null
+      && (approx.end.day < ctx.sprintStartDay || approx.start.day > ctx.sprintEndDay)) {
+      approx = null;
+    }
     let origin: DateOrigin = 'nenhuma';
     let planned: Span | null = null;
     if (suggestion && !isDone(task) && (ctx.source === 'horas' || (!real && !approx))) {
