@@ -36,6 +36,11 @@ export function TaskNotices({ notices, onOpenTypes }: { notices: TaskNoticeData;
           </span>
         </p>
       )}
+      {notices.breakdown.map((b) => (
+        <p key={b.cls} className="text-[13px] tabular-nums text-muted-foreground" data-testid={`composicao-${notices.key}-${b.cls}`}>
+          {b.cls} {formatHours(b.total)} = título {formatHours(b.title)} + Code Review {formatHours(b.codeReview)}{b.assumed ? ' (hora padrão, sem subtarefa de Code Review)' : ''}
+        </p>
+      ))}
       {notices.outOfBacklog && (
         <p className="text-[13px] text-muted-foreground">Saiu das refinadas no Jira; valem as horas de quando entrou no plano.</p>
       )}

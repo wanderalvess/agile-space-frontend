@@ -10,12 +10,62 @@ import type { BacklogParent, BacklogView, PlanItem, PlanView, ScopeView, Subtask
 export type Cls = 'DEV' | 'QA';
 export const CLASSES: readonly Cls[] = ['DEV', 'QA'];
 
-/** Horas que a tarefa pesa no total, na mesma regra do backend: sobra = restante; senão título; senão soma das subtarefas. */
+/** Code Review DEV presumido quando a pai nova ainda não tem a subtarefa (a mesma constante do backend). */
+export const DEFAULT_CODE_REVIEW_DEV_HOURS = 1;
+
+/** Subtarefa de Code Review: pela flag do servidor ou, nos itens do plano, pelo id da semente / nome do tipo. */
+export function isCodeReviewSubtask(s: { codeReview?: boolean; typeId?: string | null; typeName?: string | null }): boolean {
+  if (typeof s.codeReview === 'boolean') return s.codeReview;
+  return s.typeId === '12300' || (s.typeName ?? '').trim().toLowerCase() === 'code review';
+}
+
+/** Horas de Code Review que entram no item novo (com título): as das subtarefas; DEV sem subtarefa = hora padrão; QA só se existir. */
+export function parentCodeReview(p: BacklogParent, cls: Cls): number {
+  if (p.carryOver) return p.codeReviewByClass?.[cls] ?? 0;
+  if (!p.titleHours || (p.titleHours.dev == null && p.titleHours.qa == null)) return p.codeReviewByClass?.[cls] ?? 0;
+  const t = cls === 'DEV' ? p.titleHours.dev : p.titleHours.qa;
+  if (t == null) return 0;
+  if (cls === 'DEV' && !p.hasCodeReviewDev) return DEFAULT_CODE_REVIEW_DEV_HOURS;
+  return p.codeReviewByClass?.[cls] ?? 0;
+}
+
+/**
+ * Horas que a tarefa pesa no total, na mesma regra do backend: sobra = restante; com horas no título (do Poker, sem
+ * Code Review) = título + Code Review da classe; senão soma das subtarefas.
+ */
 export function parentHours(p: BacklogParent, cls: Cls): number {
   const sum = p.sumByClass?.[cls] ?? 0;
   if (p.carryOver) return sum;
   const t = p.titleHours ? (cls === 'DEV' ? p.titleHours.dev : p.titleHours.qa) : null;
-  return t ?? sum;
+  if (!p.titleHours || (p.titleHours.dev == null && p.titleHours.qa == null)) return sum;
+  return (t ?? 0) + parentCodeReview(p, cls);
+}
+
+/** Decomposição "DEV 6 h = título 5 h + Code Review 1 h" (null na sobra e quando não há Code Review a mostrar). */
+export interface HoursBreakdown { cls: Cls; total: number; title: number; codeReview: number; assumed: boolean }
+
+export function itemBreakdown(i: PlanItem): HoursBreakdown[] {
+  if (i.carryOver) return [];
+  const out: HoursBreakdown[] = [];
+  const dev = { cls: 'DEV' as const, total: i.devHours ?? 0, cr: i.codeReviewDevH ?? 0, title: i.titleDevHours };
+  const qa = { cls: 'QA' as const, total: i.qaHours ?? 0, cr: i.codeReviewQaH ?? 0, title: i.titleQaHours };
+  for (const c of [dev, qa]) {
+    if (c.title == null || c.cr <= 0) continue;
+    out.push({ cls: c.cls, total: c.total, title: c.title, codeReview: c.cr, assumed: c.cls === 'DEV' && !!i.codeReviewDevAssumed });
+  }
+  return out;
+}
+
+export function backlogBreakdown(p: BacklogParent): HoursBreakdown[] {
+  if (p.carryOver || !p.titleHours) return [];
+  const out: HoursBreakdown[] = [];
+  for (const cls of CLASSES) {
+    const title = cls === 'DEV' ? p.titleHours.dev : p.titleHours.qa;
+    const cr = parentCodeReview(p, cls);
+    if (title == null || cr <= 0) continue;
+    out.push({ cls, total: parentHours(p, cls), title, codeReview: cr, assumed: cls === 'DEV' && !p.hasCodeReviewDev });
+  }
+  return out;
 }
 
 /** Sem nenhuma hora (nem no título, nem nas subtarefas DEV/QA): precisa de estimativa. */
@@ -138,9 +188,9 @@ export function divergenceMessages(p: BacklogParent): string[] {
     const flagged = cls === 'DEV' ? p.divergenceDev : p.divergenceQa;
     if (!flagged || !p.titleHours) continue;
     const title = cls === 'DEV' ? p.titleHours.dev : p.titleHours.qa;
-    const subs = p.subtasks.filter((s) => s.subtaskClass === cls);
+    const subs = p.subtasks.filter((s) => s.subtaskClass === cls && !isCodeReviewSubtask(s));
     const names = [...new Set(subs.map((s) => s.typeName ?? s.title ?? s.key))];
-    out.push(divergencePhrase(cls, title, names, subs.length, p.sumByClass?.[cls] ?? 0));
+    out.push(divergencePhrase(cls, title, names, subs.length, (p.sumByClass?.[cls] ?? 0) - (p.codeReviewByClass?.[cls] ?? 0)));
   }
   return out;
 }
@@ -152,7 +202,7 @@ export function itemDivergenceMessages(i: PlanItem): string[] {
     const flagged = cls === 'DEV' ? i.divergenceDev : i.divergenceQa;
     const title = cls === 'DEV' ? i.titleDevHours : i.titleQaHours;
     if (!flagged || title == null) continue;
-    const subs = (i.subtasks ?? []).filter((s) => s.cls === cls);
+    const subs = (i.subtasks ?? []).filter((s) => s.cls === cls && !isCodeReviewSubtask(s));
     const names = [...new Set(subs.map((s) => s.typeName ?? s.title ?? s.key))];
     out.push(divergencePhrase(cls, title, names, subs.length, (cls === 'DEV' ? i.subtaskDevH : i.subtaskQaH) ?? 0));
   }
@@ -170,6 +220,8 @@ export interface TaskNoticeData {
   noTitleHours: boolean;
   divergences: string[];
   unclassified: number;
+  /** "DEV 6 h = título 5 h + Code Review 1 h" (vazio na sobra). */
+  breakdown: HoursBreakdown[];
   /** A pai saiu do backlog refinado depois de entrar no plano (valem as horas gravadas na inclusão). */
   outOfBacklog: boolean;
 }
@@ -178,7 +230,7 @@ export function noticesFromBacklog(p: BacklogParent): TaskNoticeData {
   const t = carryOverTimes(p);
   return {
     key: p.key, carryOver: p.carryOver, estimated: t.estimated, remaining: t.remaining, noEstimate: hasNoEstimate(p),
-    noTitleHours: hasNoTitleHours(p), divergences: divergenceMessages(p), unclassified: unclassifiedCount(p), outOfBacklog: false,
+    noTitleHours: hasNoTitleHours(p), divergences: divergenceMessages(p), unclassified: unclassifiedCount(p), outOfBacklog: false, breakdown: backlogBreakdown(p),
   };
 }
 
@@ -189,7 +241,7 @@ export function noticesFromItem(i: PlanItem): TaskNoticeData {
     remaining: (i.subtaskDevRemainingH ?? 0) + (i.subtaskQaRemainingH ?? 0),
     noEstimate: !!i.noEstimate,
     noTitleHours: !i.carryOver && !i.noEstimate && i.titleDevHours == null && i.titleQaHours == null,
-    divergences: itemDivergenceMessages(i), unclassified: i.unclassifiedCount ?? 0, outOfBacklog: i.inBacklog === false,
+    divergences: itemDivergenceMessages(i), unclassified: i.unclassifiedCount ?? 0, outOfBacklog: i.inBacklog === false, breakdown: itemBreakdown(i),
   };
 }
 

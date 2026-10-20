@@ -21,13 +21,13 @@ import {
 
 const sub = (over: Partial<BacklogParent['subtasks'][number]> = {}) => ({
   key: 'X-1', title: 'sub', typeId: '1', typeName: 'Codificação', subtaskClass: 'DEV' as const, estimateH: 16, remainingH: 16, countedH: 16,
-  defaultHoursApplied: false, status: null, statusCategory: null, assigneeId: null, assigneeName: null, ...over,
+  defaultHoursApplied: false, status: null, statusCategory: null, assigneeId: null, assigneeName: null, codeReview: false, ...over,
 });
 
 const parent = (over: Partial<BacklogParent> = {}): BacklogParent => ({
   key: 'SQ-1', title: 'Checkout (DEV 18h / QA 6h)', status: 'Refinamento Concluído', carryOver: false,
   titleHours: { dev: 18, qa: 6 }, subtasks: [sub(), sub({ key: 'X-2', typeName: 'Teste', subtaskClass: 'QA', estimateH: 6, remainingH: 6, countedH: 6 })],
-  sumByClass: { DEV: 16, QA: 6 }, divergenceDev: true, divergenceQa: false, divergent: true, ...over,
+  sumByClass: { DEV: 16, QA: 6 }, codeReviewByClass: {}, hasCodeReviewDev: false, divergenceDev: true, divergenceQa: false, divergent: true, ...over,
 });
 
 const item = (over: Partial<PlanItem> = {}): PlanItem => planItem(over);
@@ -37,8 +37,13 @@ const thermo = (over: Partial<Thermometer> = {}): Thermometer => ({
 });
 
 describe('horas da tarefa', () => {
-  it('vale o título; sem título, a soma das subtarefas; sobra, o restante', () => {
-    expect(parentHours(parent(), 'DEV')).toBe(18);
+  it('título + Code Review; sem título, a soma das subtarefas; sobra, o restante', () => {
+    // sem subtarefa de Code Review: DEV ganha 1 h presumida, QA não
+    expect(parentHours(parent(), 'DEV')).toBe(19);
+    expect(parentHours(parent(), 'QA')).toBe(6);
+    // com Code Review DEV 2 h e Code Review QA 1 h nas subtarefas
+    const withCr = parent({ hasCodeReviewDev: true, codeReviewByClass: { DEV: 2, QA: 1 }, sumByClass: { DEV: 18, QA: 7 } });
+    expect([parentHours(withCr, 'DEV'), parentHours(withCr, 'QA')]).toEqual([20, 7]);
     expect(parentHours(parent({ titleHours: null }), 'DEV')).toBe(16);
     expect(parentHours(parent({ carryOver: true, sumByClass: { DEV: 5, QA: 2 } }), 'DEV')).toBe(5);
   });
@@ -55,10 +60,16 @@ describe('divergência título x subtarefas', () => {
   });
 
   it('várias subtarefas somam; classe sem subtarefa é dita', () => {
-    const p = parent({ subtasks: [sub(), sub({ key: 'X-3', typeName: 'Code Review', estimateH: 4 })], sumByClass: { DEV: 20 }, divergenceQa: true });
+    const p = parent({ subtasks: [sub(), sub({ key: 'X-3', typeName: 'Revisão de tela', estimateH: 4 })], sumByClass: { DEV: 20 }, divergenceQa: true });
     const m = divergenceMessages(p);
-    expect(m[0]).toBe('Título diz DEV 18h, subtarefas Codificação e Code Review somam 20h. Vale o título');
+    expect(m[0]).toBe('Título diz DEV 18h, subtarefas Codificação e Revisão de tela somam 20h. Vale o título');
     expect(m[1]).toBe('Título diz QA 6h, não há subtarefa QA (0h). Vale o título');
+  });
+
+  it('o Code Review nunca aparece na frase nem entra na soma comparada', () => {
+    const cr = sub({ key: 'X-3', typeId: '12300', typeName: 'Code Review', estimateH: 1, codeReview: true });
+    const p = parent({ titleHours: { dev: 5, qa: 6 }, subtasks: [sub({ estimateH: 4 }), cr], sumByClass: { DEV: 5, QA: 6 }, codeReviewByClass: { DEV: 1 }, hasCodeReviewDev: true });
+    expect(divergenceMessages(p)).toEqual(['Título diz DEV 5h, subtarefa Codificação tem 4h. Vale o título']);
   });
 
   it('sem divergência, sem frase', () => {
@@ -67,15 +78,16 @@ describe('divergência título x subtarefas', () => {
 });
 
 describe('avisos do item do plano (flags do servidor)', () => {
-  it('divergência usa as somas do servidor e diz que vale o título (caso 5823: título 5h, Codificação 5h + Code Review 1h)', () => {
+  it('divergência usa as somas do servidor sem Code Review (título 5h, Codificação 4h, Code Review 1h)', () => {
     const i = item({
-      titleDevHours: 5, devHours: 5, subtaskDevH: 6, divergenceDev: true, divergent: true,
+      titleDevHours: 5, devHours: 6, subtaskDevH: 4, codeReviewDevH: 1, divergenceDev: true, divergent: true,
       subtasks: [
-        { key: 'S-1', title: 'Codificação', typeId: '10', typeName: 'Codificação', cls: 'DEV', estimateH: 5, remainingH: 5, countedH: 5, defaultHoursApplied: false, assigneeId: null, assigneeName: null },
-        { key: 'S-2', title: 'Code Review', typeId: '12', typeName: 'Code Review', cls: 'DEV', estimateH: 1, remainingH: 1, countedH: 1, defaultHoursApplied: true, assigneeId: null, assigneeName: null },
+        { key: 'S-1', title: 'Codificação', typeId: '10', typeName: 'Codificação', cls: 'DEV', estimateH: 4, remainingH: 4, countedH: 4, defaultHoursApplied: false, assigneeId: null, assigneeName: null },
+        { key: 'S-2', title: 'Code Review', typeId: '12300', typeName: 'Code Review', cls: 'DEV', estimateH: 1, remainingH: 1, countedH: 1, defaultHoursApplied: true, assigneeId: null, assigneeName: null },
       ],
     });
-    expect(itemDivergenceMessages(i)).toEqual(['Título diz DEV 5h, subtarefas Codificação e Code Review somam 6h. Vale o título']);
+    expect(itemDivergenceMessages(i)).toEqual(['Título diz DEV 5h, subtarefa Codificação tem 4h. Vale o título']);
+    expect(noticesFromItem(i).breakdown).toEqual([{ cls: 'DEV', total: 6, title: 5, codeReview: 1, assumed: false }]);
     expect(noticesFromItem(i)).toMatchObject({ divergences: expect.any(Array), noEstimate: false, noTitleHours: false });
   });
 
@@ -103,7 +115,7 @@ describe('escopo e recálculo', () => {
     expect(scopeTotals(base)).toEqual({ DEV: 18, QA: 6 });
     const adding = buildScope([item()], backlog, new Set(['SQ-2']), new Set());
     expect(adding.map((e) => [e.key, e.pending])).toEqual([['SQ-1', false], ['SQ-2', true]]);
-    expect(scopeTotals(adding)).toEqual({ DEV: 28, QA: 10 });
+    expect(scopeTotals(adding)).toEqual({ DEV: 29, QA: 10 }); // SQ-2: título 10 + 1 h de Code Review presumido
     expect(scopeTotals(buildScope([item()], backlog, new Set(), new Set(['i1'])))).toEqual({ DEV: 0, QA: 0 });
   });
 

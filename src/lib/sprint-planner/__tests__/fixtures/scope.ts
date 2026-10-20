@@ -5,7 +5,7 @@ export const planItem = (over: Partial<PlanItem> = {}): PlanItem => ({
   id: 'i1', parentKey: 'SQ-1', title: 'Checkout', titleDevHours: 18, titleQaHours: 6, sortOrder: 1, carryOver: false,
   devHours: 18, qaHours: 6, subtaskDevH: 16, subtaskQaH: 6, subtaskDevEstimateH: 16, subtaskDevRemainingH: 16,
   subtaskQaEstimateH: 6, subtaskQaRemainingH: 6, divergenceDev: false, divergenceQa: false, divergent: false,
-  noEstimate: false, inBacklog: true, unclassifiedCount: 0, unclassifiedHours: 0, subtasks: [], ...over,
+  noEstimate: false, inBacklog: true, unclassifiedCount: 0, unclassifiedHours: 0, subtasks: [], codeReviewDevH: 0, codeReviewQaH: 0, codeReviewDevAssumed: false, ...over,
 });
 
 /** `ScopeTotals` calculado dos itens (só o necessário para os testes: contagem e horas que contam). */

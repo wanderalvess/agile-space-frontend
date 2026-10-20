@@ -111,7 +111,9 @@ export interface ScopeSubtask {
 
 /**
  * Item do escopo (`SprintPlanDtos.ItemView`). `devHours`/`qaHours` são o que CONTA no total (regra do backend);
- * `subtaskDevH`/`subtaskQaH` são a soma das subtarefas da classe, só para alerta de divergência.
+ * `subtaskDevH`/`subtaskQaH` são a soma das subtarefas da classe SEM Code Review, só para alerta de divergência.
+ * `codeReviewDevH`/`codeReviewQaH` são as horas de Code Review já incluídas em devHours/qaHours (título + Code Review);
+ * `codeReviewDevAssumed` = não há subtarefa de Code Review DEV e entrou a hora padrão.
  */
 export interface PlanItem {
   id: string;
@@ -138,6 +140,9 @@ export interface PlanItem {
   unclassifiedCount: number;
   unclassifiedHours: number;
   subtasks: ScopeSubtask[];
+  codeReviewDevH: number;
+  codeReviewQaH: number;
+  codeReviewDevAssumed: boolean;
 }
 
 export interface ScopeUnclassifiedType { typeId: string | null; typeName: string | null; count: number; hours: number }
@@ -258,6 +263,8 @@ export interface BacklogSubtask {
   statusCategory: string | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  /** Subtarefa do tipo Code Review (fica fora da comparação com o título). */
+  codeReview: boolean;
 }
 
 export interface BacklogParent {
@@ -269,7 +276,12 @@ export interface BacklogParent {
   /** Horas do título "(DEV 10h / QA 4h)"; null quando o título não traz. */
   titleHours: { dev: number | null; qa: number | null } | null;
   subtasks: BacklogSubtask[];
+  /** Soma por classe COM Code Review (o que conta quando não há horas no título). */
   sumByClass: Partial<Record<SubtaskClass, number>>;
+  /** Horas de subtarefas de Code Review por classe (já dentro de sumByClass). */
+  codeReviewByClass: Partial<Record<SubtaskClass, number>>;
+  /** Há subtarefa de Code Review de classe DEV (senão entra a hora padrão no item novo). */
+  hasCodeReviewDev: boolean;
   divergenceDev: boolean;
   divergenceQa: boolean;
   divergent: boolean;
