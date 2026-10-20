@@ -26,6 +26,8 @@ export interface CronoTask {
   end: Stamp | null;
   /** true quando início e fim NÃO vêm de campos de data reais do Jira (fica true se o backend não informou). */
   datesAreInferred: boolean;
+  /** Datas do Jira com início e fim a menos de 1 hora um do outro (ou invertidos): não é um plano de verdade. */
+  zeroWindow: boolean;
   resolvedAt: Stamp | null;
   sprintName: string;
 }
@@ -34,6 +36,10 @@ export function toCronoTask(s: SquadIssueSnapshot, index: number): CronoTask {
   const key = s.jiraKey || s.key;
   const start = parseStamp(s.targetStart || s.dueDate);
   const end = parseStamp(s.targetEnd || s.dueDate);
+  const datesAreInferred = s.datesAreInferred !== false;
+  const windowMin = start && end && start.minutes !== null && end.minutes !== null
+    ? (end.day - start.day) * 1440 + end.minutes - start.minutes
+    : null;
   return {
     key,
     title: s.title || '',
@@ -50,15 +56,21 @@ export function toCronoTask(s: SquadIssueSnapshot, index: number): CronoTask {
     isBug: !!s.isBug,
     start,
     end,
-    datesAreInferred: s.datesAreInferred !== false,
+    datesAreInferred,
+    zeroWindow: !datesAreInferred && windowMin !== null && windowMin < 60,
     resolvedAt: parseStamp(s.resolutionDate),
     sprintName: s.sprintName || '',
   };
 }
 
-/** Datas reais do Jira: o backend confirmou a origem e há início e fim. */
-export function hasRealDates(t: CronoTask): boolean {
+/** Há início e fim vindos de campos do Jira (mesmo que a janela não tenha duração). */
+export function hasJiraWindow(t: CronoTask): boolean {
   return !t.datesAreInferred && t.start !== null && t.end !== null;
+}
+
+/** Datas reais E com duração: é o compromisso da pessoa; vale para atraso, cascata e fila. */
+export function hasRealDates(t: CronoTask): boolean {
+  return hasJiraWindow(t) && !t.zeroWindow;
 }
 
 export const isDone = (t: CronoTask): boolean => t.statusCategory === 'done';

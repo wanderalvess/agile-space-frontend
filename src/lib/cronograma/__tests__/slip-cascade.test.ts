@@ -67,3 +67,12 @@ describe('cascadeStory', () => {
     expect(r.get('qa')!.start.day).toBe(d(21));
   });
 });
+
+describe('cascata e fases sem data real', () => {
+  it('fase não empurrável fica como está, mesmo depois de uma fase atrasada', () => {
+    const r = cascadeStory([item('dev', 0, 19, 20, 2), { ...item('qa', 1, 21, 22), pushable: false }]);
+    expect(r.get('qa')).toMatchObject({ pushed: 0, shift: 0 });
+    expect(r.get('qa')!.start.day).toBe(d(21));
+    expect(r.get('qa')!.end.day).toBe(d(22));
+  });
+});

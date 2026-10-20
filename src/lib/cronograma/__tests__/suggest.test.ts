@@ -159,3 +159,40 @@ describe('buildCapacityResolver', () => {
     expect(buildCapacityResolver(members, 6)('outro-id', ' ana ribeiro ')).toEqual({ hours: 8.3, source: 'pessoa' });
   });
 });
+
+describe('fase com data real entra na fila como bloco ocupado', () => {
+  const fixed = (s: number, sf: number, e: number, ef: number) => ({ start: { day: d(s), frac: sf }, end: { day: d(e), frac: ef } });
+
+  it('não é recalculada e não ganha sugestão', () => {
+    const r = run([mk({ key: 'real', hours: 8.2, fixed: fixed(21, 0.5, 22, 0.5) })]);
+    expect(r.has('real')).toBe(false);
+  });
+
+  it('duas fases do mesmo responsável, uma com data real no meio da fila: a outra contorna o bloco', () => {
+    const r = run([
+      mk({ key: 'a', storyKey: 'H1', person: 'ana', hours: 8.2 }),
+      mk({ key: 'meio', storyKey: 'H2', person: 'ana', hours: 8.2, fixed: fixed(20, 0, 20, 1) }),
+      mk({ key: 'c', storyKey: 'H3', person: 'ana', hours: 8.2 }),
+    ]);
+    expect(formatPt(r.get('a')!.start)).toBe('19/10 09:00');
+    expect(formatPt(r.get('a')!.end)).toBe('19/10 18:00');
+    expect(formatPt(r.get('c')!.start)).toBe('21/10 09:00');
+    expect(formatPt(r.get('c')!.end)).toBe('21/10 18:00');
+  });
+
+  it('uma tarefa que não cabe antes do bloco vai para depois dele', () => {
+    const r = run([
+      mk({ key: 'bloco', storyKey: 'H1', person: 'ana', hours: 1, fixed: fixed(19, 0.5, 19, 1) }),
+      mk({ key: 'longa', storyKey: 'H2', person: 'ana', hours: 8.2 }),
+    ]);
+    expect(formatPt(r.get('longa')!.start)).toBe('20/10 09:00');
+  });
+
+  it('a fase seguinte espera o fim da fase com data real', () => {
+    const r = run([
+      mk({ key: 'dev', order: 0, person: 'ana', fixed: fixed(21, 0, 22, 1) }),
+      mk({ key: 'qa', order: 3, person: 'diego', hours: 8.2 }),
+    ]);
+    expect(formatPt(r.get('qa')!.start)).toBe('23/10 09:00');
+  });
+});

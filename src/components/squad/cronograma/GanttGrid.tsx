@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { dowShort, formatDay, formatHours, isWeekendDay, nowFrac, todayDay, ymdOfDay } from '@/lib/cronograma/dates';
 import type { PlannedTask, StoryModel } from '@/lib/cronograma/schedule';
+import { isDone } from '@/lib/cronograma/task';
 import { statusLabel, statusTone } from '@/lib/cronograma/status';
 import { barGeometry, taskSpans, type GanttRow, type Grouping } from '@/lib/cronograma/view';
 import { SlipOverlay, StoryBar, TaskBar } from './GanttBar';
@@ -267,11 +268,18 @@ const GanttGridImpl = ({ rows, days, dayWidth, leftWidth, onLeftWidth, grouping,
                   {t.assigneeName && <InitialsAvatar name={t.assigneeName} className="h-6 w-6 shrink-0 text-xs max-sm:hidden" />}
                   {p.slip.shift > 0
                     ? <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-bold ${WARN_CHIP}`}>+{p.slip.shift} d</span>
-                    : <StatusChip status={t.status} category={t.statusCategory} />}
+                    : p.zeroWindow
+                      ? <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold ${WARN_CHIP}`} title="O Jira tem início e fim no mesmo horário: não dá para saber o prazo">janela sem duração</span>
+                      : p.slip.presumedDays > 0
+                        ? <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-semibold ${WARN_CHIP}`} title="Estimativa, não confirmado: sobrou mais trabalho do que dias até o prazo">pode atrasar</span>
+                        : <StatusChip status={t.status} category={t.statusCategory} />}
                 </LeftCell>
                 <div role="gridcell" className="relative shrink-0" style={{ width: chartW }}>
                   {renderTaskBars(p, rowIndex, (ROW_H.task - 28) / 2, 28, false)}
-                  {!p.effective && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">sem datas nem horas para calcular</span>}
+                  {!p.effective && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{isDone(t) ? 'sem datas nem horas' : 'sem estimativa de horas'}</span>}
+                  {p.effective && !barGeometry(p.effective, axisStart, axisEnd, dayWidth) && (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">fora do período ({formatDay(p.effective.start.day)} a {formatDay(p.effective.end.day)})</span>
+                  )}
                 </div>
               </div>
             );

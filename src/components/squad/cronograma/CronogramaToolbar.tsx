@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { CalendarCog, Minus, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ALL, type Filters, type Grouping, type HierarchyLevel, type PeriodPreset } from '@/lib/cronograma/view';
+import { ALL, type QuickFilter, type Filters, type Grouping, type HierarchyLevel, type PeriodPreset } from '@/lib/cronograma/view';
 import type { DateSource } from '@/lib/cronograma/schedule';
 import { DAY_W, FIELD, FOCUS } from './styles';
 
@@ -74,6 +74,9 @@ export interface ToolbarProps {
   onClearSim: () => void;
   canConfigure: boolean;
   onOpenFields: () => void;
+  counts: { late: number; mayLate: number; doing: number; mine: number };
+  /** Sabe quem é a pessoa logada no Jira (habilita "Minhas"). */
+  canMine: boolean;
 }
 
 export function CronogramaToolbar(p: ToolbarProps) {
@@ -126,6 +129,31 @@ export function CronogramaToolbar(p: ToolbarProps) {
             <Plus className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
+      </div>
+
+      <div role="group" aria-label="Atalhos de filtro" className="flex flex-wrap items-center gap-2">
+        {([
+          ['ALL', 'Todas', null],
+          ['LATE', 'Atrasadas', p.counts.late],
+          ['MAY_LATE', 'Podem atrasar', p.counts.mayLate],
+          ['DOING', 'Em andamento', p.counts.doing],
+          ['MINE', 'Minhas', p.counts.mine],
+        ] as [QuickFilter, string, number | null][]).map(([id, label, n]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={p.filters.quick === id}
+            disabled={id === 'MINE' && !p.canMine}
+            title={id === 'MINE' && !p.canMine ? 'Vincule seu usuário do Jira no cadastro do time para usar' : undefined}
+            onClick={() => set({ quick: id })}
+            className={`inline-flex h-8 min-w-6 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold motion-safe:transition-colors disabled:opacity-50 ${FOCUS} ${
+              p.filters.quick === id ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+            {n !== null && <span className="tabular-nums">{n}</span>}
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-wrap gap-3">

@@ -72,14 +72,26 @@ function TaskDetail({ p, jiraBaseUrl, simDays, onSimDays, onClose }: { p: Planne
         <Row label="Responsável">{t.assigneeName || 'Sem responsável'}</Row>
         <Row label="Data e hora de início">{hasJiraDates ? formatStamp(t.start) : 'Sem data no Jira'}</Row>
         <Row label="Data e hora de fim">{hasJiraDates ? formatStamp(t.end) : 'Sem data no Jira'}</Row>
-        <Row label="Capacidade">{formatHours(p.capacity.hours)} por dia ({CAPACITY_SOURCE[p.capacity.source]})</Row>
-        <Row label="Sugestão do portal">
-          {p.suggestion ? (
-            <span className="font-semibold">
-              começa {formatPt(p.suggestion.start)} e termina {formatPt(p.suggestion.end)} ({formatHours(p.suggestion.hours)} em fila)
-            </span>
-          ) : isDone(t) ? 'Fase concluída' : 'Sem estimativa de horas para calcular'}
+        <Row label="Capacidade">
+          {t.assigneeName
+            ? `${formatHours(p.capacity.hours)} por dia (${CAPACITY_SOURCE[p.capacity.source]})`
+            : `Sem responsável: usando a capacidade padrão ${p.capacity.source === 'squad' ? 'da squad' : 'do portal'} (${String(p.capacity.hours).replace('.', ',')} h/dia)`}
         </Row>
+        {p.origin === 'jira' && !p.zeroWindow && p.effective && !isDone(t) ? (
+          <Row label="Data do Jira">
+            <span className="font-semibold">
+              começa {formatStamp(t.start)} e termina {formatStamp(t.end)} (compromisso da pessoa; a sugestão não mexe)
+            </span>
+          </Row>
+        ) : (
+          <Row label="Sugestão do portal">
+            {p.suggestion ? (
+              <span className="font-semibold">
+                começa {formatPt(p.suggestion.start)} e termina {formatPt(p.suggestion.end)} ({formatHours(p.suggestion.hours)} em fila)
+              </span>
+            ) : isDone(t) ? 'Fase concluída' : 'Sem estimativa de horas: lance a estimativa no Jira para o portal sugerir datas'}
+          </Row>
+        )}
         <Row label="Fim previsto">
           {p.effective ? <span className={late ? `font-bold ${WARN_TEXT}` : 'font-semibold'}>{formatPt(p.effective.end)}</span> : '—'}
         </Row>
@@ -87,6 +99,24 @@ function TaskDetail({ p, jiraBaseUrl, simDays, onSimDays, onClose }: { p: Planne
         <Row label="Restante">{formatHours(t.remainingSec / 3600)}</Row>
         <Row label="Origem das datas">{p.origin === 'aproximada' ? 'Aproximada (criação e última edição)' : p.origin === 'jira' ? 'Campos de data do Jira' : p.origin === 'sugestao' ? 'Sugestão pelas horas' : ORIGIN_NOTE[p.origin]}</Row>
       </dl>
+
+      {p.zeroWindow && (
+        <div className={`rounded-xl p-3.5 text-sm leading-relaxed ${WARN_BOX}`}>
+          <strong>Janela sem duração no Jira</strong>
+          <p className="m-0 text-muted-foreground">O início e o fim são quase o mesmo horário, então o portal não declara atraso. A barra mostra 1 hora no mínimo.</p>
+        </div>
+      )}
+
+      {p.slip.presumedDays > 0 && (
+        <div className={`rounded-xl p-3.5 text-sm leading-relaxed ${WARN_BOX}`}>
+          <strong>Pode atrasar em {p.slip.presumedDays} dia(s) útil(eis)</strong>
+          <p className="m-0 text-muted-foreground">Estimativa, não confirmado: sobrou mais trabalho do que dias até o prazo. Não empurra as outras fases.</p>
+        </div>
+      )}
+
+      {p.origin !== 'jira' && p.origin !== 'nenhuma' && !isDone(t) && !p.slip.manual && (
+        <p className="m-0 text-sm text-muted-foreground">Sem data real, não calculada: o portal não declara atraso nem empurra esta fase.</p>
+      )}
 
       {slipTitle && (
         <div className={`rounded-xl p-3.5 text-sm leading-relaxed ${WARN_BOX}`}>
