@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import type { Thermometer } from '@/lib/sprint-planner/api';
 import { ZONE_TONE, formatHours, formatPct, thermometerLabel } from '@/lib/sprint-planner/format';
 
-const BAR: Record<Thermometer['zone'], string> = {
+export const ZONE_BAR: Record<Thermometer['zone'], string> = {
   VERDE: 'bg-emerald-500',
   AMARELO: 'bg-amber-500',
   VERMELHO: 'bg-red-500',
@@ -33,7 +33,7 @@ export function ThermometerRow({ label, t }: { label: string; t: Thermometer | u
         aria-valuetext={`${formatPct(pct)}: ${thermometerLabel(t)}`}
         className="h-2.5 w-full overflow-hidden rounded-full bg-muted"
       >
-        <div className={cn('h-full rounded-full transition-[width] duration-base', BAR[zone])} style={{ width: `${width}%` }} />
+        <div className={cn('h-full rounded-full transition-[width] duration-base', ZONE_BAR[zone])} style={{ width: `${width}%` }} />
       </div>
       <p className="text-[13px] tabular-nums text-muted-foreground">
         <span className={cn('font-semibold', TONES[tone].text)}>{formatPct(pct)}</span>

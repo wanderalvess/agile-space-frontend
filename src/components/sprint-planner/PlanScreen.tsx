@@ -29,17 +29,15 @@ import {
   stepOfStatus,
   type StepId,
 } from '@/lib/sprint-planner/format';
+import { canAdvanceFromScope } from '@/lib/sprint-planner/scope';
 import { CapacityStep } from './CapacityStep';
+import { ScopeStep } from './ScopeStep';
 
 type Load = { state: 'loading' } | { state: 'error'; notFound: boolean } | { state: 'ok'; plan: PlanView };
 
 export const CONFLICT_MESSAGE = 'Outra pessoa alterou este planejamento. Recarregamos a versão atual: confira e refaça a sua mudança.';
 
-const PLACEHOLDER: Record<Exclude<StepId, 'capacidade'>, { title: string; description: string }> = {
-  escopo: {
-    title: 'Escopo chega na próxima entrega',
-    description: 'Aqui a liderança vai escolher as tarefas refinadas (vindas do Poker) até perto da capacidade, com o termômetro DEV e QA ao vivo.',
-  },
+const PLACEHOLDER: Record<Exclude<StepId, 'capacidade' | 'escopo'>, { title: string; description: string }> = {
   distribuicao: {
     title: 'Distribuição chega numa próxima entrega',
     description: 'Aqui cada pessoa vai pegar as próprias subtarefas e marcar as datas; o QA começa quando o Code Review DEV termina.',
@@ -50,7 +48,7 @@ const PLACEHOLDER: Record<Exclude<StepId, 'capacidade'>, { title: string; descri
   },
 };
 
-/** Tela do plano: cabeçalho, as 4 etapas (só Capacidade funcional nesta entrega) e o tratamento de conflito 409. */
+/** Tela do plano: cabeçalho, as 4 etapas (Capacidade e Escopo funcionais) e o tratamento de conflito 409. */
 export function PlanScreen({
   squadId,
   planId,
@@ -117,7 +115,7 @@ export function PlanScreen({
     void run(async () => {
       const updated = await sprintPlanApi.patch(squadId, planId, { ...body, version: plan.version });
       setLoad({ state: 'ok', plan: updated });
-    }, 'Não foi possível salvar a reserva');
+    }, 'Não foi possível salvar');
 
   const onUpdatePerson = (accountId: string, body: CapacityUpdateRequest) =>
     void run(async () => {
@@ -146,7 +144,17 @@ export function PlanScreen({
       await reload(true);
     }, 'Não foi possível salvar os feriados');
 
+  const openTypes = () => {
+    onStepChange('capacidade');
+    setTimeout(() => document.getElementById('cap-tipos')?.scrollIntoView({ block: 'start' }), 150);
+  };
+
   const changeStatus = async (to: PlanStatus) => {
+    // O escopo precisa de pelo menos uma tarefa para seguir (o backend também exige e responde 422).
+    if (plan.status === 'ESCOPO' && to === 'DISTRIBUICAO' && !canAdvanceFromScope(plan)) {
+      toast({ title: 'O escopo está vazio', description: 'Adicione pelo menos uma tarefa ao escopo para avançar para a Distribuição.', variant: 'destructive' });
+      return;
+    }
     setChangingStatus(true);
     const updated = await run(() => sprintPlanApi.changeStatus(squadId, planId, plan.version, to), 'Não foi possível mudar a etapa');
     setChangingStatus(false);
@@ -211,6 +219,14 @@ export function PlanScreen({
             onAddAbsence={onAddAbsence}
             onRemoveAbsence={onRemoveAbsence}
             onReplaceHolidays={onReplaceHolidays}
+          />
+        ) : step === 'escopo' ? (
+          <ScopeStep
+            plan={plan}
+            onPlan={(p) => setLoad({ state: 'ok', plan: p })}
+            onReload={() => reload(true)}
+            onPatch={onPatch}
+            onOpenTypes={openTypes}
           />
         ) : (
           <EmptyState icon={Hourglass} title={PLACEHOLDER[step].title} description={PLACEHOLDER[step].description} />

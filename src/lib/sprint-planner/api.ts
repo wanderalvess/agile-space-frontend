@@ -93,6 +93,19 @@ export interface Thermometer {
 
 export interface Permissions { canEditPlan: boolean; canEditTypes: boolean; myAccountId: string | null }
 
+/** Item do escopo (`SprintPlanDtos.ItemView`). `devHours`/`qaHours` são opcionais: se o backend os mandar, valem; senão a tela usa o backlog. */
+export interface PlanItem {
+  id: string;
+  parentKey: string;
+  title: string | null;
+  titleDevHours: number | null;
+  titleQaHours: number | null;
+  sortOrder: number;
+  carryOver: boolean;
+  devHours?: number | null;
+  qaHours?: number | null;
+}
+
 export interface PlanView {
   id: string;
   squadId: string;
@@ -105,7 +118,7 @@ export interface PlanView {
   capacity: CapacityView;
   absences: AbsenceView[];
   holidays: Holiday[];
-  items: unknown[];
+  items: PlanItem[];
   assignments: unknown[];
   thermometer: Record<string, Thermometer>;
   permissions: Permissions;
@@ -164,12 +177,73 @@ export interface SubtaskTypeUpdate {
   qaByTitleException?: boolean;
 }
 
+// ---- Backlog refinado do Jira (E1b: `PlannerBacklogService.BacklogView`) ----
+
+export interface BacklogSubtask {
+  key: string;
+  title: string | null;
+  typeId: string | null;
+  typeName: string | null;
+  subtaskClass: SubtaskClass;
+  estimateH: number;
+  remainingH: number;
+  /** Horas que entram na conta (restante na sobra, estimado nos demais). */
+  countedH: number;
+  defaultHoursApplied: boolean;
+  status: string | null;
+  statusCategory: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+}
+
+export interface BacklogParent {
+  key: string;
+  title: string | null;
+  status: string | null;
+  /** Sobra da sprint anterior: conta o Tempo Restante. */
+  carryOver: boolean;
+  /** Horas do título "(DEV 10h / QA 4h)"; null quando o título não traz. */
+  titleHours: { dev: number | null; qa: number | null } | null;
+  subtasks: BacklogSubtask[];
+  sumByClass: Partial<Record<SubtaskClass, number>>;
+  divergenceDev: boolean;
+  divergenceQa: boolean;
+  divergent: boolean;
+}
+
+export interface UnclassifiedType { typeId: string | null; typeName: string | null; count: number; hours: number }
+
+export interface BacklogView {
+  syncedAt: string | null;
+  sprintKey: string;
+  items: BacklogParent[];
+  unclassifiedTypes: UnclassifiedType[];
+}
+
+export interface BacklogSyncResult { syncedAt: string | null; parents: number; carryOver: number; subtasks: number; truncated: boolean }
+
+export type BacklogResult = { status: 'ok'; data: BacklogView } | { status: 'unavailable' };
+
 const enc = encodeURIComponent;
 const base = (squadId: string) => `${API_BASE_URL}/squads/${enc(squadId)}/sprint-plans`;
 
 async function json<T>(res: Response, fallback: string): Promise<T> {
   await ensureOk(res, fallback);
   return res.json() as Promise<T>;
+}
+
+function isPlanView(v: unknown): v is PlanView {
+  return !!v && typeof v === 'object' && Array.isArray((v as PlanView).items) && typeof (v as PlanView).thermometer === 'object' && 'id' in (v as object);
+}
+
+async function planOrNull(res: Response, fallback: string): Promise<PlanView | null> {
+  await ensureOk(res, fallback);
+  try {
+    const data: unknown = await res.json();
+    return isPlanView(data) ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 export const sprintPlanApi = {
@@ -219,6 +293,25 @@ export const sprintPlanApi = {
     await ensureOk(res, 'Não foi possível remover a ausência.');
   },
 
+  /**
+   * Escopo (E3). Contrato assumido (o backend E3 estava em andamento): POST `{ parentKeys }` e DELETE devolvem o `PlanView`
+   * atualizado; se vier outra coisa (204, itens soltos), devolvemos `null` e quem chamou recarrega o plano.
+   */
+  async addItems(squadId: string, planId: string, parentKeys: string[]): Promise<PlanView | null> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/items`, { method: 'POST', body: JSON.stringify({ parentKeys }) });
+    return planOrNull(res, 'Não foi possível adicionar ao escopo.');
+  },
+
+  async removeItem(squadId: string, planId: string, itemId: string): Promise<PlanView | null> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/items/${enc(itemId)}`, { method: 'DELETE' });
+    return planOrNull(res, 'Não foi possível tirar do escopo.');
+  },
+
+  async reorderItems(squadId: string, planId: string, orderedItemIds: string[]): Promise<PlanView | null> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/items/order`, { method: 'PUT', body: JSON.stringify({ orderedItemIds }) });
+    return planOrNull(res, 'Não foi possível reordenar o escopo.');
+  },
+
   async replaceHolidays(squadId: string, planId: string, holidays: Holiday[]): Promise<Holiday[]> {
     const res = await authFetch(`${base(squadId)}/${enc(planId)}/holidays`, { method: 'PUT', body: JSON.stringify(holidays) });
     return json(res, 'Não foi possível salvar os feriados.');
@@ -249,6 +342,37 @@ export const subtaskTypesApi = {
     return { ...data, types: Array.isArray(data?.types) ? data.types : [] };
   },
 };
+
+/** Backlog refinado da squad (leitura do snapshot) e sincronização com o Jira (só liderança). */
+export const backlogApi = {
+  async get(squadId: string, sprintKey?: string): Promise<BacklogResult> {
+    const q = sprintKey ? `?sprintKey=${enc(sprintKey)}` : '';
+    const res = await authFetch(`${base(squadId)}/backlog${q}`);
+    if (res.status === 404 || res.status === 405) return { status: 'unavailable' };
+    const data = await json<BacklogView>(res, 'Não foi possível carregar o backlog refinado.');
+    return {
+      status: 'ok',
+      data: {
+        ...data,
+        items: Array.isArray(data?.items) ? data.items : [],
+        unclassifiedTypes: Array.isArray(data?.unclassifiedTypes) ? data.unclassifiedTypes : [],
+      },
+    };
+  },
+
+  /** 429 = pediu cedo demais (use `retryAfterSec`); 409 = já há uma sincronização em andamento. */
+  async sync(squadId: string): Promise<BacklogSyncResult> {
+    const res = await authFetch(`${base(squadId)}/backlog/sync`, { method: 'POST' });
+    return json(res, 'Não foi possível sincronizar o backlog com o Jira.');
+  },
+};
+
+/** Segundos de espera de um 429 do sync ("Tente de novo em 240 s"); null se a mensagem não trouxer. */
+export function retryAfterSec(err: unknown): number | null {
+  if (!(err instanceof CeremonyApiError) || err.status !== 429) return null;
+  const m = /em\s+(\d+)\s*s/i.exec(err.message);
+  return m ? Number(m[1]) : null;
+}
 
 export function isConflict(err: unknown): boolean {
   return err instanceof CeremonyApiError && err.status === 409;
