@@ -40,13 +40,13 @@ const thermo = (alloc: number, cap: number, over: Partial<Thermometer> = {}): Th
 
 const sub = (over: Partial<BacklogParent['subtasks'][number]> = {}) => ({
   key: 'S-1', title: 'sub', typeId: '1', typeName: 'Codificação', subtaskClass: 'DEV' as const, estimateH: 16, remainingH: 16, countedH: 16,
-  defaultHoursApplied: false, status: null, statusCategory: null, assigneeId: null, assigneeName: null, ...over,
+  defaultHoursApplied: false, status: null, statusCategory: null, assigneeId: null, assigneeName: null, codeReview: false, ...over,
 });
 
 const task = (over: Partial<BacklogParent> = {}): BacklogParent => ({
   key: 'SQ-1', title: 'Troca de produto', status: 'Refinamento Concluído', carryOver: false, titleHours: { dev: 10, qa: 4 },
   subtasks: [sub({ estimateH: 10, countedH: 10 }), sub({ key: 'S-2', typeName: 'Teste', subtaskClass: 'QA', estimateH: 4, countedH: 4 })],
-  sumByClass: { DEV: 10, QA: 4 }, divergenceDev: false, divergenceQa: false, divergent: false, ...over,
+  sumByClass: { DEV: 10, QA: 4 }, codeReviewByClass: {}, hasCodeReviewDev: false, divergenceDev: false, divergenceQa: false, divergent: false, ...over,
 });
 
 const view = (items: BacklogParent[], over: Partial<BacklogView> = {}): BacklogView => ({
@@ -69,14 +69,16 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
   };
 }
 
-/** Item do plano no formato do backend para uma tarefa do backlog (horas: sobra = restante; senão título; senão subtarefas). */
+/** Item do plano no formato do backend para uma tarefa do backlog (sobra = restante; com título = título + 1 h de Code Review DEV presumido; senão subtarefas). */
 const itemOf = (t: BacklogParent, id: string, sortOrder: number): PlanItem => {
-  const dev = t.carryOver ? t.sumByClass.DEV ?? 0 : t.titleHours?.dev ?? t.sumByClass.DEV ?? 0;
+  const crDev = !t.carryOver && t.titleHours?.dev != null && !t.hasCodeReviewDev ? 1 : 0;
+  const dev = t.carryOver ? t.sumByClass.DEV ?? 0 : (t.titleHours?.dev ?? t.sumByClass.DEV ?? 0) + crDev;
   const qa = t.carryOver ? t.sumByClass.QA ?? 0 : t.titleHours?.qa ?? t.sumByClass.QA ?? 0;
   return planItem({
     id, parentKey: t.key, title: t.title, sortOrder, carryOver: t.carryOver, titleDevHours: t.titleHours?.dev ?? null, titleQaHours: t.titleHours?.qa ?? null,
     devHours: dev, qaHours: qa, subtaskDevH: t.sumByClass.DEV ?? 0, subtaskQaH: t.sumByClass.QA ?? 0,
     divergenceDev: t.divergenceDev, divergenceQa: t.divergenceQa, divergent: t.divergent,
+    codeReviewDevH: crDev, codeReviewDevAssumed: crDev > 0,
   });
 };
 
@@ -130,8 +132,8 @@ describe('Escopo: selecionar e recalcular', () => {
     const { props, rerender } = renderStep(p);
     fireEvent.click(await screen.findByRole('button', { name: 'Adicionar SQ-1 ao escopo' }));
 
-    // estimativa: 80 + 10 = 90 h de 90 h (100%); QA 64/75
-    expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 90/90 h · 100%');
+    // estimativa: 80 + 10 (título) + 1 (Code Review presumido) = 91 h de 90 h; QA 64/75
+    expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 91/90 h · 101% · coberto pela reserva (12%)');
     expect(screen.getByTestId('escopo-resumo-QA').textContent).toBe('QA 64/75 h · 85%');
     expect(screen.getAllByText('Calculando')).toHaveLength(2);
     expect(screen.getByTestId('escopo-SQ-1')).toBeTruthy();
@@ -294,7 +296,7 @@ describe('Escopo: modo reunião', () => {
     const room = screen.getByTestId('modo-reuniao');
     expect(within(room).getByTestId('pres-meta-texto').textContent).toBe('Entregar o checkout');
     expect(within(room).getByTestId('pres-total-tarefas').textContent).toBe('1');
-    expect(within(room).getByTestId('pres-total-DEV').textContent).toBe('10 h');
+    expect(within(room).getByTestId('pres-total-DEV').textContent).toBe('11 h');
     expect(within(room).getByTestId('escopo-resumo-QA').textContent).toBe('QA 4/75 h · 5%');
     expect(within(room).getByTestId('pres-itens').textContent).toContain('SQ-1');
     expect(within(room).queryByRole('button', { name: /Adicionar|Remover|Sincronizar|Salvar/ })).toBeNull();

@@ -29,7 +29,7 @@ const scope = scopeJson as unknown as ScopeView;
 const plan = planJson as unknown as PlanView;
 
 // Componentes dos records Java, na ordem em que estão declarados.
-const ITEM_VIEW = ['id', 'parentKey', 'title', 'titleDevHours', 'titleQaHours', 'sortOrder', 'carryOver', 'devHours', 'qaHours', 'subtaskDevH', 'subtaskQaH', 'subtaskDevEstimateH', 'subtaskDevRemainingH', 'subtaskQaEstimateH', 'subtaskQaRemainingH', 'divergenceDev', 'divergenceQa', 'divergent', 'noEstimate', 'inBacklog', 'unclassifiedCount', 'unclassifiedHours', 'subtasks'];
+const ITEM_VIEW = ['id', 'parentKey', 'title', 'titleDevHours', 'titleQaHours', 'sortOrder', 'carryOver', 'devHours', 'qaHours', 'subtaskDevH', 'subtaskQaH', 'subtaskDevEstimateH', 'subtaskDevRemainingH', 'subtaskQaEstimateH', 'subtaskQaRemainingH', 'divergenceDev', 'divergenceQa', 'divergent', 'noEstimate', 'inBacklog', 'unclassifiedCount', 'unclassifiedHours', 'subtasks', 'codeReviewDevH', 'codeReviewQaH', 'codeReviewDevAssumed'];
 const SUBTASK_VIEW = ['key', 'title', 'typeId', 'typeName', 'cls', 'estimateH', 'remainingH', 'countedH', 'defaultHoursApplied', 'assigneeId', 'assigneeName'];
 const SCOPE_TOTALS = ['itemCount', 'allocated', 'carryOverCount', 'carryOverDevHours', 'carryOverQaHours', 'divergentCount', 'noEstimateCount', 'unclassifiedCount', 'unclassifiedHours', 'unclassifiedTypes'];
 const SCOPE_VIEW = ['planId', 'status', 'syncedAt', 'items', 'totals', 'thermometer', 'canEditPlan'];
@@ -109,8 +109,8 @@ describe('contrato: cliente REST do escopo', () => {
 describe('contrato: lógica sobre o PlanView real', () => {
   it('as horas que contam são devHours/qaHours do servidor, e o resumo usa os totais dele', () => {
     const entries = buildScope(plan.items, [], new Set(), new Set());
-    expect(entries.map((e) => [e.key, e.dev, e.qa])).toEqual([['SQ-101', 10, 4], ['SQ-5823', 5, 2], ['SQ-103', 6, 1]]);
-    expect(scopeSummary(plan, entries, false)).toEqual({ count: 3, DEV: 21, QA: 7 });
+    expect(entries.map((e) => [e.key, e.dev, e.qa])).toEqual([['SQ-101', 11, 4], ['SQ-5823', 6, 2], ['SQ-103', 6, 1]]);
+    expect(scopeSummary(plan, entries, false)).toEqual({ count: 3, DEV: 23, QA: 7 });
     expect(canAdvanceFromScope(plan)).toBe(true);
   });
 
@@ -118,13 +118,20 @@ describe('contrato: lógica sobre o PlanView real', () => {
     const next = applyScope({ ...plan, items: [], version: 9 }, scope);
     expect(next.version).toBe(9);
     expect(next.items).toHaveLength(3);
-    expect(next.thermometer.DEV.allocatedHours).toBe(21);
+    expect(next.thermometer.DEV.allocatedHours).toBe(23);
   });
 
-  it('caso 5823: vale o título (5h) e a divergência 5 ≠ 6 vem sinalizada pelo servidor', () => {
+  it('caso 5823: título 5h + Code Review 1h = DEV 6h, sem divergência (Codificação 5h = título)', () => {
     const it5823 = plan.items.find((i) => i.parentKey === 'SQ-5823')!;
-    expect([it5823.devHours, it5823.subtaskDevH, it5823.divergenceDev]).toEqual([5, 6, true]);
-    expect(noticesFromItem(it5823).divergences).toEqual(['Título diz DEV 5h, subtarefas Codificação e Code Review somam 6h. Vale o título']);
+    expect([it5823.devHours, it5823.subtaskDevH, it5823.codeReviewDevH, it5823.divergenceDev, it5823.codeReviewDevAssumed]).toEqual([6, 5, 1, false, false]);
+    expect(noticesFromItem(it5823).divergences).toEqual([]);
+    expect(noticesFromItem(it5823).breakdown).toEqual([{ cls: 'DEV', total: 6, title: 5, codeReview: 1, assumed: false }]);
+  });
+
+  it('caso SQ-101: título 10h x Codificação 8h diverge e a hora de Code Review é a presumida', () => {
+    const it101 = plan.items.find((i) => i.parentKey === 'SQ-101')!;
+    expect([it101.devHours, it101.codeReviewDevH, it101.codeReviewDevAssumed, it101.divergenceDev]).toEqual([11, 1, true, true]);
+    expect(noticesFromItem(it101).divergences).toEqual(['Título diz DEV 10h, subtarefa Codificação tem 8h. Vale o título']);
   });
 });
 
@@ -136,12 +143,14 @@ describe('contrato: ScopeStep com o PlanView real', () => {
 
   it('mostra totais, barras, avisos de divergência, sobra e tipo sem classificação vindos do servidor', async () => {
     renderStep();
-    expect(screen.getByTestId('escopo-totais').textContent).toBe('3 tarefas · DEV 21 h · QA 7 h');
-    expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 21/90 h · 23%');
+    expect(screen.getByTestId('escopo-totais').textContent).toBe('3 tarefas · DEV 23 h · QA 7 h');
+    expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 23/90 h · 26%');
     expect(screen.getByTestId('escopo-resumo-QA').textContent).toBe('QA 7/75 h · 9%');
     const d = screen.getByTestId('escopo-SQ-5823');
-    expect(d.textContent).toContain('DEV 5 h');
-    expect(d.textContent).toContain('Título diz DEV 5h, subtarefas Codificação e Code Review somam 6h. Vale o título');
+    expect(d.textContent).toContain('DEV 6 h');
+    expect(screen.getByTestId('composicao-SQ-5823-DEV').textContent).toBe('DEV 6 h = título 5 h + Code Review 1 h');
+    expect(d.textContent).not.toContain('Título diz');
+    expect(screen.getByTestId('escopo-SQ-101').textContent).toContain('Título diz DEV 10h, subtarefa Codificação tem 8h. Vale o título');
     const carry = screen.getByTestId('sobra-SQ-103').textContent ?? '';
     expect(carry).toContain('Tempo Estimado 24 h');
     expect(carry).toContain('Tempo Restante 7 h');

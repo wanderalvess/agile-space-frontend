@@ -37,17 +37,17 @@
       "titleQaHours": 4,
       "sortOrder": 1,
       "carryOver": false,
-      "devHours": 10,
+      "devHours": 11,
       "qaHours": 4,
-      "subtaskDevH": 10,
+      "subtaskDevH": 8,
       "subtaskQaH": 4,
-      "subtaskDevEstimateH": 10,
-      "subtaskDevRemainingH": 10,
+      "subtaskDevEstimateH": 8,
+      "subtaskDevRemainingH": 8,
       "subtaskQaEstimateH": 4,
       "subtaskQaRemainingH": 4,
-      "divergenceDev": false,
+      "divergenceDev": true,
       "divergenceQa": false,
-      "divergent": false,
+      "divergent": true,
       "noEstimate": false,
       "inBacklog": true,
       "unclassifiedCount": 0,
@@ -59,9 +59,9 @@
           "typeId": "10",
           "typeName": "Codificação",
           "cls": "DEV",
-          "estimateH": 10,
-          "remainingH": 10,
-          "countedH": 10,
+          "estimateH": 8,
+          "remainingH": 8,
+          "countedH": 8,
           "defaultHoursApplied": false,
           "assigneeId": "acc-dev",
           "assigneeName": "Ana Dev"
@@ -79,7 +79,10 @@
           "assigneeId": "acc-qa",
           "assigneeName": "Caio QA"
         }
-      ]
+      ],
+      "codeReviewDevH": 1,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": true
     },
     {
       "id": "it-5823",
@@ -89,17 +92,17 @@
       "titleQaHours": 2,
       "sortOrder": 2,
       "carryOver": false,
-      "devHours": 5,
+      "devHours": 6,
       "qaHours": 2,
-      "subtaskDevH": 6,
+      "subtaskDevH": 5,
       "subtaskQaH": 2,
-      "subtaskDevEstimateH": 6,
-      "subtaskDevRemainingH": 6,
+      "subtaskDevEstimateH": 5,
+      "subtaskDevRemainingH": 5,
       "subtaskQaEstimateH": 2,
       "subtaskQaRemainingH": 2,
-      "divergenceDev": true,
+      "divergenceDev": false,
       "divergenceQa": false,
-      "divergent": true,
+      "divergent": false,
       "noEstimate": false,
       "inBacklog": true,
       "unclassifiedCount": 0,
@@ -121,7 +124,7 @@
         {
           "key": "SQ-5825",
           "title": "Code Review",
-          "typeId": "12",
+          "typeId": "12300",
           "typeName": "Code Review",
           "cls": "DEV",
           "estimateH": 1,
@@ -144,7 +147,10 @@
           "assigneeId": "acc-qa",
           "assigneeName": "Caio QA"
         }
-      ]
+      ],
+      "codeReviewDevH": 1,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": false
     },
     {
       "id": "it-103",
@@ -209,13 +215,16 @@
           "assigneeId": null,
           "assigneeName": null
         }
-      ]
+      ],
+      "codeReviewDevH": 0,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": false
     }
   ],
   "scope": {
     "itemCount": 3,
     "allocated": {
-      "DEV": 21,
+      "DEV": 23,
       "QA": 7
     },
     "carryOverCount": 1,
@@ -237,9 +246,9 @@
   "assignments": [],
   "thermometer": {
     "DEV": {
-      "allocatedHours": 21,
+      "allocatedHours": 23,
       "capacityHours": 90,
-      "pct": 23.333333333333332,
+      "pct": 25.555555555555554,
       "zone": "VERDE",
       "state": "DENTRO_DA_CAPACIDADE",
       "reservePct": 12,
