@@ -28,7 +28,7 @@ describe('módulos', () => {
       '/health-check', '/brainstorming', '/action-plan',
       '/knowledge/kb', '/prompt-hub', '/support',
     ]);
-    expect(MODULE_GROUPS.flatMap((g) => g.items).filter((m) => m.soon).map((m) => m.title)).toEqual(['Planejador']);
+    expect(MODULE_GROUPS.flatMap((g) => g.items).filter((m) => m.soon).map((m) => m.title)).toEqual([]);
   });
 
   it('nenhum texto cita "engenharia"', () => {
@@ -39,7 +39,7 @@ describe('módulos', () => {
   it('a busca esmaece o que não casa e conta os resultados', () => {
     const { rerender } = render(<ModuleGrid query="" />);
     expect(screen.getByText('12 módulos')).toBeTruthy();
-    expect(screen.getByText('Em breve')).toBeTruthy();
+    expect(screen.queryByText('Em breve')).toBeNull();
 
     rerender(<ModuleGrid query="conhecimento" />);
     expect(screen.getByText('1 encontrado(s)')).toBeTruthy();
