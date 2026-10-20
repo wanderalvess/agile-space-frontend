@@ -1,0 +1,265 @@
+{
+  "id": "plan-1",
+  "squadId": "SQ",
+  "version": 5,
+  "status": "ESCOPO",
+  "sprint": {
+    "jiraSprintId": null,
+    "name": "Sprint 2026.10/2",
+    "startDate": "2026-10-21",
+    "endDate": "2026-11-03",
+    "sprintKey": "plan:plan-1"
+  },
+  "goal": "Entregar o checkout",
+  "reserve": {
+    "mode": "HORAS",
+    "pct": 12,
+    "focusPct": null,
+    "types": []
+  },
+  "syncedAt": "2026-10-20T12:00:00Z",
+  "capacity": {
+    "byClass": {
+      "DEV": 90,
+      "QA": 75
+    },
+    "people": [],
+    "workingDays": 9
+  },
+  "absences": [],
+  "holidays": [],
+  "items": [
+    {
+      "id": "it-101",
+      "parentKey": "SQ-101",
+      "title": "Troca de produto (DEV 10h / QA 4h)",
+      "titleDevHours": 10,
+      "titleQaHours": 4,
+      "sortOrder": 1,
+      "carryOver": false,
+      "devHours": 10,
+      "qaHours": 4,
+      "subtaskDevH": 10,
+      "subtaskQaH": 4,
+      "subtaskDevEstimateH": 10,
+      "subtaskDevRemainingH": 10,
+      "subtaskQaEstimateH": 4,
+      "subtaskQaRemainingH": 4,
+      "divergenceDev": false,
+      "divergenceQa": false,
+      "divergent": false,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 0,
+      "unclassifiedHours": 0,
+      "subtasks": [
+        {
+          "key": "SQ-111",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 10,
+          "remainingH": 10,
+          "countedH": 10,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-112",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 4,
+          "remainingH": 4,
+          "countedH": 4,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        }
+      ]
+    },
+    {
+      "id": "it-5823",
+      "parentKey": "SQ-5823",
+      "title": "Pagamento parcial (DEV 5h / QA 2h)",
+      "titleDevHours": 5,
+      "titleQaHours": 2,
+      "sortOrder": 2,
+      "carryOver": false,
+      "devHours": 5,
+      "qaHours": 2,
+      "subtaskDevH": 6,
+      "subtaskQaH": 2,
+      "subtaskDevEstimateH": 6,
+      "subtaskDevRemainingH": 6,
+      "subtaskQaEstimateH": 2,
+      "subtaskQaRemainingH": 2,
+      "divergenceDev": true,
+      "divergenceQa": false,
+      "divergent": true,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 0,
+      "unclassifiedHours": 0,
+      "subtasks": [
+        {
+          "key": "SQ-5824",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 5,
+          "remainingH": 5,
+          "countedH": 5,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-5825",
+          "title": "Code Review",
+          "typeId": "12",
+          "typeName": "Code Review",
+          "cls": "DEV",
+          "estimateH": 1,
+          "remainingH": 1,
+          "countedH": 1,
+          "defaultHoursApplied": true,
+          "assigneeId": null,
+          "assigneeName": null
+        },
+        {
+          "key": "SQ-5826",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 2,
+          "remainingH": 2,
+          "countedH": 2,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        }
+      ]
+    },
+    {
+      "id": "it-103",
+      "parentKey": "SQ-103",
+      "title": "Cancelamento de venda",
+      "titleDevHours": null,
+      "titleQaHours": null,
+      "sortOrder": 3,
+      "carryOver": true,
+      "devHours": 6,
+      "qaHours": 1,
+      "subtaskDevH": 6,
+      "subtaskQaH": 1,
+      "subtaskDevEstimateH": 20,
+      "subtaskDevRemainingH": 6,
+      "subtaskQaEstimateH": 4,
+      "subtaskQaRemainingH": 1,
+      "divergenceDev": false,
+      "divergenceQa": false,
+      "divergent": false,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 1,
+      "unclassifiedHours": 3,
+      "subtasks": [
+        {
+          "key": "SQ-131",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 20,
+          "remainingH": 6,
+          "countedH": 6,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-132",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 4,
+          "remainingH": 1,
+          "countedH": 1,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        },
+        {
+          "key": "SQ-133",
+          "title": "Especificação",
+          "typeId": "7",
+          "typeName": "Especificação",
+          "cls": "SEM_CLASSIFICACAO",
+          "estimateH": 3,
+          "remainingH": 3,
+          "countedH": 3,
+          "defaultHoursApplied": false,
+          "assigneeId": null,
+          "assigneeName": null
+        }
+      ]
+    }
+  ],
+  "scope": {
+    "itemCount": 3,
+    "allocated": {
+      "DEV": 21,
+      "QA": 7
+    },
+    "carryOverCount": 1,
+    "carryOverDevHours": 6,
+    "carryOverQaHours": 1,
+    "divergentCount": 1,
+    "noEstimateCount": 0,
+    "unclassifiedCount": 1,
+    "unclassifiedHours": 3,
+    "unclassifiedTypes": [
+      {
+        "typeId": "7",
+        "typeName": "Especificação",
+        "count": 1,
+        "hours": 3
+      }
+    ]
+  },
+  "assignments": [],
+  "thermometer": {
+    "DEV": {
+      "allocatedHours": 21,
+      "capacityHours": 90,
+      "pct": 23.333333333333332,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "reservePct": 12,
+      "reserveLimitHours": 100.8
+    },
+    "QA": {
+      "allocatedHours": 7,
+      "capacityHours": 75,
+      "pct": 9.333333333333334,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "reservePct": 12,
+      "reserveLimitHours": 84
+    }
+  },
+  "permissions": {
+    "canEditPlan": true,
+    "canEditTypes": true,
+    "myAccountId": "acc-lead"
+  },
+  "goalSavedInJira": false,
+  "updatedAt": "2026-10-20T12:00:01.123456Z"
+}

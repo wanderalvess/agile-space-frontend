@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { BacklogParent, BacklogView, PlanItem, Thermometer } from '../api';
+import type { BacklogParent, BacklogView, PlanItem, PlanView, Thermometer } from '../api';
+import { planItem, scopeTotalsOf, scopeViewOf } from './fixtures/scope';
 import {
+  applyScope,
   buildScope,
   canAdvanceFromScope,
   carryOverTimes,
@@ -8,7 +10,10 @@ import {
   estimateThermometer,
   filterBacklog,
   hasNoEstimate,
+  itemDivergenceMessages,
+  noticesFromItem,
   parentHours,
+  scopeSummary,
   scopeTotals,
   syncedAgo,
   unclassifiedSummary,
@@ -25,7 +30,7 @@ const parent = (over: Partial<BacklogParent> = {}): BacklogParent => ({
   sumByClass: { DEV: 16, QA: 6 }, divergenceDev: true, divergenceQa: false, divergent: true, ...over,
 });
 
-const item = (over: Partial<PlanItem> = {}): PlanItem => ({ id: 'i1', parentKey: 'SQ-1', title: 'Checkout', titleDevHours: 18, titleQaHours: 6, sortOrder: 1, carryOver: false, ...over });
+const item = (over: Partial<PlanItem> = {}): PlanItem => planItem(over);
 
 const thermo = (over: Partial<Thermometer> = {}): Thermometer => ({
   allocatedHours: 60, capacityHours: 90, pct: 66.7, zone: 'VERDE', state: 'DENTRO_DA_CAPACIDADE', reservePct: 12, reserveLimitHours: 100.8, ...over,
@@ -61,6 +66,28 @@ describe('divergência título x subtarefas', () => {
   });
 });
 
+describe('avisos do item do plano (flags do servidor)', () => {
+  it('divergência usa as somas do servidor e diz que vale o título (caso 5823: título 5h, Codificação 5h + Code Review 1h)', () => {
+    const i = item({
+      titleDevHours: 5, devHours: 5, subtaskDevH: 6, divergenceDev: true, divergent: true,
+      subtasks: [
+        { key: 'S-1', title: 'Codificação', typeId: '10', typeName: 'Codificação', cls: 'DEV', estimateH: 5, remainingH: 5, countedH: 5, defaultHoursApplied: false, assigneeId: null, assigneeName: null },
+        { key: 'S-2', title: 'Code Review', typeId: '12', typeName: 'Code Review', cls: 'DEV', estimateH: 1, remainingH: 1, countedH: 1, defaultHoursApplied: true, assigneeId: null, assigneeName: null },
+      ],
+    });
+    expect(itemDivergenceMessages(i)).toEqual(['Título diz DEV 5h, subtarefas Codificação e Code Review somam 6h. Vale o título']);
+    expect(noticesFromItem(i)).toMatchObject({ divergences: expect.any(Array), noEstimate: false, noTitleHours: false });
+  });
+
+  it('sobra mostra estimado e restante; sem título e sem horas pede estimativa; pai fora do backlog é sinalizada', () => {
+    const carry = noticesFromItem(item({ carryOver: true, subtaskDevEstimateH: 20, subtaskDevRemainingH: 6, subtaskQaEstimateH: 4, subtaskQaRemainingH: 1 }));
+    expect([carry.carryOver, carry.estimated, carry.remaining]).toEqual([true, 24, 7]);
+    expect(noticesFromItem(item({ titleDevHours: null, titleQaHours: null, devHours: 0, qaHours: 0, noEstimate: true })).noEstimate).toBe(true);
+    expect(noticesFromItem(item({ titleDevHours: null, titleQaHours: null })).noTitleHours).toBe(true);
+    expect(noticesFromItem(item({ inBacklog: false })).outOfBacklog).toBe(true);
+  });
+});
+
 describe('carry-over', () => {
   it('mostra Tempo Estimado e Tempo Restante das subtarefas DEV/QA', () => {
     const p = parent({ carryOver: true, subtasks: [sub({ estimateH: 20, remainingH: 8 }), sub({ key: 'X-9', subtaskClass: 'FORA_DA_CONTA', estimateH: 50, remainingH: 50 })] });
@@ -84,9 +111,24 @@ describe('escopo e recálculo', () => {
     expect(buildScope([item()], backlog, new Set(['SQ-1']), new Set())).toHaveLength(1);
   });
 
-  it('prefere as horas que o servidor mandar no item', () => {
+  it('as horas do item são as do servidor (devHours/qaHours), mesmo que o backlog diga outra coisa', () => {
     const e = buildScope([item({ devHours: 12, qaHours: 3 })], backlog, new Set(), new Set());
     expect([e[0].dev, e[0].qa]).toEqual([12, 3]);
+    expect(e[0].item?.id).toBe('i1');
+  });
+
+  it('resumo: totais do servidor quando nada está pendente; soma local só durante a mudança', () => {
+    const plan = { scope: { ...scopeTotalsOf([item()]), itemCount: 7, allocated: { DEV: 70, QA: 30 } }, thermometer: {} };
+    const entries = buildScope([item()], backlog, new Set(), new Set());
+    expect(scopeSummary(plan, entries, false)).toEqual({ count: 7, DEV: 70, QA: 30 });
+    expect(scopeSummary(plan, entries, true)).toEqual({ count: 1, DEV: 18, QA: 6 });
+  });
+
+  it('applyScope troca itens, totais e termômetro e mantém a versão do plano', () => {
+    const sv = scopeViewOf([item()], { DEV: thermo({ allocatedHours: 18 }) });
+    const plan = { version: 9, items: [], scope: scopeTotalsOf([]), thermometer: {} } as unknown as PlanView;
+    const next = applyScope(plan, sv);
+    expect([next.version, next.items.length, next.scope.itemCount, next.thermometer.DEV.allocatedHours]).toEqual([9, 1, 1, 18]);
   });
 
   it('estimativa provisória usa as faixas e a reserva do servidor', () => {
