@@ -47,7 +47,9 @@ export function SubtaskRow({ sub, view, byKey, editable, busy, draft, error, onD
   const locked = startIsLocked(sub);
   const note = chainNote(sub, byKey);
   const canEditDates = editable && sub.canEditDates && own !== 'free';
+  // Liderança: o servidor recusa (422) papel diferente do da subtarefa, então só entram pessoas do mesmo papel.
   const people: DistributionPerson[] = leader ? assignablePeople(view.people, sub.cls) : [];
+  const pickedPerson = assignTo || (people.some((p) => p.accountId === view.myAccountId) ? view.myAccountId ?? '' : '');
 
   const start = draft?.start ?? sub.startDate ?? '';
   const end = draft?.end ?? sub.endDate ?? '';
@@ -100,20 +102,24 @@ export function SubtaskRow({ sub, view, byKey, editable, busy, draft, error, onD
               <label htmlFor={`${idBase}-quem`} className="sr-only">Quem fica com {sub.key}</label>
               <select
                 id={`${idBase}-quem`}
-                value={assignTo}
+                value={pickedPerson}
                 onChange={(e) => setAssignTo(e.target.value)}
                 className={cn(FIELD, 'h-10 min-w-[10rem] max-w-full')}
               >
-                <option value="">Eu mesmo(a)</option>
-                {people.filter((p) => p.accountId !== view.myAccountId).map((p) => (
-                  <option key={p.accountId} value={p.accountId}>{p.name} ({p.role})</option>
+                <option value="">Escolha a pessoa</option>
+                {people.map((p) => (
+                  <option key={p.accountId} value={p.accountId}>{p.name} ({p.role}){p.accountId === view.myAccountId ? ' · você' : ''}</option>
                 ))}
               </select>
             </>
           )}
-          {editable && (sub.canClaim || leader) ? (
-            <ModalButton variant="primary" disabled={busy} onClick={() => onClaim(sub.key, assignTo || undefined)}>
-              {assignTo ? 'Atribuir' : 'Pegar'}<span className="sr-only"> {sub.key}</span>
+          {editable && leader ? (
+            <ModalButton variant="primary" disabled={busy || !pickedPerson} onClick={() => onClaim(sub.key, pickedPerson)}>
+              Atribuir<span className="sr-only"> {sub.key}</span>
+            </ModalButton>
+          ) : editable && sub.canClaim ? (
+            <ModalButton variant="primary" disabled={busy} onClick={() => onClaim(sub.key)}>
+              Pegar<span className="sr-only"> {sub.key}</span>
             </ModalButton>
           ) : (
             <span className="text-xs text-muted-foreground">{editable ? 'Sem responsável. Você não pode pegar esta subtarefa.' : 'Sem responsável.'}</span>

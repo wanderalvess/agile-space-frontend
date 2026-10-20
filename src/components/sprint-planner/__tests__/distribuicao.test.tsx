@@ -170,6 +170,23 @@ describe('Distribuição: permissões e leitura', () => {
   });
 });
 
+describe('Distribuição: liderança sempre escolhe a pessoa', () => {
+  it('só lista pessoas do papel da subtarefa e não atribui sem escolher (o servidor dá 422 para papel diferente)', async () => {
+    const lead = clone();
+    lead.canEditPlan = true;
+    h.api.get.mockResolvedValue(lead);
+    renderStep();
+    const row = await screen.findByTestId('sub-DDWMISSI-5821');
+    const cls = lead.tasks.flatMap((t) => t.subtasks).find((x) => x.key === 'DDWMISSI-5821')!.cls;
+    const options = within(row).getAllByRole('option').filter((o) => (o as HTMLOptionElement).value);
+    expect(options.length).toBeGreaterThan(0);
+    for (const o of options) expect(o.textContent).toContain(`(${cls})`);
+    const pick = within(row).getByLabelText(/Quem fica com/) as HTMLSelectElement;
+    if (!pick.value) expect((within(row).getByRole('button', { name: /Atribuir/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(row).queryByRole('button', { name: /^Pegar/ })).toBeNull();
+  });
+});
+
 describe('Distribuição: datas e cascata', () => {
   it('editar o fim e salvar envia início e fim; a cascata vem da resposta', async () => {
     const after = clone();
@@ -189,14 +206,16 @@ describe('Distribuição: datas e cascata', () => {
     expect(screen.getByTestId('datas-leitura-DDWMISSI-5812').textContent).toBe('27/10 a 27/10');
   });
 
-  it('pré-valida: fim antes do início e fim de semana não deixam salvar', async () => {
+  it('pré-valida: fim antes do início não deixa salvar; fim de semana é decisão do servidor', async () => {
     renderStep();
     const row = await screen.findByTestId('sub-DDWMISSI-5811');
     fireEvent.change(within(row).getByLabelText('Fim'), { target: { value: '2026-10-20' } });
     expect(within(row).getByRole('alert').textContent).toMatch(/antes/);
     expect((within(row).getByRole('button', { name: /Salvar datas/ }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(within(row).getByLabelText('Fim'), { target: { value: '2026-10-24' } });
-    expect(within(row).getByRole('alert').textContent).toMatch(/dias úteis/);
+    // O servidor aceita sábado/domingo (feriado só avisa); o cliente não barra o que o servidor aceita.
+    expect(within(row).queryByRole('alert')).toBeNull();
+    expect((within(row).getByRole('button', { name: /Salvar datas/ }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('422: mostra a mensagem e sugere o minStartDate; aceitar a sugestão preenche o início', async () => {

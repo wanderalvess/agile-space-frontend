@@ -158,6 +158,9 @@ export function PlanScreen({
     if (updated) {
       setLoad({ state: 'ok', plan: updated });
       onStepChange(stepOfStatus(updated.status));
+      // Avançar da Distribuição nunca é bloqueado; os avisos vêm só nesta resposta.
+      const n = updated.warnings?.length ?? 0;
+      if (n > 0) toast({ title: n === 1 ? '1 aviso na distribuição' : `${n} avisos na distribuição`, description: updated.warnings?.slice(0, 3).map((w) => w.message).join(' ') });
     }
   };
 
