@@ -35,7 +35,6 @@ vi.mock('../../../components/onboarding/OnboardingFlow', () => ({ OnboardingFlow
 vi.mock('../../../components/invite/InviteAcceptView', () => ({ InviteAcceptView: () => <div>tela do convite</div> }));
 vi.mock('../../../lib/invite-api', () => ({ inviteApi: { getInvite: () => new Promise(() => {}) } }));
 vi.mock('../../../components/knowledge/KnowledgeGuide', () => ({ KnowledgeGuide: () => null }));
-vi.mock('../../../app/manual/components/ManualSidebar', () => ({ ManualSidebar: () => <nav aria-label="Tópicos do manual" /> }));
 
 import { ToolHubLayout } from '../ToolHubLayout';
 import { DevToolsHubPage } from '../../../components/devtools/DevToolsHubPage';
@@ -47,6 +46,7 @@ import JoltHubPage from '../../../app/jolt/page';
 import ConfiguracoesPage from '../../../app/configuracoes/page';
 import SkillTutorialPage from '../../../app/prompt-hub/tutorial/page';
 import ManualLayout from '../../../app/manual/layout';
+import ManualIndexPage from '../../../app/manual/page';
 import KnowledgeLayout from '../../../app/knowledge/layout';
 import OnboardingPage from '../../../app/onboarding/page';
 import InvitePage from '../../../app/invite/[token]/page';
@@ -154,17 +154,16 @@ describe('telas no PageShell', () => {
     expectShell('Como criar uma skill');
   });
 
-  it('Manual: layout com índice e conteúdo, sem fixar o título da aba (cada tópico tem o seu)', () => {
-    document.title = 'Poker | Manual';
+  it('Manual: casca do portal com o índice, sem fixar o título da aba (cada tópico tem o seu)', () => {
+    document.title = 'Poker - Manual | Portal Tech V&D';
     render(
       <ManualLayout>
-        <p>conteúdo do tópico</p>
+        <ManualIndexPage />
       </ManualLayout>,
     );
     expectShell('Manual');
-    expect(screen.getByText('conteúdo do tópico')).toBeTruthy();
-    expect(screen.getAllByRole('navigation', { name: 'Tópicos do manual' }).length).toBeGreaterThan(0);
-    expect(document.title).toBe('Poker | Manual');
+    expect(screen.getByRole('navigation', { name: 'Categorias do manual' })).toBeTruthy();
+    expect(screen.getByRole('searchbox', { name: /Buscar no manual/ })).toBeTruthy();
   });
 });
 
