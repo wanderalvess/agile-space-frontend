@@ -12,7 +12,7 @@ const appDir = path.resolve(__dirname, '../..');
 const manualDir = path.resolve(__dirname, '..');
 
 /** Tópicos sem módulo no registro: único caso com ícone próprio. */
-const OWN_ICON = ['integracoes', 'primeiros-passos', 'manifesto'];
+const OWN_ICON = ['integracoes', 'primeiros-passos', 'manifesto', 'qualidade'];
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of fs.readdirSync(dir)) {
@@ -70,7 +70,7 @@ describe('manual: consistência dos tópicos', () => {
     }
   });
 
-  it('cada tópico tem o ícone do registro de módulos (só três têm ícone próprio)', () => {
+  it('cada tópico tem o ícone do registro de módulos (só quatro têm ícone próprio)', () => {
     const registryIcons = new Set(MODULES.map((m) => m.icon));
     for (const t of MANUAL_TOPICS) {
       if (OWN_ICON.includes(t.id)) {
@@ -83,7 +83,7 @@ describe('manual: consistência dos tópicos', () => {
     }
   });
 
-  it('o título do tópico de módulo é o nome do registro, salvo os três títulos próprios', () => {
+  it('o título do tópico de módulo é o nome do registro, salvo os títulos próprios', () => {
     const own: Record<string, string> = { planner: 'Planejamento da sprint', painel: 'Painel e Squad' };
     for (const t of MANUAL_TOPICS) {
       if (!t.module) continue;

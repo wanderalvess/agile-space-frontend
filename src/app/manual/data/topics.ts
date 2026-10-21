@@ -1,4 +1,4 @@
-import { Compass, Handshake, Plug, type LucideIcon } from 'lucide-react';
+import { Compass, Handshake, Plug, TestTube, type LucideIcon } from 'lucide-react';
 import { moduleIcon, moduleLabel, type ModuleKey } from '@/lib/modules-registry';
 
 export type ManualCategoryId = 'ceremonies' | 'team' | 'knowledge' | 'tools' | 'account';
@@ -149,7 +149,7 @@ const DEFS: TopicDef[] = [
     related: ['qualidade', 'jolt'],
   },
   {
-    id: 'qualidade', module: 'qa', category: 'tools', updatedIn: 'v4.24.0', isNew: true,
+    id: 'qualidade', icon: TestTube, title: 'Central de qualidade', category: 'tools', updatedIn: 'v4.24.0', isNew: true,
     summary: 'Testes, massa de dados e automação, no filtro Qualidade do DevTools.',
     actionUrl: '/devtools', actionLabel: 'Abrir o DevTools',
     keywords: ['qa', 'zephyr', 'central de qualidade', 'bdd', 'massa de dados', 'junit'],
