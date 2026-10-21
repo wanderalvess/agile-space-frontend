@@ -45,7 +45,7 @@ Documentação de **como cada módulo funciona**, escrita para que um agente (ou
 | [manual-e-ajuda.md](manual-e-ajuda.md) | Manual e ajuda |
 | [jolt.md](jolt.md) | Jolt: sandbox, gerador de spec, execução no motor Java |
 | [devtools.md](devtools.md) | Ferramentas de desenvolvimento |
-| [central-de-qualidade.md](central-de-qualidade.md) | Central de Qualidade |
+| [central-de-qualidade.md](central-de-qualidade.md) | Central de Qualidade (virou filtro do DevTools) |
 | [ferramentas-ageis.md](ferramentas-ageis.md) | Ferramentas ágeis avulsas e arquitetura |
 
 ### Operação
