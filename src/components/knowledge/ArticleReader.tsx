@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowUp, ChevronRight, Download, ExternalLink, Link2, Pencil, RefreshCw, Star } from 'lucide-react';
+import { ArchiveRestore, ArrowUp, ChevronRight, Download, ExternalLink, Link2, Pencil, RefreshCw, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,9 @@ export interface ArticleReaderProps {
   tdnBaseUrl?: string | null;
   /** Depois de restaurar uma versão, com o documento já atualizado. */
   onRestored: (doc: KnowledgeDocument) => void;
+  /** Tira um artigo arquivado do arquivo (volta a "publicado"). O botão só aparece para arquivado e quem pode editar. */
+  onUnarchive?: () => void;
+  isUnarchiving?: boolean;
 }
 
 type ReaderTab = 'document' | 'history';
@@ -83,12 +86,14 @@ function TocLinks({ items, activeId, onGo, compact }: { items: TocItem[]; active
   );
 }
 
-function Chip({ children, tone = 'muted', className }: { children: React.ReactNode; tone?: 'muted' | 'brand'; className?: string }) {
+function Chip({ children, tone = 'muted', className }: { children: React.ReactNode; tone?: 'muted' | 'brand' | 'status'; className?: string }) {
   return (
     <span
       className={cn(
         'inline-flex h-6 items-center rounded-full px-2.5 text-xs',
-        tone === 'brand' ? 'bg-primary/10 font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border border-border bg-muted/50 text-muted-foreground',
+        tone === 'brand' && 'bg-primary/10 font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+        tone === 'status' && 'border border-border bg-accent font-semibold text-foreground',
+        tone === 'muted' && 'border border-border bg-muted/50 text-muted-foreground',
         className,
       )}
     >
@@ -113,6 +118,8 @@ export function ArticleReader({
   onEdit,
   tdnBaseUrl,
   onRestored,
+  onUnarchive,
+  isUnarchiving = false,
 }: ArticleReaderProps) {
   const uid = useId();
   const [tab, setTab] = useState<ReaderTab>('document');
@@ -250,6 +257,13 @@ export function ArticleReader({
               <Download className="h-4 w-4" aria-hidden="true" /> Exportar
             </Button>
 
+            {doc.canEdit && doc.status === 'archived' && onUnarchive && (
+              <Button variant="outline" size="sm" onClick={onUnarchive} disabled={isUnarchiving} className="h-9 rounded-[10px]">
+                {isUnarchiving ? <AgileSpinner size="xs" /> : <ArchiveRestore className="h-4 w-4" aria-hidden="true" />}
+                {isUnarchiving ? 'Restaurando...' : 'Restaurar'}
+              </Button>
+            )}
+
             {doc.canEdit && (
               <Button size="sm" onClick={onEdit} className="h-9 rounded-[10px] font-semibold">
                 <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
@@ -329,6 +343,8 @@ export function ArticleReader({
             <article aria-labelledby={titleId} className="mx-auto w-full min-w-0 max-w-[1040px]">
               <header className="flex flex-col gap-4 border-b border-border pb-5">
                 <div className="flex flex-wrap items-center gap-2">
+                  {doc.status === 'draft' && <Chip tone="status">Rascunho</Chip>}
+                  {doc.status === 'archived' && <Chip tone="status">Arquivado</Chip>}
                   {doc.category && <Chip tone="brand">{doc.category}</Chip>}
                   {tags.map((tag) => (
                     <Chip key={tag} className="xl:hidden">
@@ -346,6 +362,24 @@ export function ArticleReader({
                   {size && <span>{size}</span>}
                 </p>
               </header>
+
+              {doc.status === 'draft' && (
+                <p role="note" className="mt-6 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-foreground">
+                  Rascunho: só você vê este artigo. Ele fica fora da lista, da busca e do assistente até ser publicado.
+                </p>
+              )}
+              {doc.status === 'archived' && (
+                <div role="note" className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-foreground">
+                  <span className="min-w-0 flex-1">
+                    Arquivado: este artigo não aparece na lista, na busca nem no assistente, mas o link continua abrindo.
+                  </span>
+                  {doc.canEdit && onUnarchive && (
+                    <Button variant="outline" size="sm" onClick={onUnarchive} disabled={isUnarchiving} className="h-9 rounded-[10px]">
+                      <ArchiveRestore className="h-4 w-4" aria-hidden="true" /> Restaurar para publicado
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {isTdn && (
                 <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">

@@ -155,6 +155,29 @@ describe('ArticleReader', () => {
     expect(screen.getByRole('article')).toBeTruthy();
   });
 
+  it('rascunho mostra o selo e o aviso de que só o autor vê; publicado não mostra selo', () => {
+    const { unmount } = setup({}, { status: 'draft' });
+    expect(screen.getAllByText('Rascunho').length).toBeGreaterThan(0);
+    expect(screen.getByRole('note').textContent).toContain('só você vê');
+    unmount();
+    setup();
+    expect(screen.queryByText('Rascunho')).toBeNull();
+    expect(screen.queryByText('Arquivado')).toBeNull();
+  });
+
+  it('arquivado mostra o selo e "Restaurar" só para quem edita', () => {
+    const onUnarchive = vi.fn();
+    const { unmount } = setup({ onUnarchive }, { status: 'archived' });
+    expect(screen.getAllByText('Arquivado').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar' }));
+    expect(onUnarchive).toHaveBeenCalledTimes(1);
+    unmount();
+
+    setup({ onUnarchive }, { status: 'archived', canEdit: false });
+    expect(screen.getAllByText('Arquivado').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Restaurar/ })).toBeNull();
+  });
+
   it('artigo vazio mostra aviso em vez de "Carregando"', () => {
     setup({}, { content: '' });
     expect(screen.getByText('Este artigo ainda não tem conteúdo.')).toBeTruthy();

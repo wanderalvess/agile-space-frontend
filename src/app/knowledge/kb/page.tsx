@@ -19,6 +19,7 @@ import {
   Download,
   BookOpen,
   AlertTriangle,
+  ArchiveRestore,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,6 +49,31 @@ import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
 import { ConfirmTrashDialog, type TrashTarget } from '@/components/knowledge/ConfirmTrashDialog';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
+
+type KbStatusView = 'published' | 'draft' | 'archived';
+
+const STATUS_VIEWS: { id: KbStatusView; label: string }[] = [
+  { id: 'published', label: 'Publicados' },
+  { id: 'draft', label: 'Meus rascunhos' },
+  { id: 'archived', label: 'Arquivados' },
+];
+
+/** "Publicados" é a lista padrão do servidor (sem parâmetro); as outras visões usam `?status=`. */
+function statusFilterParam(view: KbStatusView): string | undefined {
+  return view === 'published' ? undefined : view;
+}
+
+const STATUS_COUNT_LABEL: Record<KbStatusView, string> = {
+  published: 'Artigos ativos',
+  draft: 'Meus rascunhos',
+  archived: 'Arquivados',
+};
+
+const EMPTY_LABEL: Record<KbStatusView, string> = {
+  published: 'Nenhum documento encontrado nesta busca',
+  draft: 'Você não tem rascunhos. Use "Salvar rascunho" no editor para guardar um artigo sem publicar.',
+  archived: 'Nenhum artigo arquivado que você possa editar.',
+};
 
 function KBExplorerContent() {
   const { session } = useAuth();
@@ -376,12 +402,16 @@ function KBExplorerContent() {
 
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Estado dos artigos listados: o servidor devolve "publicados" por padrão; "draft" são só os rascunhos de quem
+  // está logado (admin vê todos) e "archived" os arquivados que a pessoa pode editar.
+  const [statusView, setStatusView] = useState<KbStatusView>('published');
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   const fetchDocuments = React.useCallback(async () => {
     if (!session) return;
     setIsLoading(true);
     try {
-      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200);
+      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200, statusFilterParam(statusView));
       setDocuments(response.content);
     } catch (err) {
       console.error(err);
@@ -389,11 +419,33 @@ function KBExplorerContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, statusView]);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
+
+  const changeStatusView = (next: KbStatusView) => {
+    if (next === statusView) return;
+    setSelectedIds(new Set());
+    setStatusView(next);
+  };
+
+  // Artigo arquivado -> publicado (só quem edita; o servidor confere).
+  const unarchive = async (target: KnowledgeDocument, fromReader: boolean) => {
+    if (isUnarchiving) return;
+    setIsUnarchiving(true);
+    try {
+      const updated = await knowledgeApi.setDocumentStatus(target, 'published');
+      toast.success('Artigo restaurado e publicado.');
+      if (fromReader) setSelectedFile(updated);
+      fetchDocuments();
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao restaurar o artigo.');
+    } finally {
+      setIsUnarchiving(false);
+    }
+  };
 
   const filteredDocs = useMemo(() => {
     if (!documents) return [];
@@ -462,6 +514,19 @@ function KBExplorerContent() {
     }
   }, [initialDocId, documents]);
 
+  // Link direto para um artigo que a lista atual não traz (rascunho depois de salvar, arquivado, ou aberto de outra
+  // tela): busca pelo id. O servidor responde 404 para rascunho de outra pessoa.
+  const idFetchedRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialDocId || isLoading || !session) return;
+    if (documents.some(d => d.id === initialDocId) || selectedFile?.id === initialDocId) return;
+    if (idFetchedRef.current === initialDocId) return;
+    idFetchedRef.current = initialDocId;
+    knowledgeApi.getDocumentById(initialDocId)
+      .then(doc => setSelectedFile(doc))
+      .catch(() => toast.error('Não encontramos esse artigo, ou você não tem acesso a ele.'));
+  }, [initialDocId, isLoading, session, documents, selectedFile]);
+
   const formatDocDate = (updatedAt: any) => {
     if (!updatedAt) return '---';
     try {
@@ -494,6 +559,8 @@ function KBExplorerContent() {
               onEdit={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)}
               tdnBaseUrl={tdnSettings?.baseUrl}
               onRestored={(restored) => { setSelectedFile(restored); fetchDocuments(); }}
+              onUnarchive={() => unarchive(selectedFile, true)}
+              isUnarchiving={isUnarchiving}
             />
           ) : (
             /* ========================================================================= */
@@ -712,7 +779,7 @@ function KBExplorerContent() {
                                 {documents?.length || 0}
                               </span>
                               <span className="text-xs font-medium tracking-normal text-muted-foreground">
-                                Artigos ativos
+                                {STATUS_COUNT_LABEL[statusView]}
                               </span>
                             </div>
                             <div className="h-7 w-[1px] bg-border/80" />
@@ -739,6 +806,25 @@ function KBExplorerContent() {
 
                       {/* Busca + filtros ativos + ações em lote */}
                       <div className="space-y-3">
+                        <div role="group" aria-label="Estado dos artigos" className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                          {STATUS_VIEWS.map(view => {
+                            const active = statusView === view.id;
+                            return (
+                              <button
+                                key={view.id}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => changeStatusView(view.id)}
+                                className={cn(
+                                  'h-9 rounded-lg px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+                                  active ? 'bg-card font-semibold text-foreground shadow-xs' : 'font-medium text-muted-foreground hover:text-foreground',
+                                )}
+                              >
+                                {view.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="relative flex-1 sm:max-w-md">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -838,6 +924,12 @@ function KBExplorerContent() {
                                               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                             )}
                                             {docItem.title}
+                                            {docItem.status === 'draft' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Rascunho</span>
+                                            )}
+                                            {docItem.status === 'archived' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Arquivado</span>
+                                            )}
                                           </span>
                                           {docItem.tags && docItem.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
@@ -880,6 +972,11 @@ function KBExplorerContent() {
                                           </Button>
                                           {docItem.canEdit ? (
                                             <>
+                                              {docItem.status === 'archived' && (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => unarchive(docItem, false)} disabled={isUnarchiving} title="Restaurar para publicado" aria-label={`Restaurar ${docItem.title}`}>
+                                                  <ArchiveRestore className="h-4 w-4" />
+                                                </Button>
+                                              )}
                                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar" aria-label={`Editar ${docItem.title}`}>
                                                 <Edit className="h-4 w-4" />
                                               </Button>
@@ -898,7 +995,7 @@ function KBExplorerContent() {
                                     <td colSpan={6} className="py-20 text-center">
                                       <div className="flex flex-col items-center justify-center gap-2">
                                         <ShieldAlert className="h-8 w-8 text-muted-foreground/50" />
-                                        <span className="text-xs text-muted-foreground">Nenhum documento encontrado nesta busca</span>
+                                        <span className="text-xs text-muted-foreground">{EMPTY_LABEL[statusView]}</span>
                                       </div>
                                     </td>
                                   </tr>
