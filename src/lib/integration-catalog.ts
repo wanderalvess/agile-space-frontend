@@ -3,7 +3,7 @@
  * o que dá pra chamar de fora com uma API key, sem sessão de usuário.
  *
  * Fonte de verdade compartilhada entre a referência completa
- * (components/manual/IntegrationsSection.tsx, renderizada em /manual#integracoes)
+ * (tópico "Integrações e API" do Manual, app/manual/content/integracoes.ts, em /manual/integracoes)
  * e o atalho por módulo (components/shared/ModuleIntegrationDialog.tsx, aberto
  * de dentro de /knowledge/kb, /prompt-hub, /squad e /room). Editar aqui atualiza
  * os dois — não duplicar endpoint/tool direto no JSX.
