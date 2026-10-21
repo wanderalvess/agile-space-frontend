@@ -13,8 +13,8 @@ export const JOLT_CONTENT: ManualBlock[] = [
   },
   {
     kind: 'step',
-    title: 'Escolha o motor',
-    text: '**JavaScript** roda no navegador. **Java** roda no motor oficial do Jolt, no servidor do portal. **Comparar** roda os dois e lista as diferenças de conteúdo; só a ordem das chaves não conta como diferença.',
+    title: 'Execute com Ctrl+Enter',
+    text: 'A spec roda no servidor do portal, com o Jolt oficial em Java, e o resultado aparece ao lado com o tempo da execução. Você precisa estar logado para executar; os dados da entrada e da spec saem do navegador para o servidor. Ctrl+S salva o layout.',
   },
   {
     kind: 'step',
@@ -40,7 +40,7 @@ export const JOLT_CONTENT: ManualBlock[] = [
   {
     kind: 'step',
     title: 'Confira a spec',
-    text: 'O portal roda a spec no motor Java e compara com a saída esperada, campo a campo. Se bater, você copia a spec ou monta o registro completo da rota. **Abrir na Sandbox** leva a spec e a entrada para refinar.',
+    text: 'O portal roda a spec no Jolt oficial (Java), no servidor, e compara com a saída esperada, campo a campo. Se bater, você copia a spec ou monta o registro completo da rota. **Abrir na Sandbox** leva a spec e a entrada para refinar.',
   },
   {
     kind: 'step',
@@ -69,8 +69,8 @@ export const JOLT_CONTENT: ManualBlock[] = [
   { kind: 'h2', text: 'Dúvidas comuns' },
   {
     kind: 'faq',
-    q: 'O que vale mais: o motor JavaScript ou o Java?',
-    a: 'O Java é o motor oficial do Jolt. Use o JavaScript para testar rápido e o modo Comparar para ver se os dois concordam.',
+    q: 'Por que preciso estar logado para executar?',
+    a: 'A execução acontece no servidor do portal, que só aceita pedidos de quem está logado. Visitantes veem o hub e o guia, mas Executar, Salvar e Gerar pedem login.',
   },
   {
     kind: 'faq',

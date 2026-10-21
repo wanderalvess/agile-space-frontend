@@ -34,7 +34,7 @@ export function JoltNav({ active }: { active: JoltTab }) {
       ))}
       <span className="flex-1" />
       <Link
-        href="/devtools/json"
+        href="/devtools/data-studio"
         className={cn('inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[13px] text-muted-foreground hover:text-foreground', FOCUS_RING)}
       >
         JSON Studio
