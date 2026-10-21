@@ -93,6 +93,7 @@ export default function Encoding() {
               value={b64Text}
               onChange={setB64Text}
               onExample={() => { setB64Dir('decode'); setB64Text(encodeBase64(SAMPLE_BASE64_DECODED)); }}
+              markError={b64.error}
               placeholder={b64Dir === 'decode' ? 'Cole o Base64 aqui' : 'Digite ou cole o texto a codificar'}
               footer={`${b64Text.length} caracteres`}
             />

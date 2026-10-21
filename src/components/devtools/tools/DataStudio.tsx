@@ -204,6 +204,7 @@ export default function DataStudio() {
               value={fmtText}
               onChange={setFmtText}
               onExample={() => setFmtText(SAMPLES[fmt])}
+              markError={formatted.error}
               placeholder="Cole aqui o conteúdo"
               footer={`${fmtText.length} caracteres`}
             />
@@ -228,6 +229,7 @@ export default function DataStudio() {
               value={convText}
               onChange={setConvText}
               onExample={() => setConvText(CONVERT_SAMPLES[from])}
+              markError={converted.error}
               placeholder="Cole aqui o conteúdo"
               footer={`${convText.length} caracteres`}
             />
@@ -251,6 +253,7 @@ export default function DataStudio() {
               value={genText}
               onChange={setGenText}
               onExample={() => setGenText(SCHEMA_PAYLOAD_SAMPLE)}
+              markError={generated.error}
               placeholder="Cole um JSON para gerar o schema"
               footer={`${genText.length} caracteres`}
             />

@@ -32,6 +32,8 @@ interface ToolPaneProps {
   error?: string | null;
   /** Info curta no rodapé (ex.: "128 caracteres"). */
   footer?: React.ReactNode;
+  /** Erro da ferramenta a marcar na entrada (faixa na linha e margem em vermelho), sem repetir a mensagem no rodapé: a mensagem fica no painel de saída. */
+  markError?: string | null;
   /** Margem com o número das linhas. Padrão: ligada. */
   lineNumbers?: boolean;
   className?: string;
@@ -63,7 +65,7 @@ const barBtn =
 // margem de linhas (rola sozinho) e rodapé com o erro ou uma informação curta.
 export function ToolPane({
   title, sub, value, onChange, readOnly, placeholder, toolbar, downloadName, editable = !readOnly, onExample,
-  error, footer, lineNumbers = true, className,
+  error, markError, footer, lineNumbers = true, className,
 }: ToolPaneProps) {
   const { toast } = useToast();
   const [copied, setCopied] = React.useState(false);
@@ -73,7 +75,7 @@ export function ToolPane({
   const copiedTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   React.useEffect(() => () => clearTimeout(copiedTimer.current), []);
 
-  const errPos = parseErrorPosition(error);
+  const errPos = parseErrorPosition(error ?? markError);
   // A faixa vermelha só vale no painel onde se digita; na saída o erro aparece apenas no rodapé.
   const markPos = editable ? errPos : null;
   const count = Math.max(value.split('\n').length, 14);
@@ -179,7 +181,7 @@ export function ToolPane({
           spellCheck={false}
           wrap="off"
           aria-label={title}
-          aria-invalid={error ? true : undefined}
+          aria-invalid={error || markError ? true : undefined}
           data-tool-input={editable ? 'true' : undefined}
           className="relative min-h-0 min-w-0 flex-1 resize-none overflow-auto whitespace-pre rounded-none border-0 bg-transparent px-3.5 py-3 font-code text-[13px] shadow-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           style={{ lineHeight: `${LINE_H}px` }}
