@@ -53,7 +53,6 @@ const ICON_COMPONENTS: Record<string, LucideIcon> = {
   Zap,
   Sparkles,
   Flag,
-  Rocket: Flag, // alias: releases já gravados com o ícone antigo
   ShieldCheck,
   Layers,
   Code2,
@@ -72,7 +71,8 @@ const ICON_COMPONENTS: Record<string, LucideIcon> = {
 
 /** Ícone do release com cor do tema (a classe colorida gravada no dado é do Changelog público). */
 function ReleaseIcon({ name, className }: { name?: string; className?: string }) {
-  const Comp = (name && ICON_COMPONENTS[name]) || Sparkles;
+  // Dado antigo com o ícone "Rocket" vira "Flag" por canonicalIconName: o ícone Rocket nunca é importado.
+  const Comp = (name && ICON_COMPONENTS[canonicalIconName(name)]) || Sparkles;
   return <Comp className={cn('h-5 w-5', className)} strokeWidth={1.5} aria-hidden="true" />;
 }
 
