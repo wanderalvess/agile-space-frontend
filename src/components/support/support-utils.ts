@@ -161,3 +161,24 @@ export function actionErrorCopy(error: unknown, action: 'reply' | 'close' | 'reo
   const titles = { reply: 'Não foi possível enviar a resposta', close: 'Não foi possível fechar o chamado', reopen: 'Não foi possível reabrir o chamado', create: 'Não foi possível enviar a solicitação' } as const;
   return { title: titles[action], description: 'Verifique sua conexão e tente de novo. O que você escreveu foi mantido.' };
 }
+
+// ---------- abrir a "Nova solicitação" por link ----------
+
+export interface NewTicketPrefill {
+  type: SupportTicketType;
+  subject: string;
+}
+
+const TYPE_ALIASES: Record<string, SupportTicketType> = {
+  support: 'support', suporte: 'support',
+  bug: 'bug', erro: 'bug',
+  suggestion: 'suggestion', sugestao: 'suggestion', sugestão: 'suggestion',
+  feedback: 'feedback', elogio: 'feedback',
+};
+
+/** `?novo=1&tipo=...&assunto=...` (ex.: botão "Pedir exportação ou exclusão"). Sem `novo=1` não abre; tipo inválido vira Suporte; assunto corta em 200. */
+export function parseNewTicketPrefill(params: Pick<URLSearchParams, 'get'>): NewTicketPrefill | null {
+  if (params.get('novo') !== '1') return null;
+  const tipo = (params.get('tipo') ?? '').trim().toLowerCase();
+  return { type: TYPE_ALIASES[tipo] ?? 'support', subject: (params.get('assunto') ?? '').trim().slice(0, MAX_SUBJECT) };
+}

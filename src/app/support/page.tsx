@@ -12,7 +12,7 @@ import { NewTicketModal } from '@/components/support/NewTicketModal';
 import { SupportGuide } from '@/components/support/SupportGuide';
 import { TicketConversation } from '@/components/support/TicketConversation';
 import { TicketList } from '@/components/support/TicketList';
-import { actionErrorCopy, filterMine, mineCounts, type MineFilter } from '@/components/support/support-utils';
+import { actionErrorCopy, filterMine, mineCounts, parseNewTicketPrefill, type MineFilter, type NewTicketPrefill } from '@/components/support/support-utils';
 import { useSupportTickets } from '@/components/support/useSupportTickets';
 import { useAuth } from '@/context/AuthContext';
 import { SupportApiError, type SupportTicketType } from './api';
@@ -28,6 +28,8 @@ function SupportScreen() {
   const [newOpen, setNewOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
+  const [prefill, setPrefill] = useState<NewTicketPrefill | null>(null);
+  const [prefillKey, setPrefillKey] = useState(0);
   const conversationRef = useRef<HTMLDivElement>(null);
 
   // Link do sino (/support?ticket=ID): abre aquele chamado, mesmo já estando na tela.
@@ -35,6 +37,26 @@ function SupportScreen() {
   useEffect(() => {
     if (linkedId) select(linkedId);
   }, [linkedId, select]);
+
+  // Link com ?novo=1 (ex.: "Pedir exportação ou exclusão"): abre a Nova solicitação preenchida e limpa os
+  // parâmetros da URL, para não reabrir ao recarregar.
+  const paramsKey = params.toString();
+  useEffect(() => {
+    const p = parseNewTicketPrefill(new URLSearchParams(paramsKey));
+    if (!p) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abre o modal a partir do link
+    setPrefill(p);
+    setPrefillKey((k) => k + 1);
+    setNewOpen(true);
+    try {
+      const keep = new URLSearchParams(paramsKey);
+      ['novo', 'tipo', 'assunto'].forEach((k) => keep.delete(k));
+      const rest = keep.toString();
+      window.history.replaceState(null, '', rest ? `/support?${rest}` : '/support');
+    } catch {
+      /* sem histórico (teste/iframe) */
+    }
+  }, [paramsKey]);
 
   const counts = useMemo(() => mineCounts(data.tickets), [data.tickets]);
   const rows = useMemo(() => filterMine(data.tickets, { filter, query }), [data.tickets, filter, query]);
@@ -178,7 +200,7 @@ function SupportScreen() {
         </div>
       </div>
 
-      <NewTicketModal open={newOpen} onOpenChange={setNewOpen} onSubmit={createTicket} />
+      <NewTicketModal key={prefillKey} prefill={prefill} open={newOpen} onOpenChange={setNewOpen} onSubmit={createTicket} />
       <SupportGuide open={guideOpen} onOpenChange={setGuideOpen} />
     </PageShell>
   );

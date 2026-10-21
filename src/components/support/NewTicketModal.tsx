@@ -6,19 +6,21 @@ import type { SupportTicketType } from '@/app/support/api';
 import { Modal, ModalButton } from '@/components/room-kit';
 import { BRAND_TINT, FIELD, FOCUS_RING } from '@/components/room-kit/tokens';
 import { cn } from '@/lib/utils';
-import { MAX_MESSAGE, MAX_SUBJECT, SUPPORT_TYPES, canSendNew, formHint } from './support-utils';
+import { MAX_MESSAGE, MAX_SUBJECT, SUPPORT_TYPES, canSendNew, formHint, type NewTicketPrefill } from './support-utils';
 
 interface NewTicketModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Devolve true quando o chamado foi criado (a janela fecha e o rascunho some); false mantém o texto. */
+  /** Tipo e assunto já preenchidos (link com ?novo=1). Troque o `key` do componente para aplicar outro. */
+  prefill?: NewTicketPrefill | null;
   onSubmit: (input: { type: SupportTicketType; subject: string; message: string }) => Promise<boolean>;
 }
 
 /** Formulário "Nova solicitação": tipo em 4 cartões, assunto e descrição com contagem. */
-export function NewTicketModal({ open, onOpenChange, onSubmit }: NewTicketModalProps) {
-  const [type, setType] = useState<SupportTicketType>('support');
-  const [subject, setSubject] = useState('');
+export function NewTicketModal({ open, onOpenChange, prefill, onSubmit }: NewTicketModalProps) {
+  const [type, setType] = useState<SupportTicketType>(prefill?.type ?? 'support');
+  const [subject, setSubject] = useState(prefill?.subject ?? '');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const subjectId = useId();

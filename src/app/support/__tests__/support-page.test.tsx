@@ -214,4 +214,28 @@ describe('Suporte: tela do usuário', () => {
     fireEvent.change(screen.getByLabelText('Buscar chamado'), { target: { value: 'nada' } });
     expect(screen.getByText('Nenhum chamado encontrado')).toBeTruthy();
   });
+
+  it('?novo=1 abre a Nova solicitação já preenchida e limpa a URL', async () => {
+    const replace = vi.spyOn(window.history, 'replaceState');
+    h.search.current = 'novo=1&tipo=bug&assunto=' + encodeURIComponent('Pedido de exportação ou exclusão de dados');
+    render(<SupportPage />);
+    const dialog = await screen.findByRole('dialog', { name: 'Nova solicitação' });
+    expect((within(dialog).getByLabelText(/Assunto/) as HTMLInputElement).value).toBe('Pedido de exportação ou exclusão de dados');
+    expect(within(dialog).getByRole('radio', { name: 'Bug/Erro' }).getAttribute('aria-checked')).toBe('true');
+    expect(replace).toHaveBeenCalledWith(null, '', '/support');
+    replace.mockRestore();
+  });
+
+  it('?novo=1 com tipo inválido cai em Suporte e corta o assunto em 200; sem novo=1 não abre', async () => {
+    h.search.current = 'novo=1&tipo=xyz&assunto=' + 'a'.repeat(300);
+    const { unmount } = render(<SupportPage />);
+    const dialog = await screen.findByRole('dialog', { name: 'Nova solicitação' });
+    expect((within(dialog).getByLabelText(/Assunto/) as HTMLInputElement).value).toHaveLength(200);
+    expect(within(dialog).getByRole('radio', { name: 'Suporte' }).getAttribute('aria-checked')).toBe('true');
+    unmount();
+    h.search.current = 'tipo=bug&assunto=x';
+    render(<SupportPage />);
+    await within(list()).findByText('SUP-0042');
+    expect(screen.queryByRole('dialog', { name: 'Nova solicitação' })).toBeNull();
+  });
 });
