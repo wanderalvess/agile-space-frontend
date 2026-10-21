@@ -105,7 +105,7 @@ describe('Hub', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Jolt' })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/desenhar o mapa|Mapeador/i);
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/jolt/sandbox', '/jolt/gerador', '/devtools/json']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/jolt/sandbox', '/jolt/gerador', '/devtools/data-studio']));
   });
 
   it('visitante vê os modos e o aviso; "Entrar" abre o diálogo e leva ao login voltando para o Jolt', async () => {
