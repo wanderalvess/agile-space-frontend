@@ -27,7 +27,7 @@ vi.mock('../../../components/layout/ThemeToggle', () => ({ ThemeToggle: () => <b
 vi.mock('../../../components/feedback-widget', () => ({ FeedbackWidget: () => null }));
 vi.mock('../../../hooks/useToolHistory', () => ({ useToolHistory: () => ({ history: [], loading: false, removeRoom: vi.fn() }) }));
 vi.mock('../../../services/changelogApi', () => ({ changelogApi: { getPublishedReleases: async () => [] } }));
-vi.mock('../../../app/support/api', () => ({ supportApi: { listMine: async () => [], getReplies: async () => [], createTicket: vi.fn() } }));
+vi.mock('../../../app/support/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../app/support/api')>()), supportApi: { listMine: async () => [], getReplies: async () => [], createTicket: vi.fn() } }));
 vi.mock('../../../components/knowledge/GovernanceGuide', () => ({ GovernanceGuide: () => null }));
 vi.mock('../../../components/devtools/DevToolsHub', () => ({ DevToolsHub: () => <div>hub de ferramentas</div> }));
 vi.mock('../../../components/knowledge/GlobalSearch', () => ({ GlobalSearch: () => null }));
@@ -135,7 +135,7 @@ describe('telas no PageShell', () => {
   it('Suporte', async () => {
     render(<SupportPage />);
     expectShell('Suporte');
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Nova Solicitação/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Nova solicitação/ })).toBeTruthy());
   });
 
   it('Jolt (hub dos dois modos)', () => {
