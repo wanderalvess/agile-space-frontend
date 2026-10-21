@@ -98,17 +98,15 @@ describe('telas no PageShell', () => {
     expect(screen.queryByText('Sessões recentes')).toBeNull();
   });
 
-  it('DevTools e Central de qualidade usam o nome do registro', () => {
-    const { unmount } = render(<DevToolsHubPage module="devtools" subtitle="Ferramentas." />);
+  it('DevTools usa o nome do registro e traz o botão do Guia', () => {
+    render(<DevToolsHubPage subtitle="Ferramentas." />);
     expectShell('DevTools');
-    unmount();
-    render(<DevToolsHubPage module="qa" subtitle="Testes." collection="qa" />);
-    expectShell('Central de qualidade');
+    expect(screen.getByRole('button', { name: 'Abrir o guia do DevTools' })).toBeTruthy();
   });
 
   it('ferramenta do DevTools: trilha, ações do corpo e a gaveta "Como usar"', () => {
     render(
-      <DevToolPage toolId="json" actions={<button>Limpar</button>}>
+      <DevToolPage toolId="regex-lab" actions={<button>Limpar</button>}>
         <div>área da ferramenta</div>
       </DevToolPage>,
     );
