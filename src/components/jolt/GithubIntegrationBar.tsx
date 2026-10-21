@@ -1,178 +1,267 @@
 'use client';
 
-import React from 'react';
-import { Tag, Globe, Wand2, ChevronsUpDown, Check } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import React, { useState } from 'react';
+import { Check, ChevronsUpDown, Github, Loader2, Search, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { SelectField, StatusChip } from '@/components/room-kit';
+import { FIELD } from '@/components/room-kit/tokens';
 import { cn } from '@/lib/utils';
+import { FIELD_LABEL } from './LayoutCard';
+import { Notice } from './JoltBits';
 import type { useGithubLayouts } from './useGithubLayouts';
 
-interface GithubIntegrationBarProps {
-  currentTitle: string;
-  setCurrentTitle: (val: string) => void;
-  apiUrl: string;
-  setApiUrl: (val: string) => void;
-  github: ReturnType<typeof useGithubLayouts>;
-  isLayoutPopoverOpen: boolean;
-  setIsLayoutPopoverOpen: (val: boolean) => void;
+type Github = ReturnType<typeof useGithubLayouts>;
+
+function formatTime(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-const boxClass = 'flex items-center gap-2 bg-muted border border-border rounded-lg px-2.5 h-9';
-const triggerClass =
-  'h-9 w-full bg-muted border-border text-xs font-medium rounded-lg px-2 shadow-none focus:ring-0 text-foreground';
-const itemClass =
-  'text-xs font-medium hover:bg-muted focus:bg-muted bg-card text-foreground cursor-pointer';
-
-export function GithubIntegrationBar({
-  currentTitle,
-  setCurrentTitle,
-  apiUrl,
-  setApiUrl,
-  github,
-  isLayoutPopoverOpen,
-  setIsLayoutPopoverOpen,
-}: GithubIntegrationBarProps) {
+/**
+ * Cartão "Buscar do GitHub": Integração → Rota → Versão, e "Carregar layout". A página não consulta o GitHub
+ * sozinha: o botão "Buscar layouts do GitHub" é quem faz a primeira consulta.
+ */
+export function GithubIntegrationBar({ github, envelope }: { github: Github; envelope: boolean }) {
   const {
-    repoInput, setRepoInput, submitRepo, tags, version, integrations, integration, routes, routePath,
-    loadingTags, loadingTree, loadingLayout, selectIntegration, selectRoute, selectVersion,
+    repo, repoInput, setRepoInput, submitRepo, repoError, clearRepoError, status, errorMessage, resetAt, truncated, search,
+    tags, version, integrations, integration, routes, routePath, routeName, missingRoute, loadingTree, loadingLayout, loaded,
+    selectIntegration, selectRoute, selectVersion, loadSelected,
   } = github;
-  const selectedRouteName = routes.find(r => r.path === routePath)?.name;
+  const [editRepo, setEditRepo] = useState(false);
+  const [routeOpen, setRouteOpen] = useState(false);
+  const [validating, setValidating] = useState(false);
+
+  const consulted = status === 'pronto';
+  const showLoaded = !!loaded && loaded.path === routePath && loaded.tag === version;
+  const canLoad = consulted && !!routePath && !missingRoute && !loadingLayout && !loadingTree;
+
+  const validateRepo = async () => {
+    setValidating(true);
+    const ok = await submitRepo();
+    setValidating(false);
+    if (ok) setEditRepo(false);
+  };
 
   return (
-    <div className="flex flex-wrap items-center px-4 sm:px-6 py-2 border-b border-border bg-card shrink-0 gap-2 sm:gap-3 w-full">
-      {/* Nome do layout */}
-      <div className={cn(boxClass, 'flex-[1.5] basis-[140px] min-w-[120px]')}>
-        <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
-        <Input
-          value={currentTitle}
-          onChange={(e) => setCurrentTitle(e.target.value)}
-          placeholder="Nome do layout..."
-          aria-label="Nome do layout"
-          className="h-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs text-foreground w-full"
-        />
+    <section aria-label="Buscar do GitHub" className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <h2 className="inline-flex items-center gap-2 text-[15px] font-bold text-foreground">
+          <Github className="h-[17px] w-[17px]" strokeWidth={1.5} aria-hidden="true" />
+          Buscar do GitHub
+        </h2>
+        <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
+          Repositório
+          <code className="rounded-lg border border-border bg-muted/50 px-2 py-0.5 font-code text-xs text-foreground">{repo}</code>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            aria-expanded={editRepo}
+            onClick={() => {
+              setEditRepo((v) => !v);
+              clearRepoError();
+              setRepoInput(repo);
+            }}
+            className="h-7 rounded-lg px-2.5 text-xs font-semibold"
+          >
+            Trocar
+          </Button>
+        </span>
       </div>
 
-      {/* URL de origem */}
-      <div className={cn(boxClass, 'flex-[2] basis-[180px] min-w-[160px]')}>
-        <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
-        <Input
-          value={apiUrl}
-          onChange={(e) => setApiUrl(e.target.value)}
-          placeholder="URL de origem (opcional)..."
-          aria-label="URL de origem"
-          className="h-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 text-foreground placeholder:text-muted-foreground placeholder:text-xs w-full"
-        />
-      </div>
+      {editRepo && (
+        <div className="flex flex-wrap items-end gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
+          <div className="flex min-w-[240px] flex-1 flex-col gap-1.5">
+            <label htmlFor="jolt-repo" className={FIELD_LABEL}>Repositório (dono/nome)</label>
+            <input
+              id="jolt-repo"
+              value={repoInput}
+              onChange={(e) => setRepoInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void validateRepo();
+              }}
+              spellCheck={false}
+              className={cn(FIELD, 'h-10 font-code text-[13px]')}
+            />
+          </div>
+          <Button type="button" onClick={() => void validateRepo()} disabled={validating} className="h-10 rounded-[10px] px-4 font-bold">
+            {validating && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
+            Validar e usar
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setEditRepo(false)} className="h-10 rounded-[10px] px-4 font-semibold">
+            Cancelar
+          </Button>
+          <span className="basis-full text-xs text-muted-foreground">Conferimos se o repositório existe e tem a pasta de rotas antes de usar.</span>
+          {repoError && <span role="alert" className="basis-full text-[13px] font-semibold text-red-700 dark:text-red-300">{repoError}</span>}
+        </div>
+      )}
 
-      {/* Repositório */}
-      <div className={cn(boxClass, 'flex-[1.5] basis-[140px] min-w-[120px]')}>
-        <Input
-          value={repoInput}
-          onChange={(e) => setRepoInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submitRepo();
-          }}
-          placeholder="usuario/repositorio"
-          aria-label="Repositório de layouts no GitHub"
-          className="h-full w-full bg-transparent border-none text-xs font-medium p-0 focus-visible:ring-0 placeholder:text-muted-foreground placeholder:text-xs text-foreground"
-        />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={submitRepo}
-              variant="ghost"
-              size="icon"
-              aria-label="Carregar layouts do repositório"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-accent rounded shrink-0"
-            >
-              <Wand2 className="h-3 w-3" />
+      {status === 'nao-consultado' && (
+        <Notice
+          tone="neutral"
+          action={
+            <Button type="button" onClick={() => void search()} className="h-10 gap-2 rounded-[10px] px-4 font-bold">
+              <Search className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              Buscar layouts do GitHub
             </Button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-card border-border text-xs text-foreground">
-            Carregar layouts do repositório
-          </TooltipContent>
-        </Tooltip>
-      </div>
+          }
+        >
+          <strong>Ainda não consultado.</strong> <span className="text-muted-foreground">A página não chama o GitHub sozinha; busque quando precisar.</span>
+        </Notice>
+      )}
 
-      {/* 1. Integração */}
-      <div className="flex-[1.2] min-w-[110px]">
-        <Select onValueChange={selectIntegration} value={integration} disabled={loadingTree || integrations.length === 0}>
-          <SelectTrigger aria-label="Integração" className={triggerClass}>
-            <SelectValue placeholder={loadingTree || loadingTags ? '...' : '1. Integração'} />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border text-foreground">
-            {integrations.map(name => (
-              <SelectItem key={name} value={name} className={itemClass}>{name}</SelectItem>
+      {status === 'buscando' && (
+        <div role="status" className="flex flex-col gap-2.5">
+          <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
+            Consultando {repo}…
+          </span>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_1.4fr_1fr]" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="h-10 rounded-[10px] border border-border bg-muted/50 motion-safe:animate-pulse" />
             ))}
-          </SelectContent>
-        </Select>
-      </div>
+          </div>
+        </div>
+      )}
 
-      {/* 2. Rota */}
-      <div className="flex-[2] min-w-[160px]">
-        <Popover open={isLayoutPopoverOpen} onOpenChange={setIsLayoutPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              role="combobox"
-              aria-label="Rota"
-              aria-expanded={isLayoutPopoverOpen}
-              disabled={!integration || loadingTree || loadingLayout || routes.length === 0}
-              className="h-9 w-full bg-muted hover:bg-accent border border-border text-xs font-medium rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-foreground hover:text-foreground disabled:opacity-100 disabled:text-muted-foreground"
-            >
-              <span className="truncate max-w-[130px]">
-                {loadingLayout
-                  ? 'Baixando...'
-                  : selectedRouteName ?? (!integration ? '2. Rota' : routes.length === 0 ? 'Sem rotas' : '2. Buscar rota')}
-              </span>
-              <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+      {status === 'limite' && (
+        <Notice
+          tone="warn"
+          icon={TriangleAlert}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={() => void search()} className="h-9 rounded-[10px] px-3.5 font-semibold">
+              Tentar de novo
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[260px] p-0 border border-border shadow-2xl rounded-xl overflow-hidden" align="end">
-            <Command className="bg-card text-foreground">
-              <CommandInput placeholder="Digite para buscar..." className="h-9 text-xs font-medium border-none placeholder:text-muted-foreground bg-transparent text-foreground focus:ring-0" />
-              <CommandList className="max-h-[240px] overflow-y-auto">
-                <CommandEmpty className="py-2 text-center text-xs font-medium text-muted-foreground">Nenhuma rota encontrada</CommandEmpty>
-                <CommandGroup>
-                  {routes.map((route) => (
-                    <CommandItem
-                      key={route.path}
-                      value={route.name}
-                      onSelect={() => {
-                        selectRoute(route.path);
-                        setIsLayoutPopoverOpen(false);
-                      }}
-                      className="text-xs font-medium cursor-pointer text-foreground flex items-center justify-between py-2 px-3 data-[selected=true]:!bg-muted dark:data-[selected=true]:!bg-secondary transition-colors"
-                    >
-                      <span className="truncate max-w-[200px]">{route.name}</span>
-                      <Check className={cn('h-3.5 w-3.5 text-primary transition-opacity', routePath === route.path ? 'opacity-100' : 'opacity-0')} />
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
+          }
+        >
+          <strong>O GitHub atingiu o limite de consultas.</strong> Sem login no GitHub, o limite é de 60 por hora por rede.
+          {resetAt ? ` Tente de novo depois das ${formatTime(resetAt)}.` : ' Tente de novo em alguns minutos.'}
+        </Notice>
+      )}
 
-      {/* 3. Versão (tag do repositório): trocar recarrega a mesma rota naquela versão */}
-      <div className="flex-[1] min-w-[100px]">
-        <Select onValueChange={selectVersion} value={version} disabled={loadingTags || tags.length === 0}>
-          <SelectTrigger aria-label="Versão do repositório" className={triggerClass}>
-            <SelectValue placeholder={loadingTags ? '...' : '3. Versão'} />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border text-foreground">
-            {tags.map((tag, i) => (
-              <SelectItem key={tag} value={tag} className={itemClass}>
-                {tag}{i === 0 ? ' (mais recente)' : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+      {status === 'erro' && (
+        <Notice
+          tone="danger"
+          icon={TriangleAlert}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={() => void search()} className="h-9 rounded-[10px] px-3.5 font-semibold">
+              Tentar de novo
+            </Button>
+          }
+        >
+          <strong>Não foi possível consultar o GitHub.</strong> {errorMessage}
+        </Notice>
+      )}
+
+      {consulted && (
+        <>
+          {truncated && (
+            <Notice tone="warn" icon={TriangleAlert} role="alert" className="text-[13px]">
+              <strong>A lista veio cortada.</strong> O GitHub limita árvores muito grandes, então algumas rotas podem não aparecer. Se não achar a sua, escolha outra versão ou carregue o arquivo pelo repositório.
+            </Notice>
+          )}
+          {missingRoute && (
+            <Notice tone="warn" icon={TriangleAlert} role="alert" className="text-[13px]">
+              <strong>Esta versão não tem a rota «{missingRoute}».</strong> Escolha outra rota ou outra versão.
+            </Notice>
+          )}
+          <div className="grid grid-cols-1 items-end gap-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="jolt-gh-integracao" className={FIELD_LABEL}>Integração</label>
+              <SelectField
+                id="jolt-gh-integracao"
+                aria-label="Integração"
+                value={integration}
+                onChange={selectIntegration}
+                options={integrations.map((i) => ({ value: i, label: i }))}
+                placeholder="Escolha a integração"
+                disabled={loadingTree || integrations.length === 0}
+                className="h-10"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span id="jolt-gh-rota-rotulo" className={FIELD_LABEL}>Rota</span>
+              <Popover open={routeOpen} onOpenChange={setRouteOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-labelledby="jolt-gh-rota-rotulo"
+                    aria-expanded={routeOpen}
+                    disabled={!integration || loadingTree || routes.length === 0}
+                    className={cn(
+                      'h-10 w-full justify-between rounded-[10px] bg-muted/40 px-3 font-code text-[13px] font-normal',
+                      missingRoute && 'border-amber-500/60',
+                    )}
+                  >
+                    <span className={cn('truncate', !routeName && !missingRoute && 'font-sans text-muted-foreground')}>
+                      {routeName || missingRoute || (!integration ? 'Escolha a integração' : routes.length === 0 ? 'Sem rotas' : 'Buscar rota…')}
+                    </span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(320px,90vw)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Digite para buscar…" aria-label="Buscar rota" />
+                    <CommandList className="max-h-[240px]">
+                      <CommandEmpty className="py-3 text-center text-[13px] text-muted-foreground">Nenhuma rota com esse nome.</CommandEmpty>
+                      <CommandGroup>
+                        {routes.map((r) => (
+                          <CommandItem
+                            key={r.path}
+                            value={r.name}
+                            onSelect={() => {
+                              selectRoute(r.path);
+                              setRouteOpen(false);
+                            }}
+                            className="flex items-center justify-between gap-2 font-code text-[13px]"
+                          >
+                            <span className="truncate">{r.name}</span>
+                            <Check className={cn('h-3.5 w-3.5 shrink-0 text-primary', routePath === r.path ? 'opacity-100' : 'opacity-0')} aria-hidden="true" />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="jolt-gh-versao" className={FIELD_LABEL}>Versão</label>
+              <SelectField
+                id="jolt-gh-versao"
+                aria-label="Versão do repositório"
+                value={version}
+                onChange={(v) => void selectVersion(v)}
+                options={tags.map((t, i) => ({ value: t, label: i === 0 ? `${t} (mais recente)` : t }))}
+                disabled={tags.length === 0 || loadingTree}
+                className="h-10"
+              />
+            </div>
+            <Button type="button" onClick={() => void loadSelected()} disabled={!canLoad} className="h-10 rounded-[10px] px-4 font-bold">
+              {loadingLayout && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
+              {loadingLayout ? 'Baixando…' : 'Carregar layout'}
+            </Button>
+          </div>
+          {showLoaded && (
+            <span role="status" className="inline-flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              <StatusChip tone="success" className="h-[22px] font-bold">
+                <Check className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                Carregado
+              </StatusChip>
+              {envelope ? (
+                <>Reconhecemos o envelope <code className="font-code text-foreground">tabela.campos</code> e pegamos a spec de dentro dele.</>
+              ) : (
+                <>O arquivo não tem o envelope <code className="font-code text-foreground">tabela.campos</code>; ele foi colocado inteiro no editor de spec.</>
+              )}
+            </span>
+          )}
+        </>
+      )}
+    </section>
   );
 }

@@ -94,22 +94,6 @@ export async function generateSpec(
   return res.json();
 }
 
-/** Lê o JSON colado; a mensagem de erro diz a linha, para a pessoa achar o problema. */
-export function parseJsonText(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
-  if (!text.trim()) return { ok: false, error: 'Cole um JSON.' };
-  try {
-    return { ok: true, value: JSON.parse(text) };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const pos = /position (\d+)/.exec(msg);
-    if (pos) {
-      const line = text.slice(0, Number(pos[1])).split('\n').length;
-      return { ok: false, error: `JSON inválido perto da linha ${line}.` };
-    }
-    return { ok: false, error: 'JSON inválido.' };
-  }
-}
-
 /** Nome do campo dentro da lista ("items[].produtoEmbalagens[].codigoBarras" → "codigoBarras"). */
 export function fieldName(rule: Pick<GeneratorRule, 'output' | 'scope'>): string {
   if (rule.scope && rule.output.startsWith(rule.scope + '.')) return rule.output.slice(rule.scope.length + 1);
@@ -166,7 +150,9 @@ export function coerceLike(text: string, example: unknown): unknown {
 /** Rascunho inicial a partir do que o gerador inferiu. */
 export function draftFromRule(rule: GeneratorRule, output: unknown): RuleDraft {
   const editable = (EDITABLE_KINDS as string[]).includes(rule.kind);
-  const kind = (editable ? rule.kind : rule.kind === 'CONCAT' ? 'COPY' : 'CONSTANT') as GeneratorOverride['kind'];
+  // Sem origem mas com candidatas (mesmo valor em mais de um campo): começa como cópia da primeira sugerida.
+  const hasCandidates = rule.kind === 'UNRESOLVED' && rule.alternatives.length > 0;
+  const kind = (editable ? rule.kind : rule.kind === 'CONCAT' || hasCandidates ? 'COPY' : 'CONSTANT') as GeneratorOverride['kind'];
   const example = exampleValue(output, rule.output);
   const map: { from: string; to: string }[] = [];
   if (rule.kind === 'VALUE_MAP' && rule.example) {
@@ -177,7 +163,7 @@ export function draftFromRule(rule: GeneratorRule, output: unknown): RuleDraft {
   }
   return {
     kind,
-    source: rule.source && !rule.source.includes(' + ') ? rule.source : '',
+    source: rule.source && !rule.source.includes(' + ') ? rule.source : hasCandidates ? rule.alternatives[0] : '',
     value: example === undefined || example === null ? '' : typeof example === 'string' ? example : JSON.stringify(example),
     map: map.length ? map : [{ from: '', to: '' }],
     otherwise: '',
@@ -211,4 +197,52 @@ export function describeOperation(op: unknown, index: number, total: number): { 
       : { name, what: index === total - 1 ? 'Ajustes finais.' : 'Converte o tipo de saída dos de-para (número, booleano).' };
   }
   return { name, what: '' };
+}
+
+/** Como o gerador leu a saída esperada (decidido pelo servidor, não escolhido na tela). */
+export const MODE_INFO: Record<GeneratorResult['mode'], { label: string; short: string; long: string }> = {
+  VALORES: {
+    label: 'Valores',
+    short: 'A saída traz os valores do mesmo registro da entrada.',
+    long: 'A saída traz os valores do mesmo registro da entrada, então cada origem foi achada procurando o valor da saída dentro da entrada.',
+  },
+  CONTRATO: {
+    label: 'Contrato',
+    short: 'A saída é o exemplo do contrato do destino, com valores genéricos.',
+    long: 'A saída é o exemplo do contrato do destino, com valores genéricos («string», 0, true). As origens foram sugeridas pelo nome do campo e as regras pelo tipo; a conferência vê campos e tipos, não valores.',
+  },
+};
+
+/** Explicação antes de gerar: o servidor escolhe sozinho entre os dois jeitos de ler a saída. */
+export const MODE_DETECTION_TEXT =
+  'O portal decide sozinho como ler a saída. Se a maioria dos textos for genérica («string», 0, true), ela é tratada como contrato do destino: as origens vêm pelo nome do campo e pelo tipo. Se os valores forem os do mesmo registro da entrada, cada valor é procurado na entrada para achar a origem.';
+
+function typeOf(v: unknown): string {
+  if (v === null || v === undefined) return 'vazio';
+  if (Array.isArray(v)) return 'lista';
+  return typeof v;
+}
+
+/** Sugestão do que fazer diante de uma diferença da conferência. */
+export function suggestFix(diff: GeneratorDifference): string {
+  const kind = diff.kind;
+  if (kind.startsWith('faltou')) return 'O campo não saiu na spec. Volte às regras e escolha de onde ele vem.';
+  if (kind.startsWith('a mais')) return 'A spec gera um campo que a saída esperada não tem. Confira o nome do campo.';
+  if (kind.startsWith('lista')) return 'A lista saiu com tamanho diferente. Confira de onde vem a lista.';
+  const expected = typeOf(diff.expected);
+  const actual = typeOf(diff.actual);
+  if (expected !== actual) {
+    if (expected === 'number') return 'Troque a regra para «Como número».';
+    if (expected === 'string') return 'Troque a regra para «Como texto».';
+    if (expected === 'boolean') return 'O valor precisa ser verdadeiro ou falso; confira a regra ou o de-para.';
+  }
+  if (kind.includes('contrato')) return 'Confira a regra e a origem deste campo.';
+  return 'Confira a origem escolhida e a regra deste campo.';
+}
+
+/** Mostra um valor da conferência de forma curta e sem ambiguidade de tipo (`"1"` x `1`). */
+export function describeValue(v: unknown): string {
+  if (v === undefined) return '(ausente)';
+  const s = JSON.stringify(v);
+  return s.length > 60 ? s.slice(0, 59) + '…' : s;
 }

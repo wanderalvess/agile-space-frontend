@@ -51,7 +51,8 @@ export function GuideSheet({ open, onOpenChange, title, description, icon: Icon 
           </SheetClose>
         </header>
         <TabsPrimitive.Root defaultValue={tabs[0]?.id} className="flex min-h-0 flex-1 flex-col">
-          <TabsPrimitive.List className="flex shrink-0 gap-5 border-b border-border px-6">
+          {/* Com uma aba só (ex.: Jolt) a lista de abas não tem o que mostrar. */}
+          <TabsPrimitive.List className={cn('shrink-0 gap-5 border-b border-border px-6', tabs.length > 1 ? 'flex' : 'sr-only')}>
             {tabs.map((t) => (
               <TabsPrimitive.Trigger
                 key={t.id}
