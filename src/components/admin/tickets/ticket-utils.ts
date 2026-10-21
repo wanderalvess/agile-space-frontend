@@ -1,4 +1,4 @@
-import type { SupportTicket, SupportTicketReply, SupportTicketStatus } from '@/app/support/api';
+import type { SupportTicket, SupportTicketReply, SupportTicketStatus, SupportTicketType } from '@/app/support/api';
 import type { Tone } from '@/components/room-kit';
 
 /** Máximo de caracteres de uma resposta (SupportTicketService.addReply). */
@@ -9,13 +9,13 @@ export const TICKET_STATUSES: readonly SupportTicketStatus[] = ['OPEN', 'IN_PROG
 interface StatusMeta {
   label: string;
   tone: Tone;
-  /** O que a pessoa que abriu o chamado vê em Suporte > Meus tickets. */
+  /** O que a pessoa que abriu o chamado vê na tela de Suporte (mesmo rótulo do admin). */
   userSees: string;
 }
 
 export const STATUS_META: Record<SupportTicketStatus, StatusMeta> = {
-  OPEN: { label: 'Aberto', tone: 'danger', userSees: 'Em análise' },
-  IN_PROGRESS: { label: 'Em andamento', tone: 'warn', userSees: 'Processando' },
+  OPEN: { label: 'Aberto', tone: 'danger', userSees: 'Aberto' },
+  IN_PROGRESS: { label: 'Em andamento', tone: 'warn', userSees: 'Em andamento' },
   CLOSED: { label: 'Resolvido', tone: 'success', userSees: 'Resolvido' },
 };
 
@@ -38,6 +38,31 @@ export function splitSubject(subject: string): { type: string; title: string } {
   return { type: m[1].trim(), title: m[2].trim() || subject.trim() };
 }
 
+/** Rótulo de cada tipo (o mesmo dos cartões da tela de Suporte). */
+export const TICKET_TYPE_LABEL: Record<SupportTicketType, string> = {
+  support: 'Suporte',
+  bug: 'Bug/Erro',
+  suggestion: 'Sugestão',
+  feedback: 'Elogio',
+};
+
+/**
+ * Tipo e título do chamado. Com o campo `type` (servidor novo) o assunto já vem limpo; sem ele (chamado antigo ou
+ * servidor antigo) o tipo vem do prefixo embutido no assunto ("[Bug/Erro] texto").
+ */
+export function ticketKind(ticket: Pick<SupportTicket, 'subject' | 'type'>): { type: string; title: string } {
+  const label = ticket.type ? TICKET_TYPE_LABEL[ticket.type] : undefined;
+  if (label) return { type: label, title: ticket.subject.trim() };
+  return splitSubject(ticket.subject);
+}
+
+/** Protocolo SUP-NNNN do servidor; sem ele (servidor antigo) deriva do id, igual ao backend: "SUP-" + 8 primeiros hex. */
+export function protocolOf(ticket: Pick<SupportTicket, 'id' | 'protocol'>): string {
+  const stored = ticket.protocol?.trim();
+  if (stored) return stored;
+  return `SUP-${ticket.id.replace(/-/g, '').substring(0, 8).toUpperCase()}`;
+}
+
 /** Contagem por status sobre a lista inteira (os filtros mostram o número de cada um). */
 export function statusCounts(tickets: Pick<SupportTicket, 'status'>[]): Record<TicketFilter, number> {
   const counts: Record<TicketFilter, number> = { all: tickets.length, OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 };
@@ -54,7 +79,7 @@ export function filterTickets(tickets: SupportTicket[], opts: { status: TicketFi
     .filter((t) => {
       if (opts.status !== 'all' && t.status !== opts.status) return false;
       if (!q) return true;
-      return [t.subject, t.message, t.requesterName, t.requesterEmail, ticketCode(t.id)].some((f) => norm(f).includes(q));
+      return [t.subject, t.message, t.requesterName, t.requesterEmail, ticketCode(t.id), protocolOf(t)].some((f) => norm(f).includes(q));
     })
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Bell, CalendarDays, ListChecks, Megaphone, Wrench, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarDays, ListChecks, Megaphone, MessageSquare, Wrench, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ const ICONS: Record<NonNullable<HomeNotification['icon']>, LucideIcon> = {
   alert: AlertTriangle,
   calendar: CalendarDays,
   list: ListChecks,
+  message: MessageSquare,
 };
 
 function NotificationRow({ n, now }: { n: HomeNotification; now: Date }) {

@@ -196,6 +196,7 @@ const CTA_LABEL: Record<NotificationKind, string> = {
   MESSAGE: 'Abrir',
   ANNOUNCEMENT: 'Saiba mais',
   LINK_REQUEST: 'Ver pedido',
+  SUPPORT_REPLY: 'Ver chamado',
 };
 
 const ICON_BY_KIND: Record<NotificationKind, NonNullable<HomeNotification['icon']>> = {
@@ -205,6 +206,7 @@ const ICON_BY_KIND: Record<NotificationKind, NonNullable<HomeNotification['icon'
   MESSAGE: 'calendar',
   ANNOUNCEMENT: 'megaphone',
   LINK_REQUEST: 'list',
+  SUPPORT_REPLY: 'message',
 };
 
 export function mapNotificationDto(dto: NotificationDto, tab: HomeNotification['tab']): HomeNotification {

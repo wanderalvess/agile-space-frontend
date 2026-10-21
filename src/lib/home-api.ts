@@ -43,7 +43,7 @@ export interface AnnouncementInput {
   link?: string | null;
 }
 
-export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT' | 'LINK_REQUEST';
+export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT' | 'LINK_REQUEST' | 'SUPPORT_REPLY';
 export type NotificationCategory = 'FOR_YOU' | 'ANNOUNCEMENTS';
 
 export interface NotificationDto {
