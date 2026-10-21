@@ -516,7 +516,7 @@ export default function JoltSandboxPage() {
           {running ? 'Executando…' : 'Executar'}
           <span className={kbdOnPrimary} aria-hidden="true">{SHORTCUT_LABEL.executar}</span>
         </ModalButton>
-        <span aria-hidden="true" className="h-6 w-px bg-border" />
+        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
         <ModalButton onClick={() => void salvar()} aria-label={`Salvar layout, atalho ${SHORTCUT_LABEL.salvar}`} className="h-10 gap-2">
           <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           Salvar
@@ -532,7 +532,7 @@ export default function JoltSandboxPage() {
             Rascunho não guardado
           </span>
         )}
-        <span aria-hidden="true" className="h-6 w-px bg-border" />
+        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

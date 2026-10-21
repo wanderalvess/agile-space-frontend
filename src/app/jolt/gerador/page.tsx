@@ -557,7 +557,7 @@ export default function JoltGeneratorPage() {
               <section aria-label="A confirmar">
                 <h2 className="flex items-center gap-2.5 border-b border-border bg-amber-500/10 px-5 py-2.5 text-sm font-bold text-amber-900 dark:text-amber-200">
                   A confirmar
-                  <span className="text-xs font-semibold text-muted-foreground">{pending.length} campos precisam da sua decisão: mais de uma origem possível, ou uma regra que o exemplo não prova sozinho</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{pending.length === 1 ? '1 campo precisa' : `${pending.length} campos precisam`} da sua decisão: mais de uma origem possível, ou uma regra que o exemplo não prova sozinho</span>
                 </h2>
                 <ul>{pending.map(renderRule)}</ul>
               </section>
@@ -567,7 +567,7 @@ export default function JoltGeneratorPage() {
               <section key={g.scope || 'raiz'} aria-label={scopeLabel(g.scope)}>
                 <h2 className="flex items-center gap-2.5 border-b border-t border-border bg-muted/40 px-5 py-2.5 text-sm font-bold text-foreground first:border-t-0">
                   {scopeLabel(g.scope)}
-                  <span className="text-xs font-semibold text-muted-foreground">{g.rules.length} campos</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{g.rules.length === 1 ? '1 campo' : `${g.rules.length} campos`}</span>
                 </h2>
                 <ul>{g.rules.map(renderRule)}</ul>
               </section>

@@ -17,7 +17,7 @@ export type JoltTab = (typeof TABS)[number]['id'];
 /** Barra do módulo: Início, Sandbox e Gerador, e o atalho para o JSON Studio. */
 export function JoltNav({ active }: { active: JoltTab }) {
   return (
-    <nav aria-label="Seções do Jolt" className="-mt-1 flex items-center gap-1 overflow-x-auto border-b border-border">
+    <nav aria-label="Seções do Jolt" className="-mt-1 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
       {TABS.map((t) => (
         <Link
           key={t.id}
