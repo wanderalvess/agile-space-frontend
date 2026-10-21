@@ -130,6 +130,10 @@ describe('rotas antigas', () => {
     expect(src).toContain('redirect(QA_REDIRECT_HREF)');
   });
 
+  it('a rota pública /api/mock também saiu junto com o Estúdio de Mocks', () => {
+    expect(existsSync(path.join(APP, 'api', 'mock'))).toBe(false);
+  });
+
   it('o Estúdio de Mocks saiu: nem a rota de configuração do frontend', () => {
     expect(existsSync(path.join(APP, 'api', 'mock-config'))).toBe(false);
   });

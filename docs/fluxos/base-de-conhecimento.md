@@ -126,13 +126,13 @@ Documentos (título, conteúdo HTML, categoria, caminho, módulo/pasta, tags, ta
 
 ## 7. Rotas `/api` no Caddy (produção)
 
-O Caddy manda `/api/*` ao Spring, exceto a lista `@nextApi`: `/api/ai/*`, `/api/llms`, `/api/mock-config`, `/api/mock/*`, `/api/tdn/*`, `/api/knowledge/embed`, `/api/knowledge/ingest-pdf`, `/api/knowledge/sync-manuals`, e agora `/api/v1/knowledge/docs/*/download`.
+O Caddy manda `/api/*` ao Spring, exceto a lista `@nextApi`: `/api/ai/*`, `/api/llms`, `/api/tdn/*`, `/api/knowledge/embed`, `/api/knowledge/ingest-pdf`, `/api/knowledge/sync-manuals`, e agora `/api/v1/knowledge/docs/*/download`.
 
 Conferência estática de **272 chamadas** do frontend contra os controladores Spring e a lista: **nenhuma chamada sem destino**. Observações:
 
 - `GET /api/v1/knowledge/docs/{id}/download` só existia no Next e estava anunciado no catálogo de integrações → dava 404 para consumidores externos. Corrigido incluindo o caminho em `@nextApi`. **Exige reiniciar o contêiner do proxy** (bind mount do Caddyfile; ver `ambiente-e-deploy.md`).
 - `src/app/api/jira/*` (7 rotas do Next) não estão em `@nextApi`; em produção quem atende é o Spring (que tem POST equivalente). Os handlers do Next são código morto em produção.
-- Sem chamador no frontend: `/api/llms` (retorna 403 fixo), `/api/mock*` e `/api/knowledge/sync-manuals`.
+- Sem chamador no frontend: `/api/llms` (retorna 403 fixo) e `/api/knowledge/sync-manuals`.
 
 ## 8. Pontos frágeis e o que **não** foi corrigido
 

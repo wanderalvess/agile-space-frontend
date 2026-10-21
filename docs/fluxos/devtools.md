@@ -84,7 +84,7 @@ Cada ferramenta é local e sem estado compartilhado: entrada → resultado. Esta
 
 - **Cliente:** login geral; nada mais.
 - **Servidor:** `POST /api/jira/testcase` (Spring) exige JWT como toda rota `/api/**` fora da lista pública. A rota equivalente em `src/app/api/jira/testcase/route.ts` (Next) **não é usada em produção**, porque o Caddy manda `/api/jira/*` ao Spring.
-- **Mocks (`/api/mock/*`):** a rota pública `src/app/api/mock/[...slug]` do Next **continua no repositório**, mas ficou **sem como receber dados**: a rota que os gravava (`/api/mock-config`) foi removida junto com o Estúdio de Mocks. Decidir se a rota pública também sai (e o item `@nextApi` do Caddyfile).
+- **Mocks (`/api/mock/*`):** a rota pública `src/app/api/mock/[...slug]` do Next e o item `@nextApi` do Caddyfile foram removidos junto com o Estúdio de Mocks (a rota que gravava os dados, `/api/mock-config`, já tinha saído).
 
 ## Dados guardados (negócio)
 
@@ -94,7 +94,6 @@ Nada no banco. Tudo é navegador (ver acima).
 
 - **Cliente HTTP quase só funciona para destinos da lista da CSP** (`connect-src` em `next.config.ts`). Qualquer outra API é bloqueada pelo navegador antes de sair. *Decisão pendente do usuário:* manter assim, liberar mais hosts ou aceitar o risco de liberar tudo? `upgrade-insecure-requests` faz `http://localhost` virar `https`.
 - **PAT do Jira e chave do Gemini em `localStorage` em texto puro.** Qualquer script na página (XSS) leria. Comportamento herdado; o armazenamento **não foi alterado** nesta entrega, só o aviso na tela do JUnit e no Guia.
-- **`/api/mock/[...slug]`** órfão (acima).
 - **Link do Jolt** (`src/app/jolt/page.tsx`) ainda aponta para `/devtools/json`: funciona pelo redirecionamento; vale trocar para o Estúdio de Dados quando o Jolt for tocado.
 - **Auditoria:** as ferramentas que o desenho não redesenhou por dentro (Planilha, Markdown, JWT, Certificados, Cofre, Regex, String Master, Tipos, Cron, Data e Hora, UUID, Calculadoras, Cliente HTTP, Snippets, IP, Zephyr, BDD, Automação, Fuzz, JUnit) receberam a casca nova e a limpeza de estilo (sem caixa-alta, `font-black`, itálico, texto menor que 12 px, cor fixa, `select` nativo ou `window.confirm`), com o mesmo comportamento. Um teste de varredura (`classes-legadas.test.ts`) impede a volta desses estilos.
 - **Não testado ao vivo no navegador** nesta entrega.

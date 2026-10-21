@@ -66,7 +66,7 @@ O tópico Integrações e API e as seções de API dos módulos (Scrum Poker, Ba
 - **"Este tópico ajudou?" é só visual:** a resposta não é gravada nem enviada. Gravar (e medir) exige endpoint novo no backend; não foi feito.
 - **Duas ajudas para a Base de conhecimento** (`/manual/knowledge` e `/knowledge/manual`) mantidas à mão; podem divergir.
 - `/api/knowledge/sync-manuals` (lê `manual/*.md` do diretório do servidor) não tem chamador e o diretório `manual/` não existe na imagem de produção. Rota morta; exige login.
-- O endereço do servidor MCP (`/mcp/sse`) não está no `Caddyfile` do backend (`/mcp/*` cairia no frontend). O tópico usa `https://SEU-PORTAL/mcp/sse`; conferir o proxy antes de divulgar.
+- O endereço do servidor MCP é `https://SEU-PORTAL/mcp/sse` (o `Caddyfile` do backend roteia `/mcp/*`; exige reiniciar o proxy na VM, ver `chaves-de-api-e-mcp.md`).
 - Não verificado ao vivo com login e backend: aparência conferida com uma página temporária (removida) e pelos testes.
 
 ## 6. Onde olhar no código

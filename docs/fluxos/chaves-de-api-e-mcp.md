@@ -82,7 +82,13 @@ Chave (nome, hash, dono, papel do dono na criação, escopos, squad opcional, cr
 2. **Papel congelado até a renovação:** rebaixar uma pessoa não reduz na hora os escopos de uma chave que ela já tem; a redução acontece quando a chave é renovada/rotacionada (no máximo a cada 30/90/180 dias) ou revogada. Desativar a conta invalida as chaves na hora.
 4. **Sem limite de chaves por pessoa.**
 5. **`/mcp/**` sem limite de taxa** e a chave vai em cabeçalho (não em URL), o que é bom para logs. Como a chave tem 256 bits, força bruta não é viável; o risco é abuso por chave legítima.
-6. **O Caddy de produção não roteia `/mcp/*` para o backend** (só `/api`, `/ws`, `/actuator`, `/v3/api-docs`, `/swagger-ui`); a requisição cai no frontend. Ou o MCP está inacessível em produção, ou o roteamento é feito de outro jeito que não está no repositório. **Confirmar com quem operou o deploy** antes de documentar o MCP como disponível.
+6. **Roteamento do MCP no Caddy:** o `Caddyfile` do backend ganhou `handle /mcp/*` (proxy para `backend:8002`, `flush_interval -1` por causa do SSE). Até o proxy ser reiniciado na VM (o Caddyfile é bind mount; `caddy reload` não basta), `/mcp/*` ainda cai no frontend.
+
+## Endereço do servidor MCP
+
+- Transporte SSE: `https://<domínio do portal>/mcp/sse` (em homologação: `https://app.espacoagil.com.br/mcp/sse`); as mensagens vão para `/mcp/message` (anunciado pelo próprio SSE).
+- Autenticação: cabeçalho `X-Api-Key` com uma chave criada no admin. Sem chave ou com chave inválida/revogada/vencida a resposta é 401; nada do MCP é público.
+- Serviço: Spring Boot do backend (porta interna 8002), configurado em `application.yml` (`spring.ai.mcp.server`).
 7. **`lastUsedAt` grava no banco a cada requisição** (uma escrita por chamada); com tráfego alto isso pesa.
 8. A tela de chaves pessoais espelha `scopesAllowedForRole` no cliente; a regra real é do servidor.
 
