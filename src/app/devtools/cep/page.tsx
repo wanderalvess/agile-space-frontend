@@ -67,7 +67,7 @@ export default function CepPage() {
         <Button
           variant="outline" size="sm"
           onClick={() => { setCep('01001-000'); search('01001-000'); }}
-          className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+          className="h-8 gap-1.5 rounded-xl text-xs font-bold"
         >
           <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
         </Button>
@@ -76,7 +76,7 @@ export default function CepPage() {
       <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-4">
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">CEP de 8 dígitos</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">CEP de 8 dígitos</h2>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -91,12 +91,12 @@ export default function CepPage() {
                   className="h-10 rounded-xl pl-9 font-code text-base font-bold"
                 />
               </div>
-              <Button onClick={() => search()} disabled={loading} className="h-10 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+              <Button onClick={() => search()} disabled={loading} className="h-10 gap-1.5 rounded-xl text-xs font-bold">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Buscar
               </Button>
             </div>
             {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
-            <p className="text-[11px] font-medium text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               A consulta vai direto do seu navegador para a API pública ViaCEP (viacep.com.br); o CEP digitado é enviado a esse serviço.
             </p>
           </section>
@@ -106,11 +106,11 @@ export default function CepPage() {
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><MapPin className="h-5 w-5" /></div>
                 <div className="min-w-0">
-                  <h3 className="truncate font-headline text-lg font-black uppercase tracking-tight">{result.localidade} - {result.uf}</h3>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{result.logradouro || 'CEP geral da cidade'}</p>
+                  <h3 className="truncate font-headline text-lg font-bold tracking-tight">{result.localidade} - {result.uf}</h3>
+                  <p className="text-xs font-bold text-muted-foreground">{result.logradouro || 'CEP geral da cidade'}</p>
                 </div>
               </div>
-              <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+              <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-xl text-xs font-bold">
                 <a href={mapsUrl} target="_blank" rel="noreferrer">Abrir no Maps <ExternalLink className="h-3 w-3" /></a>
               </Button>
             </section>

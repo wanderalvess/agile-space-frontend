@@ -11,7 +11,7 @@ import {
   type ByteUnit, type GeoResult, type Op,
 } from './logic';
 
-const triggerCls = 'h-8 rounded-lg px-4 text-[10px] font-black uppercase tracking-wider';
+const triggerCls = 'h-8 rounded-lg px-4 text-xs font-bold';
 const card = 'rounded-2xl border border-border bg-card p-4 shadow-sm';
 const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
 
@@ -69,7 +69,7 @@ function StandardCalculator() {
   return (
     <div className={cn(card, 'mx-auto w-full max-w-xs space-y-3')}>
       <div className="rounded-xl bg-muted px-4 py-3 text-right">
-        <p className="h-4 font-code text-[11px] text-muted-foreground">{prev !== null && op ? `${prev} ${OP_LABEL[op]}` : ' '}</p>
+        <p className="h-4 font-code text-xs text-muted-foreground">{prev !== null && op ? `${prev} ${OP_LABEL[op]}` : ' '}</p>
         <p className="truncate font-code text-4xl font-bold tabular-nums" aria-live="polite">{display.replace('.', ',')}</p>
       </div>
       <div className="grid grid-cols-4 gap-2">
@@ -98,7 +98,7 @@ function StandardCalculator() {
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block space-y-1">
-      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-xs font-bold text-muted-foreground">{label}</span>
       <Input inputMode="decimal" value={value} onChange={e => onChange(e.target.value)} placeholder="0" className="h-9 rounded-lg font-code" />
     </label>
   );
@@ -108,17 +108,17 @@ function GeoCard({ title, formula, result, children }: { title: string; formula:
   return (
     <div className={cn(card, 'space-y-3')}>
       <div>
-        <h3 className="font-headline text-base font-black uppercase tracking-tight">{title}</h3>
-        <p className="font-code text-[11px] text-muted-foreground">{formula}</p>
+        <h3 className="font-headline text-base font-bold tracking-tight">{title}</h3>
+        <p className="font-code text-xs text-muted-foreground">{formula}</p>
       </div>
       <div className="grid grid-cols-2 gap-2">{children}</div>
       <div className="grid grid-cols-2 gap-2 text-center">
         <div className="rounded-xl bg-primary/10 p-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Área</p>
+          <p className="text-xs font-bold text-primary">Área</p>
           <p className="font-code text-sm font-bold">{result ? fmt(result.area) : '—'}</p>
         </div>
         <div className="rounded-xl bg-muted p-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Perímetro</p>
+          <p className="text-xs font-bold text-muted-foreground">Perímetro</p>
           <p className="font-code text-sm font-bold">{result?.perimeter != null ? fmt(result.perimeter) : '—'}</p>
         </div>
       </div>
@@ -164,7 +164,7 @@ function Bytes() {
 
   const Table = ({ title, data }: { title: string; data: Record<ByteUnit, number> | null }) => (
     <div className={cn(card, 'space-y-2')}>
-      <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{title}</h3>
+      <h3 className="text-xs font-bold text-muted-foreground">{title}</h3>
       {BYTE_UNITS.map(u => (
         <div key={u} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-1.5">
           <span className="font-code text-xs font-bold text-primary">{u}</span>
@@ -178,11 +178,11 @@ function Bytes() {
     <div className="space-y-3">
       <div className={cn(card, 'flex flex-wrap items-end gap-3')}>
         <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor</span>
+          <span className="text-xs font-bold text-muted-foreground">Valor</span>
           <Input inputMode="decimal" value={value} onChange={e => setValue(e.target.value)} className="h-9 w-40 rounded-lg font-code" />
         </label>
         <div className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unidade</span>
+          <span className="text-xs font-bold text-muted-foreground">Unidade</span>
           <Select value={unit} onValueChange={v => setUnit(v as ByteUnit)}>
             <SelectTrigger className="h-9 w-28 rounded-lg" aria-label="Unidade"><SelectValue /></SelectTrigger>
             <SelectContent>{BYTE_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
