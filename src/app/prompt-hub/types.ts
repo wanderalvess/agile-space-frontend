@@ -1,4 +1,5 @@
-export type PromptVisibility = 'private' | 'public' | 'role' | 'squad';
+/** Quem pode ver um item: só a pessoa que criou ou toda a empresa (inclusive sem login). */
+export type PromptVisibility = 'private' | 'public';
 export type PromptType = 'prompt' | 'gem' | 'agent' | 'instruction' | 'skill' | 'workflow' | 'mcp' | 'resource';
 export type InitiativeStatus = 'ideacao' | 'planejamento' | 'desenvolvimento' | 'producao' | 'arquivado';
 export type InitiativeImpact = 'baixo' | 'medio' | 'alto';
@@ -11,37 +12,43 @@ export interface PromptItem {
   type: PromptType;
   gemLink?: string;
   visibility: PromptVisibility;
-  
-  // Initiative Metadata
+
+  // Detalhes de iniciativa
   status?: InitiativeStatus;
   impact?: InitiativeImpact;
   businessGoal?: string;
   targetAudience?: string;
   architectureLink?: string;
-  
-  // Author Info (Snapshot at creation)
+
+  // Autoria (foto do momento em que o item foi criado)
   authorId: string;
   authorName: string;
   authorRole: string;
+  /** Vem gravada no item, mas a tela não a mostra: o nome da squad aparece só no cabeçalho do portal. */
   authorSquad: string;
   authorAvatar?: string;
-  
-  // Stats
+
+  // Números
   useCount: number;
   forkCount: number;
   tags: string[];
-  
-  // Timestamps
-  createdAt: string;
-  updatedAt: string;
 
-  // UI Helpers (Client-side)
-  isFavorited?: boolean;
+  // Datas
+  createdAt: string;
+  updatedAt?: string;
+
+  // Calculados pelo servidor para quem está vendo (ausentes no backend antigo)
+  /** Esta pessoa favoritou o item. */
+  favorite?: boolean;
+  /** Esta pessoa pode editar e excluir o item (dona do item ou administradora). */
+  canEdit?: boolean;
+  /** Esta pessoa pode remover comentários do item (dona do item ou administradora). */
+  canModerate?: boolean;
 }
 
 /**
  * Coleção: um conjunto ordenado de itens do Hub, para montar trilhas como
- * "Onboarding de dev" ou "Fechamento de sprint". Tags são planas e não têm
+ * "Onboarding de dev" ou "Fechamento de sprint". Etiquetas são planas e não têm
  * ordem; coleção resolve isso.
  */
 export interface PromptCollection {
@@ -54,10 +61,10 @@ export interface PromptCollection {
 
   ownerId: string;
   ownerName: string;
-  ownerSquad?: string;
 
   createdAt: string;
-  updatedAt: string;
+  /** Só existe quando o servidor informa; nunca é inventada a partir de outra data. */
+  updatedAt?: string;
 }
 
 /** Espelha a entity Postgres PromptComment (prompt_comments). */
@@ -72,13 +79,39 @@ export interface PromptComment {
   createdAt: string;
 }
 
-export interface PromptFilters {
+/** Filtro de situação: `active` esconde os arquivados (padrão); `all` mostra tudo. */
+export type StatusFilter = 'active' | 'all' | InitiativeStatus;
+
+export interface CatalogFilters {
   search: string;
   type: PromptType | 'all';
-  /** 'active' esconde os arquivados (padrão); 'all' mostra tudo. */
-  status: 'active' | 'all' | InitiativeStatus;
+  status: StatusFilter;
   impact: 'all' | InitiativeImpact;
-  visibility: PromptVisibility | 'all';
-  tags: string[];
-  onlyFavorites: boolean;
+  visibility: 'all' | PromptVisibility;
+  tag: string | null;
+}
+
+export interface UsageWeek {
+  /** Segunda-feira da semana (data ISO). */
+  weekStart: string;
+  uses: number;
+  clones: number;
+}
+
+export interface PromptVersionSummary {
+  versionNumber: number;
+  title: string;
+  changedBy?: string;
+  changedByName?: string;
+  changedAt: string;
+  current: boolean;
+}
+
+/** Conteúdo completo de uma versão antiga (o servidor devolve os campos do item naquele momento). */
+export interface PromptVersionDetail extends PromptVersionSummary {
+  description?: string;
+  content?: string;
+  type?: PromptType;
+  gemLink?: string;
+  tags?: string[];
 }

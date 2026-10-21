@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
-  Check,
-  Copy,
   ExternalLink,
   FolderTree,
   Layers,
@@ -18,53 +16,17 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, PageShell } from '@/components/page';
-import { cn, openExternalUrl } from '@/lib/utils';
+import { openExternalUrl } from '@/lib/utils';
+import { CodeBlock as SharedCodeBlock } from '@/components/shared/CodeBlock';
+import { TUTORIAL_SECTIONS } from '../tutorial-sections';
 
-const SECTIONS = [
-  { id: 'o-que-e', label: 'O que é uma skill' },
-  { id: 'quando-usar', label: 'Quando criar uma' },
-  { id: 'anatomia', label: 'Anatomia de uma skill' },
-  { id: 'passo-a-passo', label: 'Passo a passo' },
-  { id: 'frontmatter', label: 'Regras do frontmatter' },
-  { id: 'description', label: 'Escrevendo a description' },
-  { id: 'liberdade', label: 'Grau de liberdade' },
-  { id: 'arquivos', label: 'Quando dividir em arquivos' },
-  { id: 'workflows', label: 'Workflows e validação' },
-  { id: 'antipadroes', label: 'Anti-padrões' },
-  { id: 'checklist', label: 'Checklist final' },
-  { id: 'onde-instalar', label: 'Onde instalar e subir' },
-  { id: 'padroes-empresa', label: 'Padrões da empresa' }
-];
+const SECTIONS = TUTORIAL_SECTIONS;
 
+/** Bloco de código do portal (com botão de copiar) e a legenda do tutorial. */
 function CodeBlock({ code, caption }: { code: string; caption?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* área de transferência indisponível — o texto continua selecionável */
-    }
-  };
-
   return (
     <figure className="space-y-1.5">
-      <div className="group relative">
-        <pre className="overflow-x-auto rounded-lg border border-border bg-muted/50 p-4 font-code text-[13px] leading-relaxed text-foreground">
-          {code}
-        </pre>
-        <button
-          onClick={handleCopy}
-          type="button"
-          aria-label={copied ? 'Código copiado' : 'Copiar código'}
-          className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-opacity hover:text-foreground focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-          title="Copiar"
-        >
-          {copied ? <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
-        </button>
-      </div>
+      <SharedCodeBlock code={code} />
       {caption && <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>}
     </figure>
   );

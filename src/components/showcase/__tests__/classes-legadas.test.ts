@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  * Botão cheio colorido usa as constantes do kit (DANGER_BUTTON, SUCCESS_BUTTON, WARN_BUTTON, DANGER_HOVER).
  */
 const SRC = path.resolve(__dirname, '../../..');
-const DIRS = ['components/showcase', 'app/showcase', 'components/jolt', 'app/jolt', 'app/prompt-hub'];
+const DIRS = ['components/showcase', 'app/showcase', 'components/jolt', 'app/jolt', 'app/prompt-hub', 'components/prompt-hub'];
 
 const PROIBIDOS: [string, RegExp][] = [
   ['paleta fixa (slate/gray/zinc/neutral/stone)', /(?<![\w-])(?:[\w[\]:./-]*:)?(?:text|bg|border|divide|ring|outline|from|via|to|fill|stroke|shadow|placeholder:text|decoration)-(?:slate|gray|zinc|neutral|stone)-\d{2,3}/],
@@ -49,10 +49,8 @@ describe('classes legadas fora de Review, Jolt e Prompt Hub', () => {
     });
   }
 
-  it('o /prompt-hub/seed fica no PageShell e só para administrador', () => {
-    const src = readFileSync(path.join(SRC, 'app/prompt-hub/seed/page.tsx'), 'utf8');
-    expect(src).toContain('PageShell');
-    expect(src).toMatch(/role\?\.toLowerCase\(\) === 'admin'/);
-    expect(src).toContain('Acesso restrito');
+  it('o Prompt Hub não usa window.confirm nem alert (confirmações são ConfirmDialog)', () => {
+    const achados = todos.filter(arq => !/prompt-hub/.test(arq) ? false : /(?<![\w.])(?:window\.)?(?:confirm|alert)\(/.test(readFileSync(arq, 'utf8')));
+    expect(achados.map(a => path.relative(SRC, a))).toEqual([]);
   });
 });

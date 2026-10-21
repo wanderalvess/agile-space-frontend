@@ -21,23 +21,32 @@ configurações de MCP e recursos de referência. A ideia é **achar o que já e
 | Visitante sem login | Só lê itens **públicos** (busca, filtros, detalhe e link compartilhado). Copiar funciona; não conta uso. |
 | ADMIN | No servidor, pode editar/excluir item, coleção e comentário de qualquer pessoa e ver itens privados. Na tela não há botão para isso (a tela só mostra editar/excluir para o autor). |
 
-## 2. Telas e entradas
+## 2. Telas e entradas (redesenho aprovado)
+
+Abas do módulo: **Catálogo, Coleções, Favoritos, Meus itens** (visitante só vê Catálogo e Coleções).
+Busca, filtros, ordenação e paginação ("Carregar mais" / "Mostrando N de M") são do **servidor**; a busca espera 300 ms.
+Os filtros ficam num só lugar: pílulas de tipo com contagem e o painel "Filtros" (visibilidade, situação, impacto,
+favoritos, etiquetas mais usadas). Visibilidade é só **Privado** ou **Público**. Favoritos ficam na conta.
 
 | Tela | Rota | Para quê |
 |---|---|---|
-| Dashboard | `/prompt-hub` | Catálogo: busca, filtros (tipo, visibilidade, status, impacto, tags, favoritos), ordenação, destaques, cards. Abre editor, detalhe e importação. |
-| Editor | diálogo no dashboard | Publicar/editar item. Seção recolhida "Detalhes de iniciativa". |
-| Detalhe | diálogo no dashboard e página `/prompt-hub/[id]` (link compartilhável) | Ver conteúdo, preencher variáveis, copiar, duplicar, favoritar, discussão. |
-| Coleções | `/prompt-hub/colecoes` e `/prompt-hub/colecoes/[id]` | Lista de trilhas e a trilha ordenada. Criação/edição em diálogo. |
-| Página do autor | `/prompt-hub/autor/[authorId]` | Itens de uma pessoa (todos se for ela mesma; só públicos se for outra). Exige login. |
-| Importação em lote | diálogo "Importar pasta" | Sobe pasta ou arquivos `.md` de skills (SKILL.md) de uma vez. |
+| Catálogo | `/prompt-hub` (`?aba=favoritos`, `?aba=meus`, `?tag=`) | Números (itens, cópias, coleções), busca com destaque, filtros, "Mais usados", cartões. O cartão abre o **painel lateral** do item. |
+| Item | `/prompt-hub/[id]` | Página própria e link compartilhável: copiar (com campos), abrir ferramenta, duplicar, favoritar, copiar link, editar/excluir (dono ou admin), discussão, ficha técnica, etiquetas, uso nas últimas 8 semanas e versões (ver/restaurar). O painel lateral mostra o mesmo conteúdo. |
+| Editor | `/prompt-hub/novo` e `/prompt-hub/[id]/editar` | Tipo, título, descrição, conteúdo, conferência ao vivo do SKILL.md, itens parecidos, visibilidade, etiquetas e detalhes de iniciativa. Confirma antes de sair com alterações. |
+| Importar pasta | diálogo (catálogo e editor) | Pasta, arquivos `.md` ou arrastar e soltar; prévia; lote de até 200 com fallback item a item; resultado com "Tentar de novo os que falharam". SKILL.md vira skill, os outros `.md` viram recurso. |
+| Coleções | `/prompt-hub/colecoes`, `/colecoes/[id]`, `/colecoes/nova`, `/colecoes/[id]/editar` | Trilhas ordenadas (mínimo 1 item; arrastar ou setas). Aviso "N itens não visíveis para você". |
+| Página da pessoa | `/prompt-hub/autor/[authorId]` | Itens e coleções de uma pessoa, com totais. Exige login. |
 | Tutorial | `/prompt-hub/tutorial` | Guia de criação de skills. |
-| Seed | `/prompt-hub/seed` | Carga inicial de exemplos; restrita a admin só na tela. |
-| Explorar sem login | botão na tela inicial do módulo | Abre o dashboard em modo somente leitura pública. |
 
-Entrada do módulo: se a pessoa não tem login, vê a tela de apresentação com "Explorar Biblioteca Pública".
-Se está logada mas sem cargo/squad no perfil, vê o convite para completar o perfil, com a opção "Apenas ver
-modelos públicos" (nesse caso continua autenticada e lê pela rota normal).
+A tela de carga de exemplos (`/prompt-hub/seed`) foi removida.
+Administração: o servidor informa `canEdit`/`canModerate` em cada item; a tela mostra o selo "Admin" e deixa
+editar, excluir e moderar comentários (a confirmação avisa quando é item de outra pessoa).
+
+Entrada do módulo: visitante cai direto no catálogo público com o aviso "Entrar". Logada sem cargo/squad vê
+"Completar perfil" ou "Apenas ver modelos públicos".
+
+Compatibilidade: com o servidor antigo (resposta sem `page`) o navegador busca, filtra e pagina; os favoritos
+voltam a ficar no navegador; os cartões de uso e versões somem quando a rota responde 404.
 
 ## 3. Fluxo principal
 

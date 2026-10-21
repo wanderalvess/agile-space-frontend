@@ -149,3 +149,12 @@ export function validateSkillFrontmatter(content?: string): SkillValidation {
 
   return { hasFrontmatter: true, name, description, errors, warnings };
 }
+
+/** Separa o cabeçalho (name e description) do corpo, para mostrar cada parte à sua maneira. */
+export function splitFrontmatter(content?: string): { name?: string; description?: string; body: string; hasFrontmatter: boolean } {
+  const raw = content?.trim() ?? '';
+  const match = raw.match(FRONTMATTER_RE);
+  if (!match) return { body: content ?? '', hasFrontmatter: false };
+  const [, block, body = ''] = match;
+  return { name: readField(block, 'name'), description: readField(block, 'description'), body, hasFrontmatter: true };
+}
