@@ -261,7 +261,7 @@ describe('lobby da Retro', () => {
     const anteriores = screen.getByRole('region', { name: 'Retros anteriores' });
     expect(within(anteriores).queryByText('Retro Sprint 42')).toBeNull();
     expect(within(anteriores).getByText(/18 cartões · 4 ações · 3 feitas/)).toBeTruthy();
-    expect(screen.getByText('Phoenix · 2 retros anteriores')).toBeTruthy();
+    expect(screen.getByText('2 retros anteriores')).toBeTruthy();
   });
 
   it('abrir uma retro e entrar na que está em andamento', () => {
