@@ -82,6 +82,20 @@ export const knowledgeApi = {
     return res.json();
   },
 
+  /**
+   * Muda só o estado de um documento já carregado (ex.: arquivado -> publicado). Reenvia o documento como está,
+   * sem novo vetor: o servidor mantém o que já tinha quando o texto não muda. Só quem edita o documento consegue.
+   */
+  async setDocumentStatus(doc: KnowledgeDocument, status: 'published' | 'archived'): Promise<KnowledgeDocument> {
+    const { embedding: _embedding, canEdit: _canEdit, ...rest } = doc;
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${doc.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...rest, status }),
+    });
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao mudar o estado do documento'));
+    return res.json();
+  },
+
   async deleteDocument(id: string, _deletedBy?: string): Promise<void> {
     // O servidor usa o login (não o parâmetro) para saber quem apagou e só deixa o autor ou um admin apagar.
     const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
