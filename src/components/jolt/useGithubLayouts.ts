@@ -14,13 +14,19 @@ export interface LoadedGithubLayout {
   path: string;
   tag: string;
   /** O documento inteiro do arquivo (layout completo `tabela.campos`, ou só as operações). */
-  document: any;
+  document: unknown;
 }
 
 interface TreeNode {
   path: string;
   type: string;
 }
+
+/**
+ * Estados da consulta ao GitHub. A página NUNCA consulta sozinha: tudo começa em `nao-consultado` e só muda
+ * quando a pessoa aperta "Buscar layouts do GitHub" (ou troca de repositório/versão, que também são ações dela).
+ */
+export type GithubStatus = 'nao-consultado' | 'buscando' | 'limite' | 'erro' | 'pronto';
 
 interface Options {
   onLayoutLoaded: (layout: LoadedGithubLayout) => void;
@@ -67,238 +73,289 @@ export function routesFromTree(tree: TreeNode[], integration: string): GithubRou
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function githubErrorMessage(status: number, fallback: string): string {
-  if (status === 403 || status === 429) return 'O limite de consultas do GitHub foi atingido. Tente de novo em alguns minutos.';
-  if (status === 404) return 'Repositório, versão ou arquivo não encontrado. Confira o nome (usuário/repositório) e se ele é público.';
-  return fallback;
+/** Falha de uma resposta do GitHub: o limite de consultas tem estado próprio (e horário de liberação, se vier). */
+class GithubFailure extends Error {
+  constructor(message: string, readonly kind: 'limite' | 'outro', readonly resetAt: Date | null = null) {
+    super(message);
+  }
+}
+
+function failureFrom(res: Response, fallback: string): GithubFailure {
+  const remaining = res.headers.get('x-ratelimit-remaining');
+  if (res.status === 429 || (res.status === 403 && remaining === '0')) {
+    const reset = Number(res.headers.get('x-ratelimit-reset'));
+    return new GithubFailure('O GitHub atingiu o limite de consultas.', 'limite', Number.isFinite(reset) && reset > 0 ? new Date(reset * 1000) : null);
+  }
+  if (res.status === 403) return new GithubFailure('O GitHub recusou a consulta. Tente de novo em alguns minutos.', 'outro');
+  if (res.status === 404) return new GithubFailure('Repositório, versão ou arquivo não encontrado. Confira o nome (usuário/repositório) e se ele é público.', 'outro');
+  return new GithubFailure(fallback, 'outro');
+}
+
+async function readCache<T>(key: string): Promise<T | null> {
+  try {
+    const cached = sessionStorage.getItem(key);
+    return cached ? (JSON.parse(cached) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(key: string, value: unknown) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* cheio ou bloqueado: segue sem cache */
+  }
+}
+
+async function fetchTags(repoName: string): Promise<string[]> {
+  const cacheKey = `github_layouts_tags_${repoName}`;
+  const cached = await readCache<string[]>(cacheKey);
+  if (cached) return cached;
+  const res = await fetch(`https://api.github.com/repos/${repoName}/tags?per_page=100`);
+  if (!res.ok) throw failureFrom(res, 'Não foi possível listar as versões do repositório.');
+  const list: string[] = (await res.json()).map((t: { name: string }) => t.name).sort(compareVersionsDesc);
+  writeCache(cacheKey, list);
+  return list;
+}
+
+async function fetchTree(repoName: string, tag: string): Promise<{ tree: TreeNode[]; truncated: boolean }> {
+  const key = `github_tree_${repoName}_${tag}`;
+  const cached = await readCache<{ tree: TreeNode[]; truncated: boolean }>(key);
+  if (cached) return cached;
+  const res = await fetch(`https://api.github.com/repos/${repoName}/git/trees/${encodeURIComponent(tag)}?recursive=1`);
+  if (!res.ok) throw failureFrom(res, 'Não foi possível carregar a estrutura desta versão.');
+  const data = await res.json();
+  const result = { tree: (data.tree || []) as TreeNode[], truncated: !!data.truncated };
+  writeCache(key, result);
+  return result;
+}
+
+export interface GithubLoadedInfo {
+  path: string;
+  tag: string;
 }
 
 /**
- * Seletor de layouts do GitHub na ordem em que a pessoa pensa: INTEGRAÇÃO → ROTA → VERSÃO.
- * Trocar a versão recarrega a mesma rota naquela versão (se ela existir lá) em vez de zerar tudo.
+ * Seletor de layouts do GitHub na ordem em que a pessoa pensa: INTEGRAÇÃO → ROTA → VERSÃO, e então "Carregar layout".
+ * Escolher rota ou versão não mexe no editor; só "Carregar layout" troca a spec (por isso a rota escolhida não vira
+ * "carregada" antes de o arquivo chegar: se a busca falhar, nada fica marcado).
  */
 export function useGithubLayouts({ onLayoutLoaded, onNotify }: Options) {
   const [repo, setRepo] = useState(DEFAULT_LAYOUTS_REPO);
   const [repoInput, setRepoInput] = useState(DEFAULT_LAYOUTS_REPO);
+  const [status, setStatus] = useState<GithubStatus>('nao-consultado');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resetAt, setResetAt] = useState<Date | null>(null);
+  const [repoError, setRepoError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [version, setVersion] = useState('');
   const [integrations, setIntegrations] = useState<string[]>([]);
-  const [integration, setIntegrationState] = useState('');
+  const [integration, setIntegration] = useState('');
   const [routes, setRoutes] = useState<GithubRoute[]>([]);
   const [routePath, setRoutePath] = useState('');
-  const [loadingTags, setLoadingTags] = useState(false);
   const [loadingTree, setLoadingTree] = useState(false);
   const [loadingLayout, setLoadingLayout] = useState(false);
+  const [loaded, setLoaded] = useState<GithubLoadedInfo | null>(null);
 
-  const treeCache = useRef<Record<string, TreeNode[]>>({});
   const currentTree = useRef<TreeNode[]>([]);
-  // Respostas que chegam depois de a pessoa já ter escolhido outra coisa são descartadas.
-  const treeReq = useRef(0);
+  const queryReq = useRef(0);
   const layoutReq = useRef(0);
   const notify = useRef(onNotify);
-  notify.current = onNotify;
   const onLoaded = useRef(onLayoutLoaded);
-  onLoaded.current = onLayoutLoaded;
   // Estado "atual" para os handlers assíncronos, sem recriar callbacks a cada render.
   const state = useRef({ repo, version, integration, routePath });
-  state.current = { repo, version, integration, routePath };
+  useEffect(() => {
+    notify.current = onNotify;
+    onLoaded.current = onLayoutLoaded;
+    state.current = { repo, version, integration, routePath };
+  });
 
-  const loadTags = useCallback(async (repoName: string) => {
-    setLoadingTags(true);
-    try {
-      const cacheKey = `github_layouts_tags_${repoName}`;
-      let list: string[] | null = null;
+  const applyFailure = useCallback((e: unknown) => {
+    if (e instanceof GithubFailure && e.kind === 'limite') {
+      setStatus('limite');
+      setResetAt(e.resetAt);
+      setErrorMessage(e.message);
+    } else {
+      setStatus('erro');
+      setResetAt(null);
+      setErrorMessage(e instanceof Error ? e.message : 'Não foi possível consultar o GitHub.');
+    }
+  }, []);
+
+  /** Consulta versões e a árvore da mais recente. Devolve true se deu certo. */
+  const consult = useCallback(
+    async (repoName: string, opts: { keepSelection: boolean }): Promise<boolean> => {
+      const req = ++queryReq.current;
+      setStatus('buscando');
+      setErrorMessage(null);
       try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) list = JSON.parse(cached);
-      } catch {
-        /* sem cache */
-      }
-      if (!list) {
-        const res = await fetch(`https://api.github.com/repos/${repoName}/tags?per_page=100`);
-        if (!res.ok) throw new Error(githubErrorMessage(res.status, 'Não foi possível listar as versões do repositório.'));
-        list = (await res.json()).map((t: { name: string }) => t.name).sort(compareVersionsDesc);
-        try {
-          sessionStorage.setItem(cacheKey, JSON.stringify(list));
-        } catch {
-          /* cheio: segue sem cache */
+        const list = await fetchTags(repoName);
+        if (req !== queryReq.current) return false;
+        if (list.length === 0) throw new GithubFailure('O repositório não tem versões publicadas (tags).', 'outro');
+        const keptVersion = opts.keepSelection && list.includes(state.current.version) ? state.current.version : list[0];
+        const { tree, truncated: cut } = await fetchTree(repoName, keptVersion);
+        if (req !== queryReq.current) return false;
+        const found = integrationsFromTree(tree);
+        if (found.length === 0) throw new GithubFailure('Este repositório não tem a pasta de rotas (<integração>/rotas/*.json).', 'outro');
+        currentTree.current = tree;
+        const keepIntegration = opts.keepSelection && found.includes(state.current.integration) ? state.current.integration : '';
+        setRepo(repoName);
+        setTags(list);
+        setVersion(keptVersion);
+        setTruncated(cut);
+        setIntegrations(found);
+        setIntegration(keepIntegration);
+        setRoutes(routesFromTree(tree, keepIntegration));
+        if (!keepIntegration) {
+          setRoutePath('');
+          setLoaded(null);
         }
+        setStatus('pronto');
+        return true;
+      } catch (e) {
+        if (req !== queryReq.current) return false;
+        applyFailure(e);
+        return false;
       }
-      setTags(list!);
-      return list!;
-    } catch (e: any) {
-      setTags([]);
-      notify.current({ title: 'Erro ao carregar o repositório', description: e.message, variant: 'destructive' });
-      return [];
-    } finally {
-      setLoadingTags(false);
-    }
+    },
+    [applyFailure],
+  );
+
+  /** "Buscar layouts do GitHub" / "Tentar de novo". */
+  const search = useCallback(() => consult(state.current.repo, { keepSelection: true }), [consult]);
+
+  /** Troca de versão: busca a árvore dela e confere se a rota escolhida existe lá (sem mexer no editor). */
+  const selectVersion = useCallback(
+    async (tag: string) => {
+      setVersion(tag);
+      state.current = { ...state.current, version: tag };
+      const req = ++queryReq.current;
+      setLoadingTree(true);
+      try {
+        const { tree, truncated: cut } = await fetchTree(state.current.repo, tag);
+        if (req !== queryReq.current) return;
+        currentTree.current = tree;
+        setTruncated(cut);
+        const found = integrationsFromTree(tree);
+        setIntegrations(found);
+        const keep = found.includes(state.current.integration) ? state.current.integration : '';
+        if (!keep) {
+          setIntegration('');
+          setRoutes([]);
+          setRoutePath('');
+          if (state.current.integration) {
+            notify.current({ title: 'Integração não existe nesta versão', description: `"${state.current.integration}" não está na versão ${tag}.`, variant: 'destructive' });
+          }
+        } else {
+          setRoutes(routesFromTree(tree, keep));
+        }
+        setErrorMessage(null);
+        setStatus('pronto');
+      } catch (e) {
+        if (req === queryReq.current) applyFailure(e);
+      } finally {
+        if (req === queryReq.current) setLoadingTree(false);
+      }
+    },
+    [applyFailure],
+  );
+
+  const selectIntegration = useCallback((name: string) => {
+    setIntegration(name);
+    setRoutePath('');
+    setRoutes(routesFromTree(currentTree.current, name));
   }, []);
 
-  const loadTree = useCallback(async (repoName: string, tag: string): Promise<TreeNode[] | null> => {
-    const key = `github_tree_${repoName}_${tag}`;
-    if (treeCache.current[key]) return treeCache.current[key];
-    try {
-      const cached = sessionStorage.getItem(key);
-      if (cached) {
-        treeCache.current[key] = JSON.parse(cached);
-        return treeCache.current[key];
-      }
-    } catch {
-      /* sem cache */
-    }
-    const res = await fetch(`https://api.github.com/repos/${repoName}/git/trees/${encodeURIComponent(tag)}?recursive=1`);
-    if (!res.ok) throw new Error(githubErrorMessage(res.status, 'Não foi possível carregar a estrutura desta versão.'));
-    const data = await res.json();
-    if (data.truncated) {
-      notify.current({
-        title: 'Lista de rotas incompleta',
-        description: 'O GitHub devolveu só parte dos arquivos desta versão. Algumas rotas podem não aparecer.',
-        variant: 'destructive',
-      });
-    }
-    const tree: TreeNode[] = data.tree || [];
-    treeCache.current[key] = tree;
-    try {
-      sessionStorage.setItem(key, JSON.stringify(tree));
-    } catch {
-      /* cheio: segue sem cache */
-    }
-    return tree;
+  /** Só escolhe: o arquivo é baixado em "Carregar layout". */
+  const selectRoute = useCallback((path: string) => {
+    setRoutePath(path);
   }, []);
 
-  const loadLayoutContent = useCallback(async (repoName: string, tag: string, path: string) => {
+  /** A rota escolhida não existe na versão escolhida (aconteceu ao trocar de versão). */
+  const missingRoute = routePath && !routes.some(r => r.path === routePath)
+    ? routePath.split('/').pop()?.replace(/\.json$/, '') ?? routePath
+    : null;
+  const routeName = routes.find(r => r.path === routePath)?.name ?? '';
+
+  /** "Carregar layout": baixa a rota escolhida na versão escolhida e entrega ao editor. */
+  const loadSelected = useCallback(async () => {
+    const { repo: repoName, version: tag, routePath: path } = state.current;
+    if (!path || !tag) return;
+    // A rota escolhida precisa existir na versão escolhida (ao trocar de versão ela pode ter sumido).
+    if (!currentTree.current.some(n => n.type === 'blob' && n.path === path)) return;
     const req = ++layoutReq.current;
     setLoadingLayout(true);
     try {
       const url = `https://raw.githubusercontent.com/${repoName}/${encodeURIComponent(tag)}/${path.split('/').map(encodeURIComponent).join('/')}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(githubErrorMessage(res.status, 'Não foi possível carregar o conteúdo do layout.'));
+      if (!res.ok) throw failureFrom(res, 'Não foi possível carregar o conteúdo do layout.');
       const document = await res.json();
       if (req !== layoutReq.current) return;
       const title = path.split('/').pop()!.replace(/\.json$/, '');
+      setLoaded({ path, tag });
       onLoaded.current({ title, path, tag, document });
-    } catch (e: any) {
-      if (req === layoutReq.current) notify.current({ title: 'Erro ao buscar o layout', description: e.message, variant: 'destructive' });
+    } catch (e) {
+      if (req !== layoutReq.current) return;
+      if (e instanceof GithubFailure && e.kind === 'limite') applyFailure(e);
+      notify.current({ title: 'Erro ao buscar o layout', description: e instanceof Error ? e.message : 'Tente de novo.', variant: 'destructive' });
     } finally {
       if (req === layoutReq.current) setLoadingLayout(false);
     }
-  }, []);
+  }, [applyFailure]);
 
-  /** Carrega a árvore de uma versão e reaproveita o que a pessoa já tinha escolhido, se ainda existir. */
-  const applyVersion = useCallback(
-    async (repoName: string, tag: string, opts: { reloadRoute: boolean }) => {
-      const req = ++treeReq.current;
-      setLoadingTree(true);
-      try {
-        const tree = await loadTree(repoName, tag);
-        if (req !== treeReq.current || !tree) return;
-        currentTree.current = tree;
-        const list = integrationsFromTree(tree);
-        setIntegrations(list);
-
-        const { integration: keptIntegration, routePath: keptRoute } = state.current;
-        const integrationStillThere = !!keptIntegration && list.includes(keptIntegration);
-        if (!integrationStillThere) {
-          setIntegrationState('');
-          setRoutes([]);
-          setRoutePath('');
-          if (keptIntegration) {
-            notify.current({ title: 'Integração não existe nesta versão', description: `"${keptIntegration}" não está na versão ${tag}.`, variant: 'destructive' });
-          }
-          return;
-        }
-        const newRoutes = routesFromTree(tree, keptIntegration);
-        setRoutes(newRoutes);
-        if (keptRoute && newRoutes.some(r => r.path === keptRoute)) {
-          if (opts.reloadRoute) await loadLayoutContent(repoName, tag, keptRoute);
-        } else if (keptRoute) {
-          setRoutePath('');
-          notify.current({
-            title: 'Rota não existe nesta versão',
-            description: `"${keptRoute.split('/').pop()?.replace(/\.json$/, '')}" não está na versão ${tag}. O editor continua com o que estava.`,
-            variant: 'destructive',
-          });
-        }
-      } catch (e: any) {
-        if (req === treeReq.current) {
-          notify.current({ title: 'Erro de conexão', description: e.message, variant: 'destructive' });
-        }
-      } finally {
-        if (req === treeReq.current) setLoadingTree(false);
-      }
-    },
-    [loadTree, loadLayoutContent]
-  );
-
-  // Trocar de repositório recomeça do zero: versões, integrações e rotas.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setIntegrations([]);
-      setIntegrationState('');
-      setRoutes([]);
-      setRoutePath('');
-      setVersion('');
-      const list = await loadTags(repo);
-      if (cancelled || list.length === 0) return;
-      setVersion(list[0]);
-      state.current = { ...state.current, version: list[0], integration: '', routePath: '' };
-      await applyVersion(repo, list[0], { reloadRoute: false });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [repo, loadTags, applyVersion]);
-
-  const selectIntegration = useCallback((name: string) => {
-    setIntegrationState(name);
-    setRoutePath('');
-    setRoutes(routesFromTree(currentTree.current, name));
-  }, []);
-
-  const selectRoute = useCallback(
-    (path: string) => {
-      setRoutePath(path);
-      if (path) loadLayoutContent(state.current.repo, state.current.version, path);
-    },
-    [loadLayoutContent]
-  );
-
-  const selectVersion = useCallback(
-    (tag: string) => {
-      setVersion(tag);
-      state.current = { ...state.current, version: tag };
-      applyVersion(state.current.repo, tag, { reloadRoute: true });
-    },
-    [applyVersion]
-  );
-
-  const submitRepo = useCallback(() => {
+  /** "Validar e usar": confere o nome, consulta o repositório novo e só então troca (o anterior fica se falhar). */
+  const submitRepo = useCallback(async () => {
     const next = repoInput.trim();
-    if (!next) return;
+    setRepoError(null);
     if (!isValidRepoName(next)) {
-      notify.current({ title: 'Repositório inválido', description: 'Use o formato usuário/repositório, por exemplo totvs/winthor-smart-hub-layouts.', variant: 'destructive' });
-      return;
+      setRepoError('Use o formato usuário/repositório, por exemplo totvs/winthor-smart-hub-layouts.');
+      return false;
     }
-    setRepo(next);
-  }, [repoInput]);
+    if (next === state.current.repo && status === 'pronto') return true;
+    const previous = { status, tags, version, integrations, integration, routes, routePath };
+    const ok = await consult(next, { keepSelection: false });
+    if (!ok) {
+      setRepoError('Não encontramos esse repositório com a pasta de rotas. Confira o nome e se ele é público.');
+      // Mantém o que a pessoa já tinha na tela.
+      setStatus(previous.status);
+      setTags(previous.tags);
+      setVersion(previous.version);
+      setIntegrations(previous.integrations);
+      setIntegration(previous.integration);
+      setRoutes(previous.routes);
+      setRoutePath(previous.routePath);
+    }
+    return ok;
+  }, [repoInput, status, tags, version, integrations, integration, routes, routePath, consult]);
 
   return {
+    repo,
     repoInput,
     setRepoInput,
     submitRepo,
+    repoError,
+    clearRepoError: () => setRepoError(null),
+    status,
+    errorMessage,
+    resetAt,
+    truncated,
+    search,
     tags,
     version,
     integrations,
     integration,
     routes,
     routePath,
-    loadingTags,
+    routeName,
+    missingRoute,
     loadingTree,
     loadingLayout,
+    loaded,
     selectIntegration,
     selectRoute,
     selectVersion,
+    loadSelected,
   };
 }

@@ -1,92 +1,104 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Plus, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, Copy, Loader2, TriangleAlert, Wand2 } from 'lucide-react';
 import { PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
+import { ModalButton, StatusChip } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
-  EDITABLE_KINDS,
-  KIND_LABEL,
+  MODE_DETECTION_TEXT,
+  MODE_INFO,
   describeOperation,
+  describeValue,
   draftFromRule,
   exampleValue,
-  fieldName,
   generateSpec,
   groupRules,
   overrideFromDraft,
-  parseJsonText,
   scopeLabel,
+  suggestFix,
   type GeneratorOverride,
   type GeneratorResult,
   type GeneratorRule,
   type RuleDraft,
 } from '@/lib/jolt-generator';
-import { RouteRecordPanel } from '@/components/jolt/RouteRecordPanel';
+import { exampleInputText, exampleOutputText } from '@/lib/jolt-generator-example';
+import { checkJson, describeProblem, formatJson } from '@/lib/jolt-json';
+import {
+  adoptGuestDrafts,
+  clearGeradorHandoff,
+  peekFromSandbox,
+  readGeradorDraft,
+  sendToSandbox,
+  storeFailureMessage,
+  writeGeradorDraft,
+  type StoreFailure,
+} from '@/lib/jolt-storage';
 import { buildRouteRecord, defaultRouteForm, routeProblems, routeVariables, type RouteForm } from '@/lib/jolt-route-record';
+import { GuestBanner, LoginRequiredDialog, Notice, useJoltIdentity } from '@/components/jolt/JoltBits';
+import { JoltHowItWorks } from '@/components/jolt/JoltHowItWorks';
+import { JoltNav, joltHeaderProps } from '@/components/jolt/JoltNav';
+import { JsonEditor, PaneButton, SyntaxErrorStrip } from '@/components/jolt/JsonEditor';
+import { RULE_GRID, RuleEditorPanel, RuleRow } from '@/components/jolt/GeradorRules';
+import { RouteRecordPanel } from '@/components/jolt/RouteRecordPanel';
 
 type Step = 'exemplos' | 'regras' | 'spec';
-
-/** Entrada deixada pela Sandbox ao clicar em "Gerador de spec". */
-const SANDBOX_INPUT_KEY = 'jolt_generator_input';
 type Filter = 'todos' | 'pendentes' | 'calculados' | 'fixos';
+type Busy = null | 'gerar' | 'aplicar' | 'spec';
 
-const KIND_TONE: Record<string, string> = {
-  COPY: 'bg-muted text-foreground',
-  AS_TEXT: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-  AS_NUMBER: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-  DIGITS: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-  CONCAT: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-  VALUE_MAP: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-  CONSTANT: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  VARIABLE: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  UNRESOLVED: 'bg-orange-500/15 text-orange-800 dark:text-orange-300',
-};
+const CALCULATED = ['AS_TEXT', 'AS_NUMBER', 'DIGITS', 'CONCAT', 'VALUE_MAP'];
 
 function matchesFilter(rule: GeneratorRule, filter: Filter): boolean {
   if (filter === 'pendentes') return rule.pending;
-  if (filter === 'calculados') return ['AS_TEXT', 'AS_NUMBER', 'DIGITS', 'CONCAT', 'VALUE_MAP'].includes(rule.kind);
+  if (filter === 'calculados') return CALCULATED.includes(rule.kind);
   if (filter === 'fixos') return rule.kind === 'CONSTANT' || rule.kind === 'VARIABLE';
   return true;
 }
 
-function Stepper({ step, onGo, hasResult }: { step: Step; onGo: (s: Step) => void; hasResult: boolean }) {
-  const steps: { id: Step; label: string }[] = [
-    { id: 'exemplos', label: 'Exemplos' },
-    { id: 'regras', label: 'Regras' },
-    { id: 'spec', label: 'Spec e validação' },
+const draftKey = (d: RuleDraft | undefined) => (d ? JSON.stringify(d) : '');
+
+function Stepper({ step, onGo, reach }: { step: Step; onGo: (s: Step) => void; reach: { regras: boolean; spec: boolean } }) {
+  const steps: { id: Step; label: string; sub: string; enabled: boolean }[] = [
+    { id: 'exemplos', label: 'Exemplos', sub: 'Entrada e saída esperada', enabled: true },
+    { id: 'regras', label: 'Regras', sub: 'Revise de onde vem cada campo', enabled: reach.regras },
+    { id: 'spec', label: 'Spec e validação', sub: 'Conferida no servidor', enabled: reach.spec },
   ];
   const index = steps.findIndex((s) => s.id === step);
   return (
-    <nav aria-label="Etapas" className="overflow-hidden rounded-2xl border border-border bg-card">
-      <ol className="flex flex-wrap gap-1 px-2 md:px-4">
+    <nav aria-label="Etapas" className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <ol className="flex flex-wrap">
         {steps.map((s, i) => {
           const done = i < index;
           const current = i === index;
-          const reachable = i === 0 || hasResult;
           return (
-            <li key={s.id}>
+            <li key={s.id} className="min-w-[200px] flex-1">
               <button
                 type="button"
-                disabled={!reachable}
+                disabled={!s.enabled}
                 onClick={() => onGo(s.id)}
                 aria-current={current ? 'step' : undefined}
                 className={cn(
-                  'flex items-center gap-2.5 border-b-[3px] px-3 py-3.5 text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                  current ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+                  'flex w-full items-center gap-3 border-b-[3px] px-5 py-3.5 text-left transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-60',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  current ? 'border-primary' : 'border-transparent',
                 )}
               >
                 <span
+                  aria-hidden="true"
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full text-xs',
-                    done ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : current ? 'bg-primary text-primary-foreground' : 'border border-border',
+                    'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold',
+                    done ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : current ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground',
                   )}
                 >
-                  {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}
+                  {done ? <Check className="h-3.5 w-3.5" strokeWidth={1.5} /> : i + 1}
                 </span>
-                {s.label}
+                <span className="flex flex-col gap-px">
+                  <span className="text-sm font-bold text-foreground">{s.label}</span>
+                  <span className="text-xs text-muted-foreground">{s.sub}</span>
+                </span>
               </button>
             </li>
           );
@@ -96,230 +108,150 @@ function Stepper({ step, onGo, hasResult }: { step: Step; onGo: (s: Step) => voi
   );
 }
 
-function RuleEditor({
-  rule,
-  draft,
-  sources,
-  onChange,
-  onCancel,
-}: {
-  rule: GeneratorRule;
-  draft: RuleDraft;
-  sources: string[];
-  onChange: (d: RuleDraft) => void;
-  onCancel: () => void;
-}) {
-  const id = rule.output.replace(/[^a-zA-Z0-9]/g, '-');
-  const set = (patch: Partial<RuleDraft>) => onChange({ ...draft, ...patch });
-  return (
-    <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/40 p-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-kind`}>
-          Regra
-          <select
-            id={`${id}-kind`}
-            value={draft.kind}
-            onChange={(e) => set({ kind: e.target.value as GeneratorOverride['kind'] })}
-            className="h-10 rounded-lg border border-input bg-background px-2 text-sm font-semibold normal-case tracking-normal text-foreground"
-          >
-            {EDITABLE_KINDS.map((k) => (
-              <option key={k} value={k}>{KIND_LABEL[k]}</option>
-            ))}
-          </select>
-        </label>
-        {draft.kind !== 'CONSTANT' ? (
-          <label className="flex min-w-[240px] flex-1 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-source`}>
-            Vem de
-            <select
-              id={`${id}-source`}
-              value={draft.source}
-              onChange={(e) => set({ source: e.target.value })}
-              className="h-10 rounded-lg border border-input bg-background px-2 font-code text-[13px] normal-case tracking-normal text-foreground"
-            >
-              <option value="">— escolha o campo da entrada —</option>
-              {[...rule.alternatives.filter((a) => !sources.includes(a)), ...sources].map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-value`}>
-            Valor fixo
-            <input
-              id={`${id}-value`}
-              value={draft.value}
-              onChange={(e) => set({ value: e.target.value })}
-              className="h-10 rounded-lg border border-input bg-background px-3 font-code text-[13px] normal-case tracking-normal text-foreground"
-            />
-          </label>
-        )}
-      </div>
-
-      {draft.kind === 'VALUE_MAP' && (
-        <fieldset className="space-y-2">
-          <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Como cada valor chega</legend>
-          {draft.map.map((row, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2">
-              <input
-                aria-label={`Valor da entrada ${i + 1}`}
-                value={row.from}
-                onChange={(e) => set({ map: draft.map.map((r, j) => (j === i ? { ...r, from: e.target.value } : r)) })}
-                placeholder="valor na entrada"
-                className="h-9 w-40 rounded-lg border border-input bg-background px-3 font-code text-[13px]"
-              />
-              <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden />
-              <input
-                aria-label={`Valor na saída ${i + 1}`}
-                value={row.to}
-                onChange={(e) => set({ map: draft.map.map((r, j) => (j === i ? { ...r, to: e.target.value } : r)) })}
-                placeholder="valor na saída"
-                className="h-9 w-40 rounded-lg border border-input bg-background px-3 font-code text-[13px]"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Remover linha"
-                onClick={() => set({ map: draft.map.length > 1 ? draft.map.filter((_, j) => j !== i) : [{ from: '', to: '' }] })}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => set({ map: [...draft.map, { from: '', to: '' }] })}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar valor
-            </Button>
-            <label className="flex items-center gap-2 text-[13px] text-muted-foreground" htmlFor={`${id}-otherwise`}>
-              Qualquer outro
-              <input
-                id={`${id}-otherwise`}
-                value={draft.otherwise}
-                onChange={(e) => set({ otherwise: e.target.value })}
-                placeholder="sem valor"
-                className="h-9 w-40 rounded-lg border border-input bg-background px-3 font-code text-[13px] text-foreground"
-              />
-            </label>
-          </div>
-        </fieldset>
-      )}
-      <div className="flex justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Desfazer ajuste</Button>
-      </div>
-    </div>
-  );
-}
-
-function RuleRow({
-  rule,
-  draft,
-  sources,
-  editing,
-  onEdit,
-  onChange,
-  onCancel,
-}: {
-  rule: GeneratorRule;
-  draft?: RuleDraft;
-  sources: string[];
-  editing: boolean;
-  onEdit: () => void;
-  onChange: (d: RuleDraft) => void;
-  onCancel: () => void;
-}) {
-  const adjusted = !!draft;
-  return (
-    <li className={cn('border-b border-border/60 px-4 py-3 last:border-b-0 md:px-5', rule.pending && !adjusted && 'bg-orange-500/[0.04]')}>
-      <div className="grid grid-cols-1 items-center gap-x-4 gap-y-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.5fr)_120px_minmax(0,1.2fr)_auto]">
-        <code className="truncate font-code text-[13px] font-semibold text-foreground" title={rule.output}>{fieldName(rule)}</code>
-        <code className="truncate font-code text-[12.5px] text-muted-foreground" title={rule.source ?? ''}>
-          {adjusted ? (draft.kind === 'CONSTANT' ? '—' : draft.source || '—') : rule.source ?? '—'}
-        </code>
-        <span className={cn('inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold', KIND_TONE[adjusted ? draft.kind : rule.kind])}>
-          {KIND_LABEL[adjusted ? draft.kind : rule.kind]}
-        </span>
-        <span className="truncate font-code text-xs text-muted-foreground" title={rule.example ?? ''}>{rule.example ?? ''}</span>
-        <div className="flex items-center justify-end gap-2">
-          {adjusted && <span className="text-xs font-bold text-primary">ajustado</span>}
-          {!rule.pending && !adjusted && <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-label="Confere com a saída" />}
-          <Button
-            type="button"
-            variant={rule.pending && !adjusted ? 'default' : 'ghost'}
-            size="sm"
-            className="h-8 rounded-lg text-xs font-bold"
-            onClick={onEdit}
-            aria-expanded={editing}
-            aria-label={`${editing ? 'Fechar ajuste de' : 'Ajustar'} ${fieldName(rule)}`}
-          >
-            {editing ? 'Fechar' : 'Ajustar'}
-          </Button>
-        </div>
-      </div>
-      {rule.pending && !adjusted && (
-        <p className="mt-1 text-xs font-semibold text-orange-800 dark:text-orange-300">
-          {rule.reason}
-          {rule.alternatives.length > 0 && <span className="font-normal text-muted-foreground"> · também pode ser: {rule.alternatives.join(', ')}</span>}
-        </p>
-      )}
-      {editing && draft && <RuleEditor rule={rule} draft={draft} sources={sources} onChange={onChange} onCancel={onCancel} />}
-    </li>
-  );
+function lineCount(text: string) {
+  return text.split('\n').length;
 }
 
 export default function JoltGeneratorPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const id = useJoltIdentity();
+
   const [step, setStep] = useState<Step>('exemplos');
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
   const [result, setResult] = useState<GeneratorResult | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, RuleDraft>>({});
-  const [editing, setEditing] = useState<string | null>(null);
+  const [specReady, setSpecReady] = useState(false);
+  /** Ajustes guardados (clique em "Guardar ajuste") e os que o servidor já aplicou. */
+  const [saved, setSaved] = useState<Record<string, RuleDraft>>({});
+  const [applied, setApplied] = useState<Record<string, RuleDraft>>({});
+  const [editing, setEditing] = useState<{ output: string; draft: RuleDraft; error: string | null } | null>(null);
   const [filter, setFilter] = useState<Filter>('todos');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [routeForm, setRouteForm] = useState<RouteForm>(defaultRouteForm);
   const [codeTab, setCodeTab] = useState<'spec' | 'registro'>('spec');
+  const [howOpen, setHowOpen] = useState(false);
+  const [draftIssue, setDraftIssue] = useState<StoreFailure | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  const hydratedRef = useRef(false);
+  const busyRef = useRef(false);
+  const requestId = useRef(0);
+  const draftWarned = useRef<StoreFailure | null>(null);
+
+  // ── Ao abrir: rascunho da pessoa e, se vier da Sandbox, a entrada que estava lá ──
+  useEffect(() => {
+    if (id.isLoading || hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (id.userId) adoptGuestDrafts(id.userId);
+    const draft = readGeradorDraft(id.userId);
+    if (draft) {
+      setInputText(draft.entrada);
+      setOutputText(draft.saida);
+    }
+    const fromSandbox = peekFromSandbox();
+    if (fromSandbox) {
+      // A entrada vira rascunho logo abaixo, então a passagem pode ser apagada já.
+      setInputText(fromSandbox);
+      clearGeradorHandoff();
+      toast({ title: 'Entrada trazida da Sandbox', description: 'Cole agora a saída que o destino espera.' });
+    }
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id.isLoading, id.userId]);
 
   useEffect(() => {
-    // Vindo da Sandbox: a entrada que estava lá já chega preenchida. A chave só é apagada ao gerar: a página pode
-    // montar duas vezes enquanto a sessão carrega, e apagar aqui deixaria a segunda montagem vazia.
-    try {
-      const fromSandbox = localStorage.getItem(SANDBOX_INPUT_KEY);
-      if (fromSandbox) setInputText(fromSandbox);
-    } catch {
-      /* sem storage */
-    }
+    if (!hydrated) return;
+    const t = setTimeout(() => {
+      const r = writeGeradorDraft(id.userId, { entrada: inputText, saida: outputText });
+      setDraftIssue(r.ok ? null : r.reason);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [hydrated, id.userId, inputText, outputText]);
+
+  useEffect(() => {
+    if (!draftIssue || draftWarned.current === draftIssue) return;
+    draftWarned.current = draftIssue;
+    toast({ title: 'Rascunho não guardado', description: storeFailureMessage(draftIssue, 'o rascunho'), variant: 'destructive' });
+  }, [draftIssue, toast]);
+
+  const deferredInput = useDeferredValue(inputText);
+  const deferredOutput = useDeferredValue(outputText);
+  const inputCheck = useMemo(() => (deferredInput.trim() ? checkJson(deferredInput) : null), [deferredInput]);
+  const outputCheck = useMemo(() => (deferredOutput.trim() ? checkJson(deferredOutput) : null), [deferredOutput]);
+  const inputOk = !!inputCheck && inputCheck.ok;
+  const outputOk = !!outputCheck && outputCheck.ok;
+  const outputValue = outputCheck && outputCheck.ok ? outputCheck.value : undefined;
+
+  // Mexer nos exemplos depois de gerar deixa as regras velhas para trás: volta para o começo.
+  const resetResult = useCallback(() => {
+    requestId.current += 1;
+    busyRef.current = false;
+    setBusy(null);
+    setResult(null);
+    setSpecReady(false);
+    setSaved({});
+    setApplied({});
+    setEditing(null);
+    setError(null);
   }, []);
 
-  const parsedInput = useMemo(() => parseJsonText(inputText), [inputText]);
-  const parsedOutput = useMemo(() => parseJsonText(outputText), [outputText]);
-  const outputValue = parsedOutput.ok ? parsedOutput.value : undefined;
+  const changeInput = (value: string) => {
+    setInputText(value);
+    if (result) resetResult();
+  };
+  const changeOutput = (value: string) => {
+    setOutputText(value);
+    if (result) resetResult();
+  };
 
-  const run = async (overrides: Record<string, GeneratorOverride>, next: Step) => {
-    if (!parsedInput.ok || !parsedOutput.ok) return;
-    try {
-      localStorage.removeItem(SANDBOX_INPUT_KEY);
-    } catch {
-      /* sem storage */
+  /** Chama o servidor. Uma chamada por vez; a resposta de uma chamada abandonada é descartada. */
+  const run = async (overrides: Record<string, GeneratorOverride>, kind: Exclude<Busy, null>) => {
+    if (id.isGuest) {
+      id.askLogin();
+      return;
     }
-    setBusy(true);
+    if (busyRef.current) return;
+    const input = checkJson(inputText);
+    const output = checkJson(outputText);
+    if (!input.ok || !output.ok) return;
+    const mine = ++requestId.current;
+    busyRef.current = true;
+    setBusy(kind);
     setError(null);
     try {
-      const r = await generateSpec(parsedInput.value, parsedOutput.value, overrides, next === 'spec');
+      const r = await generateSpec(input.value, output.value, overrides, kind === 'spec');
+      if (mine !== requestId.current) return;
       setResult(r);
-      setStep(next);
+      if (kind === 'gerar') {
+        setSaved({});
+        setApplied({});
+        setSpecReady(false);
+        setStep('regras');
+      } else if (kind === 'aplicar') {
+        setApplied({ ...saved });
+        setSpecReady(false);
+      } else {
+        setApplied({ ...saved });
+        setSpecReady(true);
+        setStep('spec');
+      }
       setEditing(null);
     } catch (e) {
+      if (mine !== requestId.current) return;
       setError(e instanceof Error ? e.message : 'Não foi possível gerar a spec.');
     } finally {
-      setBusy(false);
+      if (mine === requestId.current) {
+        busyRef.current = false;
+        setBusy(null);
+      }
     }
   };
 
   const buildOverrides = (): Record<string, GeneratorOverride> => {
     const out: Record<string, GeneratorOverride> = {};
-    for (const [field, draft] of Object.entries(drafts)) {
+    for (const [field, draft] of Object.entries(saved)) {
       const o = overrideFromDraft(draft, exampleValue(outputValue, field));
       if (o) out[field] = o;
     }
@@ -329,315 +261,511 @@ export default function JoltGeneratorPage() {
   const rules = result?.rules ?? [];
   const visible = rules.filter((r) => matchesFilter(r, filter));
   const { pending, groups } = groupRules(visible);
-  const pendingOpen = rules.filter((r) => r.pending && !drafts[r.output]).length;
-  const unresolved = rules.filter((r) => r.kind === 'UNRESOLVED').length;
-  const resolved = rules.length - rules.filter((r) => r.pending).length;
+  const pendingOpen = rules.filter((r) => r.pending && !saved[r.output]).length;
+  const adjustedCount = Object.keys(saved).length;
+  const dirtyCount = useMemo(() => {
+    const keys = new Set([...Object.keys(saved), ...Object.keys(applied)]);
+    let n = 0;
+    keys.forEach((k) => {
+      if (draftKey(saved[k]) !== draftKey(applied[k])) n += 1;
+    });
+    return n;
+  }, [saved, applied]);
+  const specBlocked = pendingOpen > 0 || dirtyCount > 0;
+  const counts = {
+    todos: rules.length,
+    pendentes: rules.filter((r) => r.pending).length,
+    calculados: rules.filter((r) => CALCULATED.includes(r.kind)).length,
+    fixos: rules.filter((r) => r.kind === 'CONSTANT' || r.kind === 'VARIABLE').length,
+  };
+
   const specText = result ? JSON.stringify(result.spec, null, 2) : '';
   const routeRecord = useMemo(() => (result ? buildRouteRecord(routeForm, result.spec) : null), [routeForm, result]);
   const recordText = routeRecord ? JSON.stringify(routeRecord, null, 2) : '';
   const shownText = codeTab === 'spec' ? specText : recordText;
 
-  const toggleEdit = (rule: GeneratorRule) => {
-    if (editing === rule.output) {
+  const openEditor = (rule: GeneratorRule) => {
+    if (editing?.output === rule.output) {
       setEditing(null);
       return;
     }
-    setDrafts((d) => (d[rule.output] ? d : { ...d, [rule.output]: draftFromRule(rule, outputValue) }));
-    setEditing(rule.output);
+    setEditing({ output: rule.output, draft: saved[rule.output] ?? draftFromRule(rule, outputValue), error: null });
   };
 
-  const rowProps = (rule: GeneratorRule) => ({
-    rule,
-    draft: drafts[rule.output],
-    sources: result?.sources[rule.scope] ?? [],
-    editing: editing === rule.output,
-    onEdit: () => toggleEdit(rule),
-    onChange: (d: RuleDraft) => setDrafts((all) => ({ ...all, [rule.output]: d })),
-    onCancel: () => {
-      setDrafts((all) => {
-        const next = { ...all };
-        delete next[rule.output];
-        return next;
-      });
-      setEditing(null);
-    },
-  });
+  const saveAdjustment = (rule: GeneratorRule) => {
+    if (!editing) return;
+    const o = overrideFromDraft(editing.draft, exampleValue(outputValue, rule.output));
+    if (!o) {
+      const message = editing.draft.kind === 'VALUE_MAP' && editing.draft.source ? 'Informe pelo menos um valor da entrada no de-para.' : 'Escolha de onde vem o campo.';
+      setEditing({ ...editing, error: message });
+      return;
+    }
+    setSaved((all) => ({ ...all, [rule.output]: editing.draft }));
+    setEditing(null);
+  };
+
+  const undoAdjustment = (rule: GeneratorRule) => {
+    setSaved((all) => {
+      const next = { ...all };
+      delete next[rule.output];
+      return next;
+    });
+    setEditing(null);
+    toast({ title: 'Ajuste desfeito' });
+  };
+
+  const renderRule = (rule: GeneratorRule) => {
+    const isEditing = editing?.output === rule.output;
+    return (
+      <RuleRow
+        key={rule.output}
+        rule={rule}
+        adjustedDraft={saved[rule.output]}
+        editing={isEditing}
+        onToggle={() => openEditor(rule)}
+        panel={
+          editing && isEditing ? (
+            <RuleEditorPanel
+              rule={rule}
+              draft={editing.draft}
+              sources={result?.sources[rule.scope] ?? []}
+              adjusted={!!saved[rule.output]}
+              error={editing.error}
+              onChange={(d) => setEditing({ ...editing, draft: d, error: null })}
+              onCancel={() => setEditing(null)}
+              onSave={() => saveAdjustment(rule)}
+              onUndo={() => undoAdjustment(rule)}
+            />
+          ) : null
+        }
+      />
+    );
+  };
 
   const copySpec = async () => {
     try {
       await navigator.clipboard.writeText(shownText);
-      toast(codeTab === 'spec'
-        ? { title: 'Spec copiada', description: 'Cole em LAYOUTTRANSFORMACAO.' }
-        : { title: 'Registro da rota copiado', description: 'É o arquivo completo de PCINTEGRACAOROTASERVICO.' });
+      toast(
+        codeTab === 'spec'
+          ? { title: 'Spec copiada', description: 'Cole em LAYOUTTRANSFORMACAO.' }
+          : { title: 'Registro da rota copiado', description: 'É o arquivo completo de PCINTEGRACAOROTASERVICO.' },
+      );
     } catch {
       toast({ variant: 'destructive', title: 'Não foi possível copiar' });
     }
   };
 
+  /** Leva a spec (ou o registro completo da rota) para a Sandbox. Se a passagem não couber no navegador, fica aqui e avisa. */
   const openSandbox = () => {
-    try {
-      localStorage.setItem('jolt_visual_generated_spec', specText);
-      localStorage.setItem('jolt_visual_input_json', inputText);
-    } catch {
-      /* sem storage: abre a Sandbox vazia */
+    const sendRecord = codeTab === 'registro' && !!recordText;
+    const r = sendToSandbox({ spec: sendRecord ? recordText : specText, input: inputText, deManutencao: sendRecord });
+    if (!r.ok) {
+      toast({
+        title: 'Não foi possível levar a spec para a Sandbox',
+        description: `${storeFailureMessage(r.reason, 'a spec')} Use Copiar e cole na Sandbox.`,
+        variant: 'destructive',
+      });
+      return;
     }
     router.push('/jolt/sandbox');
   };
 
+  const pasteInto = async (set: (v: string) => void, label: string) => {
+    try {
+      set(await navigator.clipboard.readText());
+    } catch {
+      toast({ title: 'Não foi possível colar', description: `Permita o acesso à área de transferência ou cole ${label} direto no editor.`, variant: 'destructive' });
+    }
+  };
+
+  const formatInto = (text: string, set: (v: string) => void, label: string) => {
+    const formatted = formatJson(text);
+    if (formatted === null) {
+      toast({ title: `Não foi possível formatar ${label}`, description: 'Corrija o erro de sintaxe antes de formatar.', variant: 'destructive' });
+      return;
+    }
+    set(formatted);
+  };
+
+  const useExample = () => {
+    setInputText(exampleInputText());
+    setOutputText(exampleOutputText());
+    if (result) resetResult();
+    toast({ title: 'Exemplo carregado', description: 'Um pedido de venda e a saída que o destino espera.' });
+  };
+
+  const exampleFooter = (text: string, check: ReturnType<typeof checkJson> | null, label: string) => {
+    if (!text.trim()) return undefined;
+    if (check && !check.ok) return <SyntaxErrorStrip text={describeProblem(`JSON da ${label} inválido`, check.problem)} />;
+    if (check?.ok) {
+      return (
+        <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+          <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-emerald-500" />
+          JSON válido · {lineCount(text)} linhas
+        </div>
+      );
+    }
+    return undefined;
+  };
+
+  const canGenerate = inputOk && outputOk && !busy;
+  const validation = result?.validation;
+  const reach = { regras: !!result, spec: specReady };
+  const goStep = (s: Step) => {
+    if ((s === 'regras' && !reach.regras) || (s === 'spec' && !reach.spec)) return;
+    setStep(s);
+  };
+
   return (
-    <PageShell documentTitle="Gerador de spec" width="wide" contentClassName={result && step === 'regras' ? 'pb-32' : undefined}>
+    <PageShell documentTitle="Gerador de spec" width="wide" header={joltHeaderProps(id.isGuest)}>
+      <JoltNav active="gerador" />
       <PageHeader
         title="Gerador de spec"
         module="jolt"
-        breadcrumb={[{ label: 'Jolt', href: '/jolt' }, { label: 'Gerador de spec' }]}
-        subtitle="Cole os exemplos de entrada e de saída e o gerador monta a spec Jolt."
+        subtitle="Dê a entrada e a saída esperada. O portal descobre de onde vem cada campo e monta a spec."
+        actions={
+          <Button variant="outline" onClick={() => setHowOpen(true)} aria-label="Abrir Como funciona" className="h-10 gap-2 rounded-[10px] px-4 font-semibold">
+            <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            Como funciona
+          </Button>
+        }
       />
-      <Stepper step={step} onGo={setStep} hasResult={!!result} />
 
-      <div className="w-full">
-        {error && (
-          <div role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-destructive">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+      {id.isGuest && (
+        <GuestBanner onLogin={id.askLogin}>
+          <strong>Entre para gerar.</strong> A spec é conferida no servidor do portal, então gerar pede login.
+        </GuestBanner>
+      )}
+
+      <Stepper step={step} onGo={goStep} reach={reach} />
+
+      {error && (
+        <Notice tone="danger" icon={TriangleAlert} role="alert">
+          {error}
+        </Notice>
+      )}
+      {draftIssue && (
+        <Notice tone="warn" icon={TriangleAlert} role="status" className="text-[13px]">
+          <strong>Rascunho não guardado.</strong> {storeFailureMessage(draftIssue, 'o rascunho')}
+        </Notice>
+      )}
+
+      {step === 'exemplos' && (
+        <section aria-label="Exemplos" className="flex flex-col gap-3.5">
+          <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
+            <JsonEditor
+              title="Entrada"
+              subtitle="JSON que a API de origem (ERP) envia"
+              value={inputText}
+              onChange={changeInput}
+              heightClassName="h-[420px] xl:h-[520px]"
+              actions={
+                <>
+                  <PaneButton onClick={() => void pasteInto(changeInput, 'a entrada')}>Colar</PaneButton>
+                  <PaneButton onClick={() => formatInto(inputText, changeInput, 'a entrada')} disabled={!inputText.trim()}>Formatar</PaneButton>
+                  <PaneButton onClick={useExample}>Usar exemplo</PaneButton>
+                </>
+              }
+              footer={exampleFooter(deferredInput, inputCheck, 'entrada')}
+            />
+            <JsonEditor
+              title="Saída esperada"
+              subtitle="JSON que a API de destino espera receber"
+              value={outputText}
+              onChange={changeOutput}
+              heightClassName="h-[420px] xl:h-[520px]"
+              actions={
+                <>
+                  <PaneButton onClick={() => void pasteInto(changeOutput, 'a saída')}>Colar</PaneButton>
+                  <PaneButton onClick={() => formatInto(outputText, changeOutput, 'a saída')} disabled={!outputText.trim()}>Formatar</PaneButton>
+                  <PaneButton onClick={useExample}>Usar exemplo</PaneButton>
+                </>
+              }
+              footer={exampleFooter(deferredOutput, outputCheck, 'saída')}
+            />
           </div>
-        )}
 
-        {step === 'exemplos' && (
-          <section aria-labelledby="exemplos-titulo" className="space-y-4">
-            <div>
-              <h2 id="exemplos-titulo" className="text-xl font-bold tracking-tight">Do exemplo à spec</h2>
-              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                Cole a resposta da API de origem e a saída que a API de destino espera. O gerador descobre de onde vem cada campo e monta a spec Jolt. Você só confirma o que for ambíguo.
-              </p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+            <div className="flex min-w-[300px] flex-1 flex-col gap-1">
+              <h2 className="text-[15px] font-bold text-foreground">Como o portal acha as origens</h2>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{MODE_DETECTION_TEXT}</p>
             </div>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {[
-                { id: 'entrada', label: 'Entrada · API de origem', hint: 'Resposta real, com um ou poucos registros.', text: inputText, set: setInputText, parsed: parsedInput },
-                { id: 'saida', label: 'Saída esperada · API de destino', hint: 'Melhor com os valores do mesmo registro da entrada. Valores do contrato ("string", 0) também servem.', text: outputText, set: setOutputText, parsed: parsedOutput },
-              ].map((box) => (
-                <div key={box.id} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-                  <label htmlFor={box.id} className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{box.label}</label>
-                  <p className="text-xs text-muted-foreground">{box.hint}</p>
-                  <textarea
-                    id={box.id}
-                    value={box.text}
-                    onChange={(e) => box.set(e.target.value)}
-                    spellCheck={false}
-                    rows={18}
-                    className="min-h-[320px] w-full resize-y rounded-xl border border-input bg-background p-3 font-code text-[12.5px] leading-relaxed text-foreground"
-                    placeholder='{ "items": [ ... ] }'
-                  />
-                  {box.text.trim() && !box.parsed.ok && (
-                    <p role="alert" className="text-xs font-semibold text-destructive">{box.parsed.error}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                disabled={!parsedInput.ok || !parsedOutput.ok || busy}
-                onClick={() => {
-                  setDrafts({});
-                  void run({}, 'regras');
-                }}
-                className="h-11 rounded-xl px-6 text-sm font-extrabold"
-              >
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Gerar regras
-              </Button>
-            </div>
-          </section>
-        )}
+            <ModalButton
+              variant="primary"
+              onClick={() => (id.isGuest ? id.askLogin() : void run({}, 'gerar'))}
+              disabled={id.isGuest ? false : !canGenerate}
+              className="h-11 gap-2 px-5"
+            >
+              {busy === 'gerar' ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Wand2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+              {busy === 'gerar' ? 'Gerando regras…' : 'Gerar regras'}
+            </ModalButton>
+            {!id.isGuest && !canGenerate && !busy && (
+              <p className="basis-full text-xs text-muted-foreground">Cole a entrada e a saída esperada, ambas como JSON válido, para gerar as regras.</p>
+            )}
+          </div>
+        </section>
+      )}
 
-        {step === 'regras' && result && (
-          <section aria-labelledby="regras-titulo" className="space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h1 id="regras-titulo" className="font-headline text-2xl font-bold tracking-tight">Como cada campo da saída é montado</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {result.mode === 'CONTRATO'
-                    ? 'A saída é o exemplo do contrato, sem valores: cada origem foi sugerida pelo nome do campo e a regra pelo tipo. Confirme ou escolha o que está em laranja.'
-                    : 'Inferido comparando a entrada com a saída. Confirme ou ajuste o que está em laranja.'}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs font-extrabold">
-                <span className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-emerald-800 dark:text-emerald-300">{resolved} resolvidos</span>
-                <span className="rounded-full bg-orange-500/15 px-3 py-1.5 text-orange-900 dark:text-orange-300">{pendingOpen} a confirmar</span>
-                <span className="rounded-full bg-muted px-3 py-1.5 text-foreground">{unresolved} sem origem</span>
-              </div>
-            </div>
-
-            <div role="group" aria-label="Filtro" className="inline-flex flex-wrap gap-1 rounded-xl bg-muted p-1">
-              {([
-                ['todos', `Todos (${rules.length})`],
+      {step === 'regras' && result && (
+        <section aria-label="Regras" className="flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {(
+              [
+                ['todos', 'Todos'],
                 ['pendentes', 'A confirmar'],
                 ['calculados', 'Calculados'],
-                ['fixos', 'Fixos e variáveis'],
-              ] as [Filter, string][]).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={filter === id}
-                  onClick={() => setFilter(id)}
-                  className={cn('h-9 rounded-lg px-3.5 text-xs font-bold', filter === id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
-                >
-                  {label}
-                </button>
-              ))}
+                ['fixos', 'Fixos'],
+              ] as [Filter, string][]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filter === key}
+                onClick={() => setFilter(key)}
+                className={cn(
+                  'inline-flex h-[34px] items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors duration-fast',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  filter === key
+                    ? 'border-primary/60 bg-primary/10 text-foreground dark:bg-primary/15'
+                    : key === 'pendentes' && counts.pendentes > 0
+                      ? 'border-transparent bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {label}
+                <span className="text-xs tabular-nums opacity-80">{counts[key]}</span>
+              </button>
+            ))}
+            <span className="flex-1" />
+            <span className="text-[13px] text-muted-foreground">Confira a coluna «Vem de». Só os campos em dúvida pedem ajuste.</span>
+          </div>
+
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <strong className="text-foreground">Modo detectado: {MODE_INFO[result.mode].label}.</strong> {MODE_INFO[result.mode].long}
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className={cn('hidden gap-x-4 border-b border-border bg-muted/50 px-5 py-2.5 text-xs font-bold text-muted-foreground md:grid', RULE_GRID)}>
+              <span>Campo da saída</span>
+              <span>Vem de</span>
+              <span>Regra</span>
+              <span>Exemplo</span>
+              <span className="sr-only">Ação</span>
             </div>
 
             {pending.length > 0 && (
-              <section className="overflow-hidden rounded-2xl border-[1.5px] border-orange-300 bg-card dark:border-orange-500/40">
-                <h2 className="flex items-center gap-2 border-b border-orange-200 bg-orange-500/[0.06] px-5 py-3 text-[15px] font-extrabold dark:border-orange-500/30">
-                  <AlertCircle className="h-4 w-4 text-primary" aria-hidden /> A confirmar
-                  <span className="text-[13px] font-medium text-muted-foreground">mais de uma origem possível, ou regra que o exemplo não prova sozinho</span>
+              <section aria-label="A confirmar">
+                <h2 className="flex items-center gap-2.5 border-b border-border bg-amber-500/10 px-5 py-2.5 text-sm font-bold text-amber-900 dark:text-amber-200">
+                  A confirmar
+                  <span className="text-xs font-semibold text-muted-foreground">{pending.length} campos precisam da sua decisão: mais de uma origem possível, ou uma regra que o exemplo não prova sozinho</span>
                 </h2>
-                <ul>
-                  {pending.map((r) => (
-                    <RuleRow key={r.output} {...rowProps(r)} />
-                  ))}
-                </ul>
+                <ul>{pending.map(renderRule)}</ul>
               </section>
             )}
 
             {groups.map((g) => (
-              <section key={g.scope} className="overflow-hidden rounded-2xl border border-border bg-card">
-                <h2 className="border-b border-border px-5 py-3 text-[15px] font-extrabold">
-                  {scopeLabel(g.scope)} <span className="text-[13px] font-medium text-muted-foreground">· {g.rules.length} campos</span>
+              <section key={g.scope || 'raiz'} aria-label={scopeLabel(g.scope)}>
+                <h2 className="flex items-center gap-2.5 border-b border-t border-border bg-muted/40 px-5 py-2.5 text-sm font-bold text-foreground first:border-t-0">
+                  {scopeLabel(g.scope)}
+                  <span className="text-xs font-semibold text-muted-foreground">{g.rules.length} campos</span>
                 </h2>
-                <ul>
-                  {g.rules.map((r) => (
-                    <RuleRow key={r.output} {...rowProps(r)} />
-                  ))}
-                </ul>
+                <ul>{g.rules.map(renderRule)}</ul>
               </section>
             ))}
-          </section>
-        )}
 
-        {step === 'spec' && result && (
-          <section aria-labelledby="spec-titulo" className="space-y-4">
-            {result.validation.matches ? (
-              <div className="flex flex-wrap items-center gap-4 rounded-2xl border-[1.5px] border-emerald-300 bg-card p-5 dark:border-emerald-500/40">
-                <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
-                <div>
-                  <h1 id="spec-titulo" className="text-xl font-extrabold">
-                    {result.mode === 'CONTRATO' ? 'A saída gerada cumpre o contrato' : 'A saída gerada bate com a esperada'}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    A spec foi rodada no motor Java com a sua entrada:{' '}
-                    <strong className="text-foreground">
-                      {result.validation.checkedFields} {result.mode === 'CONTRATO' ? 'campos presentes e com o tipo do contrato' : 'campos iguais'}
-                    </strong>
-                    , nenhum a mais.
-                  </p>
-                  {Object.keys(drafts).length > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      As origens que você escolheu entraram no glossário da equipe: na próxima rota, esses campos já vêm ligados.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border-[1.5px] border-orange-300 bg-card p-5 dark:border-orange-500/40">
-                <h1 id="spec-titulo" className="text-xl font-extrabold">
-                  {result.mode === 'CONTRATO' ? 'A saída gerada ainda não cumpre o contrato' : 'A saída gerada ainda não bate'}
-                </h1>
-                {result.validation.error ? (
-                  <p className="mt-1 text-sm text-destructive">O motor recusou a spec: {result.validation.error}</p>
-                ) : (
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {result.validation.differences.map((d) => (
-                      <li key={d.path + d.kind} className="font-code text-[12.5px]">
-                        <strong>{d.path}</strong> · {d.kind}: esperado {JSON.stringify(d.expected)}, gerado {JSON.stringify(d.actual)}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+            {pending.length === 0 && groups.length === 0 && (
+              <p className="px-5 py-7 text-center text-sm text-muted-foreground">Nenhum campo neste filtro.</p>
             )}
+          </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div
+            role="region"
+            aria-label="Resumo e ações"
+            className="sticky bottom-3 z-10 mt-auto flex w-full flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.18)]"
+          >
+            <span className="text-sm font-bold text-foreground">{rules.length} campos</span>
+            <StatusChip tone={pendingOpen ? 'warn' : 'success'} className="h-[26px] px-2.5 text-[13px] font-bold">{pendingOpen} a confirmar</StatusChip>
+            <StatusChip tone="neutral" className="h-[26px] px-2.5 text-[13px]">{adjustedCount} ajustados</StatusChip>
+            <span className="min-w-[160px] flex-1 text-[13px] text-muted-foreground">
+              {pendingOpen
+                ? 'Confirme os campos em «A confirmar» para gerar a spec.'
+                : dirtyCount
+                  ? 'Aplique os ajustes antes de gerar a spec.'
+                  : 'Tudo confirmado. Pode gerar a spec.'}
+            </span>
+            <ModalButton onClick={() => setStep('exemplos')} className="h-10 gap-2">
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              Voltar aos exemplos
+            </ModalButton>
+            <ModalButton onClick={() => void run(buildOverrides(), 'aplicar')} disabled={dirtyCount === 0 || !!busy} className="h-10 gap-2">
+              {busy === 'aplicar' && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
+              Aplicar ajustes ({dirtyCount})
+            </ModalButton>
+            <ModalButton variant="primary" onClick={() => void run(buildOverrides(), 'spec')} disabled={specBlocked || !!busy} className="h-10 gap-2">
+              {busy === 'spec' && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
+              {busy === 'spec' ? 'Conferindo no servidor…' : 'Gerar spec'}
+              {busy !== 'spec' && <ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+            </ModalButton>
+          </div>
+        </section>
+      )}
+
+      {step === 'spec' && result && validation && (
+        <section aria-label="Spec e validação" className="flex flex-col gap-3.5">
+          {!validation.ran ? (
+            <Notice
+              tone="warn"
+              icon={TriangleAlert}
+              role="alert"
+              action={<ModalButton variant="primary" onClick={openSandbox} className="h-10">Abrir na Sandbox<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /></ModalButton>}
+            >
+              <strong className="text-base">A spec foi gerada, mas não foi conferida</strong>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                O servidor não rodou a conferência{validation.error ? `: ${validation.error}` : '.'} Abra a spec na Sandbox e execute com a sua entrada antes de usar.
+              </p>
+            </Notice>
+          ) : validation.matches ? (
+            <Notice
+              tone="success"
+              icon={CheckCircle2}
+              role="status"
+              action={<ModalButton variant="primary" onClick={openSandbox} className="h-10">Abrir na Sandbox<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /></ModalButton>}
+            >
+              <strong className="text-base">{result.mode === 'CONTRATO' ? 'A spec gera a saída do contrato' : 'A spec gera a saída esperada'}</strong>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                O servidor rodou a spec com a sua entrada e comparou campo a campo:{' '}
+                <strong className="text-foreground">
+                  {validation.checkedFields} {result.mode === 'CONTRATO' ? 'campos presentes e com o tipo do contrato' : 'campos iguais'}
+                </strong>
+                , nenhum a mais.
+                {adjustedCount > 0 && ' As origens que você escolheu foram gravadas no glossário da equipe.'}
+              </p>
+            </Notice>
+          ) : (
+            <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-4">
+              <div className="flex flex-wrap items-center gap-3.5">
+                <TriangleAlert className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+                <div className="flex min-w-[260px] flex-1 flex-col gap-0.5">
+                  <strong className="text-base text-foreground">
+                    {validation.error
+                      ? 'O servidor recusou a spec'
+                      : `${result.mode === 'CONTRATO' ? 'A saída gerada ainda não cumpre o contrato' : 'A spec gera'} ${validation.differences.length} ${validation.differences.length === 1 ? 'diferença' : 'diferenças'}`}
+                  </strong>
+                  <span className="text-sm text-muted-foreground">
+                    {validation.error
+                      ? validation.error
+                      : `O servidor rodou a spec e comparou campo a campo (${validation.checkedFields} campos conferidos). O glossário da equipe só grava as origens quando a spec bate.`}
+                  </span>
+                </div>
+                <ModalButton onClick={() => setStep('regras')} className="h-10">Voltar às regras</ModalButton>
+                <ModalButton variant="primary" onClick={openSandbox} className="h-10">Abrir na Sandbox<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /></ModalButton>
+              </div>
+              {validation.differences.length > 0 && (
+                <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                  <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
+                    <thead>
+                      <tr className="bg-muted/50 text-xs font-bold text-muted-foreground">
+                        <th scope="col" className="px-3.5 py-2">Campo</th>
+                        <th scope="col" className="px-3.5 py-2">Esperado</th>
+                        <th scope="col" className="px-3.5 py-2">Obtido</th>
+                        <th scope="col" className="px-3.5 py-2">Como resolver</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.differences.map((d) => (
+                        <tr key={d.path + d.kind} className="border-t border-border align-top">
+                          <td className="px-3.5 py-2.5 font-code">{d.path}</td>
+                          <td className="px-3.5 py-2.5 font-code text-emerald-700 dark:text-emerald-300">{describeValue(d.expected)}</td>
+                          <td className="px-3.5 py-2.5 font-code text-amber-800 dark:text-amber-300">{describeValue(d.actual)}</td>
+                          <td className="px-3.5 py-2.5 text-muted-foreground">{suggestFix(d)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <strong className="text-foreground">Modo detectado: {MODE_INFO[result.mode].label}.</strong> {MODE_INFO[result.mode].long}
+          </p>
+
+          <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+            <section aria-label="O que a spec faz" className="flex flex-col gap-2.5">
+              <h2 className="text-[15px] font-bold text-foreground">O que a spec faz</h2>
               {result.spec.map((op, i) => {
                 const d = describeOperation(op, i, result.spec.length);
                 return (
-                  <div key={i} className="rounded-xl border border-border bg-card p-4">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Passo {i + 1}</span>
-                    <code className="mt-1 block font-code text-[13px] font-semibold">{d.name}</code>
-                    <p className="mt-1 text-[13px] text-muted-foreground">{d.what}</p>
+                  <div key={i} className="flex flex-col gap-1.5 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm">
+                    <span className="flex items-center gap-2">
+                      <StatusChip tone="brand" className="font-bold">Passo {i + 1}</StatusChip>
+                      <span className="font-code text-[13px] text-muted-foreground">{d.name}</span>
+                    </span>
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">{d.what}</p>
                   </div>
                 );
               })}
-            </div>
+            </section>
 
-            <div className="flex flex-wrap items-start gap-4">
-              <section className="min-w-0 flex-[999_1_560px] overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-                  <div role="tablist" aria-label="Formato" className="inline-flex gap-1 rounded-lg bg-muted p-1">
-                    {([
-                      ['spec', 'LAYOUTTRANSFORMACAO'],
-                      ['registro', 'Registro completo da rota'],
-                    ] as ['spec' | 'registro', string][]).map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        role="tab"
-                        aria-selected={codeTab === id}
-                        onClick={() => setCodeTab(id)}
-                        className={cn('h-8 rounded-md px-3 font-code text-xs', codeTab === id ? 'bg-background font-semibold text-foreground shadow-sm' : 'text-muted-foreground')}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={copySpec}>
-                      <Copy className="mr-1.5 h-3.5 w-3.5" /> Copiar
-                    </Button>
-                    <Button type="button" size="sm" onClick={openSandbox}>Abrir na Sandbox</Button>
-                  </div>
+            <section aria-label="Resultado" className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pl-1.5 pr-3">
+                <div role="tablist" aria-label="Resultado" className="flex gap-1">
+                  {(
+                    [
+                      ['spec', 'Layout'],
+                      ['registro', 'Registro da rota'],
+                    ] as ['spec' | 'registro', string][]
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={codeTab === key}
+                      onClick={() => setCodeTab(key)}
+                      className={cn(
+                        '-mb-px h-12 border-b-2 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                        codeTab === key ? 'border-primary font-bold text-foreground' : 'border-transparent text-muted-foreground',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <pre className="max-h-[640px] overflow-auto bg-card p-4 font-code text-xs leading-relaxed text-foreground">{shownText}</pre>
-              </section>
-              <div className="min-w-0 flex-[1_1_320px] lg:max-w-[440px]">
-                <RouteRecordPanel
-                  form={routeForm}
-                  onChange={setRouteForm}
-                  variables={routeRecord ? routeVariables(routeRecord) : []}
-                  problems={routeProblems(routeForm)}
-                  onLoadedSpec={() => {
-                    setCodeTab('registro');
-                    toast({ title: 'Registro carregado', description: 'Serviço, requisição e flags vieram do registro; a spec é a gerada aqui.' });
-                  }}
-                />
+                <span className="inline-flex gap-1.5">
+                  <PaneButton onClick={() => void copySpec()} className="gap-1.5">
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                    Copiar
+                  </PaneButton>
+                  <PaneButton onClick={openSandbox}>Abrir na Sandbox</PaneButton>
+                </span>
               </div>
-            </div>
-          </section>
-        )}
-      </div>
+              <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+                {codeTab === 'spec'
+                  ? 'Valor do campo LAYOUTTRANSFORMACAO: é o que roda a transformação.'
+                  : 'Registro completo da rota, pronto para guardar no repositório de layouts.'}
+              </p>
+              <pre aria-label={codeTab === 'spec' ? 'Spec gerada' : 'Registro da rota'} className="max-h-[640px] min-h-[320px] overflow-auto bg-background p-4 font-code text-[13px] leading-relaxed text-foreground">
+                {shownText}
+              </pre>
+            </section>
 
-      {result && step === 'regras' && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-6px_24px_rgba(0,0,0,0.06)] backdrop-blur md:px-8">
-          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3">
-            <p className="text-sm">
-              <strong>{rules.length} campos</strong> · <span className="font-bold text-orange-800 dark:text-orange-300">{pendingOpen} a confirmar</span>
-              {Object.keys(drafts).length > 0 && <> · {Object.keys(drafts).length} ajustado(s)</>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep('exemplos')}>
-                <ArrowLeft className="mr-1.5 h-4 w-4" /> Exemplos
-              </Button>
-              {Object.keys(drafts).length > 0 && (
-                <Button type="button" variant="outline" disabled={busy} onClick={() => void run(buildOverrides(), 'regras')}>
-                  {busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Aplicar ajustes
-                </Button>
-              )}
-              <Button type="button" disabled={busy} onClick={() => void run(buildOverrides(), 'spec')}>
-                Gerar spec <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            </div>
+            <RouteRecordPanel
+              form={routeForm}
+              onChange={setRouteForm}
+              variables={routeRecord ? routeVariables(routeRecord) : []}
+              problems={routeProblems(routeForm)}
+              onLoadedSpec={() => {
+                setCodeTab('registro');
+                toast({ title: 'Registro carregado', description: 'Serviço, requisição e flags vieram do registro; a spec é a gerada aqui.' });
+              }}
+            />
           </div>
-        </div>
+        </section>
       )}
+
+      <JoltHowItWorks open={howOpen} onOpenChange={setHowOpen} />
+      <LoginRequiredDialog open={id.loginOpen} onOpenChange={(o) => (o ? id.askLogin() : id.closeLogin())} onLogin={id.goLogin} />
     </PageShell>
   );
 }
