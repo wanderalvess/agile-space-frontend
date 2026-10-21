@@ -68,8 +68,8 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 36. **Cliente HTTP do DevTools:** o CSP só libera alguns destinos. Manter, liberar hosts específicos ou abrir `https:` inteiro (enfraquece a proteção contra XSS)?
 37. Expor na tela o compartilhamento de projeto Jolt (o servidor já suporta público e squad).
-38. O hub do DevTools promete que o conteúdo não sai da máquina, mas CEP, IP, Zephyr e o Gerador JUnit avançado enviam dados a terceiros; o PAT do Jira e a chave do Gemini ficam em texto puro no `localStorage`.
-39. `/api/mock-config` guarda mocks na memória do servidor (compartilhados e perdidos no deploy) e a tela não os usa: remover ou dar dono e persistência.
+38. (Parcialmente resolvida em 2026-10: o hub não promete mais que nada sai da máquina; os selos, o aviso por ferramenta e o Guia dizem quais usam serviço externo.) Continua: o PAT do Jira e a chave do Gemini ficam em texto puro no `localStorage`.
+39. (Resolvida em 2026-10: `/api/mock-config` foi removida com o Estúdio de Mocks.) Resta decidir se `src/app/api/mock/[...slug]`, que ficou sem como receber dados, e o item `@nextApi` do Caddyfile também saem.
 40. O **Planejador** (`/sprint-planner`) mostra "Em breve"; o componente de Arquitetura (Excalidraw) e `/agile-tools` não têm funcionalidade.
 
 ## Squad, dashboards, planejamento (`squad.md`, `dashboards-por-papel.md`, `sincronizacao-jira-squad.md`, `planejamento-sprint.md`)

@@ -93,7 +93,7 @@ const fmt = (d: Date) => d.toLocaleString('pt-BR');
 function Row({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
   return (
     <div className="grid gap-1 border-b border-border/60 px-3 py-2 last:border-0 sm:grid-cols-[9rem_1fr]">
-      <dt className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-bold text-muted-foreground">{label}</dt>
       <dd className={cn('break-all text-xs font-medium text-foreground', mono && 'font-code')}>{children}</dd>
     </div>
   );
@@ -109,7 +109,7 @@ function CopyHash({ label, value }: { label: string; value: string }) {
           type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Copiar ${label}`}
           onClick={async () => { try { await navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1400); } catch { /* sem permissão */ } }}
         >
-          {done ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+          {done ? <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-300" /> : <Copy className="h-3 w-3" />}
         </Button>
       </span>
     </Row>
@@ -132,7 +132,7 @@ export default function CertInspectorPage() {
     <DevToolPage
       toolId="cert-inspector"
       actions={
-        <Button variant="outline" size="sm" onClick={() => setPem(makeSample())} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={() => setPem(makeSample())} className="h-8 gap-1.5 rounded-xl text-xs font-bold">
           <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
         </Button>
       }
@@ -141,16 +141,16 @@ export default function CertInspectorPage() {
         <ToolPane title="Certificado PEM" value={pem} onChange={setPem} placeholder={'-----BEGIN CERTIFICATE-----\n…\n-----END CERTIFICATE-----'} error={error} footer="Lido localmente; apenas o primeiro certificado do arquivo é analisado." />
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <header className="flex shrink-0 items-center justify-between border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detalhes</h2>
-            {status === 'ok' && <Badge className="bg-primary text-[10px] font-black uppercase text-primary-foreground">Válido · {info!.daysRemaining} dias</Badge>}
-            {status === 'soon' && <Badge variant="outline" className="text-[10px] font-black uppercase">Expira em {info!.daysRemaining} dias</Badge>}
-            {status === 'expired' && <Badge variant="destructive" className="text-[10px] font-black uppercase">Expirado há {-info!.daysRemaining} dias</Badge>}
+            <h2 className="text-xs font-bold text-muted-foreground">Detalhes</h2>
+            {status === 'ok' && <Badge className="bg-primary text-xs font-bold text-primary-foreground">Válido · {info!.daysRemaining} dias</Badge>}
+            {status === 'soon' && <Badge variant="outline" className="text-xs font-bold">Expira em {info!.daysRemaining} dias</Badge>}
+            {status === 'expired' && <Badge variant="destructive" className="text-xs font-bold">Expirado há {-info!.daysRemaining} dias</Badge>}
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {info ? (
               <dl>
                 <Row label="Subject">{info.subject}</Row>
-                <Row label="Emissor">{info.issuer}{info.selfSigned && <Badge variant="secondary" className="ml-2 text-[10px]">autoassinado</Badge>}</Row>
+                <Row label="Emissor">{info.issuer}{info.selfSigned && <Badge variant="secondary" className="ml-2 text-xs">autoassinado</Badge>}</Row>
                 <Row label="Validade">{fmt(info.notBefore)} → {fmt(info.notAfter)}</Row>
                 <Row label="Nº de série" mono>{info.serial}</Row>
                 <Row label="Assinatura">{info.signatureAlgorithm}</Row>

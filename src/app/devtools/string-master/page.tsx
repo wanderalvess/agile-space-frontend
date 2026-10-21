@@ -81,7 +81,7 @@ export default function StringMasterPage() {
     <DevToolPage
       toolId="string-master"
       actions={
-        <Button variant="outline" size="sm" onClick={() => setInput(SAMPLE)} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={() => setInput(SAMPLE)} className="h-8 gap-1.5 rounded-xl text-xs font-bold">
           <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
         </Button>
       }
@@ -90,12 +90,12 @@ export default function StringMasterPage() {
         {/* Caixa de ferramentas */}
         <aside className="flex max-h-56 min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:max-h-none">
           <header className="shrink-0 border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Caixa de ferramentas</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">Caixa de ferramentas</h2>
           </header>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
             {GROUPS.map(g => (
               <div key={g.title} className="space-y-1">
-                <p className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{g.title}</p>
+                <p className="px-1 text-xs font-bold text-muted-foreground">{g.title}</p>
                 {g.tools.map(t => (
                   <div key={t.id}>
                     <button
