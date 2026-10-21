@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, CalendarPlus, ChevronRight, Trash2, Users } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD, PageHeader } from '@/components/page';
+import { moduleLabel } from '@/lib/modules-registry';
 import { ConfirmDialog, FOCUS_RING, IconButton, ModalButton, StatusChip } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/ceremony-api';
@@ -139,7 +140,7 @@ export function PlannerLobby({ squadId, canCreate, onCreate, reloadKey = 0 }: Pl
   return (
     <>
       <PageHeader
-        title="Planejamento da sprint"
+        title={moduleLabel('sprint-planner')}
         module="sprint-planner"
         subtitle="Capacidade do time, escopo da sprint e quem faz o quê, antes de iniciar a sprint no Jira."
         actions={load.state === 'ok' && load.plans.length > 0 ? createButton : null}
