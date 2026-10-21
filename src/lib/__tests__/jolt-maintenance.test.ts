@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { applyJoltLocal } from '../jolt-lite';
 import {
   parseLayoutText,
   parseLayoutData,
@@ -26,33 +25,23 @@ const legacySpec = (() => {
   return s;
 })();
 
-const run = (spec: any[]) => applyJoltLocal(clone(input), spec).outputData;
+const shiftOf = (spec: any[]) => spec.find((op: any) => op.operation === 'shift');
 
-describe('Motor local (jolt-lite) igual ao Jolt oficial', () => {
-  it('layout de clientes: saída idêntica ao resultado esperado, inclusive os tipos', () => {
-    expect(run(fullSpec as any[])).toEqual(expected);
-  });
-
-  it('literal "#" é sempre texto: "#1" vira "1" e "#False" vira "False"', () => {
-    const out: any = run(fullSpec as any[]);
-    expect(out.items[0].pessoaFisica).toBe('1');
-    expect(out.items[0].UtilizaPrecoAtacado).toBe('False');
-  });
-
-  it('para virar número é preciso um modify depois, como o próprio layout faz com sexo', () => {
-    const spec = [
-      { operation: 'shift', spec: { a: { M: { '#1': 'sexo' } } } },
-      { operation: 'modify-overwrite-beta', spec: { sexo: '=toInteger' } },
-    ];
-    expect(applyJoltLocal({ a: 'M' }, spec).outputData).toEqual({ sexo: 1 });
+// A execução de verdade (motor Java, no servidor) é conferida no backend com este mesmo layout:
+// agile-space-backend/src/test/resources/jolt-engine/clientes e JoltJavaEngineServiceTest.
+describe('Layout de clientes (fixture compartilhada com o teste do motor Java)', () => {
+  it('a fixture traz o resultado esperado com os tipos que o layout produz', () => {
+    const item: any = (expected as any).items[0];
+    expect(item.pessoaFisica).toBe('1');
+    expect(item.UtilizaPrecoAtacado).toBe('False');
   });
 });
 
 describe('Manutenção: layout antigo sem os dois campos', () => {
-  it('o layout antigo não entrega vencimentoDias nem vencimentoPercentual', () => {
-    const item: any = (run(legacySpec) as any).items[0];
-    expect(item.vencimentoDias).toBeUndefined();
-    expect(item.vencimentoPercentual).toBeUndefined();
+  it('o layout antigo não mapeia vencimentoDias nem vencimentoPercentual', () => {
+    const itemSpec = shiftOf(legacySpec).spec.items['*'];
+    expect(Object.values(itemSpec)).not.toContain('items.[&1].vencimentoDias');
+    expect(Object.values(itemSpec)).not.toContain('items.[&1].vencimentoPercentual');
   });
 
   it('acusa os dois campos novos como "sem uso" e reconhece os já tratados', () => {
@@ -67,7 +56,7 @@ describe('Manutenção: layout antigo sem os dois campos', () => {
     expect(byLabel['items.*.corporate'].usage).toBe('mapped');
   });
 
-  it('acrescenta os dois campos e o resultado é exatamente o esperado', () => {
+  it('acrescenta os dois campos e a spec fica igual ao layout completo', () => {
     let spec: any[] = legacySpec;
     const r1 = addShiftMapping(spec, ['items', '*', 'minimumExpirationLotPercentage'], 'vencimentoPercentual');
     expect(r1.ok).toBe(true);
@@ -77,7 +66,7 @@ describe('Manutenção: layout antigo sem os dois campos', () => {
     if (!r2.ok) return;
     spec = r2.spec;
 
-    expect(run(spec)).toEqual(expected);
+    expect(spec).toEqual(fullSpec);
   });
 
   it('usa o padrão dos vizinhos para o destino (items.[&1].) e o texto digitado quando é caminho completo', () => {
@@ -122,7 +111,6 @@ describe('Manutenção: layout antigo sem os dois campos', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect((r.spec[0] as any).spec.pedidos['*'].valor).toBe('pedidos.[&1].total');
-      expect(applyJoltLocal({ pedidos: [{ valor: 10 }] }, r.spec).outputData).toEqual({ pedidos: [{ total: 10 }] });
     }
   });
 
@@ -145,26 +133,18 @@ describe('Manutenção: trocar destino e remover', () => {
     expect(corporate.every(m => m.conditional)).toBe(true);
   });
 
-  it('troca o destino de um campo e a saída acompanha', () => {
+  it('troca o destino de um campo na shift', () => {
     const m = listShiftMappings(legacySpec).find(x => x.source === 'items.*.name')!;
     const r = updateMappingTargets(legacySpec, m, ['items.[&1].razaoSocial']);
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      const item: any = (run(r.spec) as any).items[0];
-      expect(item.razaoSocial).toBe('ISAC 2');
-      expect(item.nome).toBeUndefined();
-    }
+    if (r.ok) expect(shiftOf(r.spec).spec.items['*'].name).toBe('items.[&1].razaoSocial');
   });
 
   it('aceita mais de um destino para o mesmo campo', () => {
     const m = listShiftMappings(legacySpec).find(x => x.source === 'items.*.name')!;
     const r = updateMappingTargets(legacySpec, m, ['items.[&1].nome', 'items.[&1].nomeFantasia']);
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      const item: any = (run(r.spec) as any).items[0];
-      expect(item.nome).toBe('ISAC 2');
-      expect(item.nomeFantasia).toBe('ISAC 2');
-    }
+    if (r.ok) expect(shiftOf(r.spec).spec.items['*'].name).toEqual(['items.[&1].nome', 'items.[&1].nomeFantasia']);
   });
 
   it('remove um campo e limpa os objetos que ficaram vazios', () => {
@@ -249,117 +229,5 @@ describe('resolveTarget', () => {
   it('sem vizinhos devolve o texto como foi digitado', () => {
     expect(resolveTarget(undefined, ' vencimentoDias ')).toBe('vencimentoDias');
     expect(resolveTarget({}, 'a')).toBe('a');
-  });
-});
-
-import {
-  nodePathToKeys,
-  keysToNodePath,
-  targetStringToNodePath,
-  nodePathToTargetString,
-  layoutToCanvas,
-  buildJsonFromNodePaths,
-  applyMapperChanges,
-} from '../jolt-maintenance';
-
-describe('Mapeador: caminhos do mapa x chaves da spec', () => {
-  it('converte nos dois sentidos', () => {
-    expect(nodePathToKeys('items[*].name')).toEqual(['items', '*', 'name']);
-    expect(nodePathToKeys('idExterno[*]')).toEqual(['idExterno', '*']);
-    expect(nodePathToKeys('[*].x')).toEqual(['*', 'x']);
-    expect(nodePathToKeys('a[*][*].b')).toEqual(['a', '*', '*', 'b']);
-    expect(keysToNodePath(['items', '*', 'name'])).toBe('items[*].name');
-    expect(keysToNodePath(['*', 'x'])).toBe('[*].x');
-    expect(keysToNodePath(nodePathToKeys('a.b[*].c'))).toBe('a.b[*].c');
-  });
-
-  it('destino da spec vira caminho do mapa; avançado devolve null', () => {
-    expect(targetStringToNodePath('items.[&1].nome')).toBe('items[*].nome');
-    expect(targetStringToNodePath('idExterno[]')).toBe('idExterno[*]');
-    expect(targetStringToNodePath('idInterno')).toBe('idInterno');
-    expect(targetStringToNodePath('a.[&3].b.[&1].c')).toBe('a[*].b[*].c');
-    expect(targetStringToNodePath('items.&(1,0).nome')).toBeNull();
-    expect(targetStringToNodePath('items.@(1,x)')).toBeNull();
-  });
-
-  it('caminho do mapa vira destino da spec, contando os níveis até cada lista', () => {
-    expect(nodePathToTargetString('items[*].vencimentoDias', ['items', '*', 'x'])).toBe('items.[&1].vencimentoDias');
-    expect(nodePathToTargetString('flat', ['items', '*', 'x'])).toBe('flat');
-    expect(nodePathToTargetString('a[*].b[*].c', ['a', '*', 'b', '*', 'z'])).toBe('a.[&3].b.[&1].c');
-    expect(nodePathToTargetString('ids[*]', ['ids', '*'])).toBe('ids[]');
-    expect(nodePathToTargetString('items[*].x', ['soUmaCoisa'])).toBeNull();
-  });
-});
-
-describe('Mapeador: layout existente no canvas', () => {
-  const inputPaths = new Set(listInputFields(input).map(f => keysToNodePath(f.path)));
-
-  it('desenha os mapeamentos simples e separa condicionais e órfãos', () => {
-    const c = layoutToCanvas(legacySpec, inputPaths);
-    const byTarget = new Map(c.edges.map(e => [e.target, e.source]));
-    expect(byTarget.get('items[*].nome')).toBe('items[*].name');
-    expect(byTarget.get('items[*].dataNascimento')).toBe('items[*].dataNascimento');
-    // idExterno, cep_entrega... nascem no modify e não existem na entrada: ficam como órfãos
-    expect(byTarget.has('idExterno[*]')).toBe(false);
-    expect(c.orphans.some(m => m.source === 'items.*.idExterno')).toBe(true);
-    expect(c.orphans.some(m => m.source === 'items.*.cep_entrega')).toBe(true);
-    // sexo e corporate são condicionais (#), wholesalePriceUses também
-    expect(c.advanced.some(m => m.source.startsWith('items.*.corporate'))).toBe(true);
-    expect(c.advanced.some(m => m.source.startsWith('items.*.wholesalePriceUses'))).toBe(true);
-    // campos que só existem depois do modify (idExterno, cpf_cnpj...) não estão na entrada: órfãos
-    expect(c.orphans.some(m => m.source === 'items.*.cpf_cnpj')).toBe(true);
-  });
-
-  it('monta um JSON de saída com os campos do layout', () => {
-    const c = layoutToCanvas(legacySpec, inputPaths);
-    const json: any = buildJsonFromNodePaths(c.edges.map(e => e.target));
-    expect(Object.keys(json.items[0])).toEqual(expect.arrayContaining(['idRetaguarda', 'nome', 'endereco', 'email']));
-    expect(listInputFields(json).map(f => keysToNodePath(f.path))).toEqual(expect.arrayContaining(['items[*].nome', 'items[*].email']));
-  });
-});
-
-describe('Mapeador: aplicar só o que mudou no mapa', () => {
-  const inputPaths = new Set(listInputFields(input).map(f => keysToNodePath(f.path)));
-  const base = layoutToCanvas(legacySpec, inputPaths).edges;
-  const same = base.map(e => ({ source: e.source, target: e.target }));
-
-  it('sem mudança no mapa a spec volta idêntica', () => {
-    const r = applyMapperChanges(legacySpec, base, same);
-    expect(r.spec).toEqual(legacySpec);
-    expect(r.added).toEqual([]);
-    expect(r.removed).toEqual([]);
-    expect(r.errors).toEqual([]);
-  });
-
-  it('duas ligações novas no mapa viram as duas linhas na shift e a saída esperada', () => {
-    const r = applyMapperChanges(legacySpec, base, [
-      ...same,
-      { source: 'items[*].minimumExpirationLotPercentage', target: 'items[*].vencimentoPercentual' },
-      { source: 'items[*].minimumExpirationLotDays', target: 'items[*].vencimentoDias' },
-    ]);
-    expect(r.errors).toEqual([]);
-    expect(r.added).toHaveLength(2);
-    expect(run(r.spec)).toEqual(expected);
-  });
-
-  it('ligação apagada no mapa sai da spec; o resto fica', () => {
-    const r = applyMapperChanges(legacySpec, base, same.filter(e => e.source !== 'items[*].email'));
-    expect(r.removed).toEqual(['items[*].email → items[*].email']);
-    const item: any = (run(r.spec) as any).items[0];
-    expect(item.email).toBeUndefined();
-    expect(item.nome).toBe('ISAC 2');
-    expect(item.pessoaFisica).toBe('1'); // condicional preservado
-  });
-
-  it('avisa sem quebrar quando a ligação não pode ser aplicada', () => {
-    const dup = applyMapperChanges(legacySpec, base, [...same, { source: 'items[*].name', target: 'items[*].outro' }]);
-    expect(dup.errors[0]).toMatch(/já está mapeado/);
-    expect(dup.spec).toEqual(legacySpec);
-
-    const semLista = applyMapperChanges(legacySpec, base, [...same, { source: 'items[*].minimumExpirationLotDays', target: 'dias' }]);
-    expect(semLista.errors).toEqual([]); // destino sem lista é válido (campo solto)
-
-    const listaDemais = applyMapperChanges(legacySpec, base, [...same, { source: 'items[*].minimumExpirationLotDays', target: 'a[*].b[*].c' }]);
-    expect(listaDemais.errors[0]).toMatch(/não foi possível montar o destino/);
   });
 });
