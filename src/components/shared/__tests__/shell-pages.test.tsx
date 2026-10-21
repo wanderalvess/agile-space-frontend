@@ -28,7 +28,6 @@ vi.mock('../../../components/feedback-widget', () => ({ FeedbackWidget: () => nu
 vi.mock('../../../hooks/useToolHistory', () => ({ useToolHistory: () => ({ history: [], loading: false, removeRoom: vi.fn() }) }));
 vi.mock('../../../services/changelogApi', () => ({ changelogApi: { getPublishedReleases: async () => [] } }));
 vi.mock('../../../app/support/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../app/support/api')>()), supportApi: { listMine: async () => [], getReplies: async () => [], createTicket: vi.fn() } }));
-vi.mock('../../../components/knowledge/GovernanceGuide', () => ({ GovernanceGuide: () => null }));
 vi.mock('../../../components/devtools/DevToolsHub', () => ({ DevToolsHub: () => <div>hub de ferramentas</div> }));
 vi.mock('../../../components/knowledge/GlobalSearch', () => ({ GlobalSearch: () => null }));
 vi.mock('../../../components/onboarding/OnboardingFlow', () => ({ OnboardingFlow: () => <div>fluxo de entrada</div> }));
