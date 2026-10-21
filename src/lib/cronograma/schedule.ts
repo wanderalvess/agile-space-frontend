@@ -5,7 +5,7 @@
 import type { SquadWorkflowPhase } from '@/lib/types';
 import { cascadeStory } from './cascade';
 import {
-  businessDaysBetween, nowPt, ptNum, stampEndPt, stampStartPt, todayDay, type Pt,
+  JORNADA, businessDaysBetween, nowPt, ptNum, stampEndPt, stampStartPt, todayDay, type Pt,
 } from './dates';
 import { resolveWorkflowPhase, type WorkflowPhase } from './phases';
 import { inferSlip, type SlipReason } from './slip';
@@ -13,7 +13,7 @@ import {
   hoursForSuggestion, suggestSchedule, type ResolvedCapacityFn, type Suggestion, type SuggestTask,
 } from './suggest';
 import {
-  computeParentProgress, computeTaskProgress, hasRealDates, isDone, isInProgress, personKeyOf, type CronoTask,
+  computeParentProgress, computeTaskProgress, hasJiraWindow, hasRealDates, isDone, isInProgress, personKeyOf, type CronoTask,
 } from './task';
 
 export type DateOrigin = 'jira' | 'aproximada' | 'sugestao' | 'nenhuma';
@@ -23,7 +23,10 @@ export type DateSource = 'jira' | 'horas';
 export interface Span { start: Pt; end: Pt }
 
 export interface TaskSlip {
+  /** Atraso PRÓPRIO confirmado (fim vencido, não iniciada, concluída tarde) ou simulado, em dias úteis. */
   own: number;
+  /** Dias que 'podem atrasar' (sobrou mais trabalho que prazo): presumido, fica só na própria fase. */
+  presumedDays: number;
   pushed: number;
   shift: number;
   reason: SlipReason;
@@ -41,6 +44,8 @@ export interface PlannedTask {
   planned: Span | null;
   effective: Span | null;
   slip: TaskSlip;
+  /** Janela do Jira sem duração (menos de 1 h): barra mínima e aviso, sem atraso. */
+  zeroWindow: boolean;
 }
 
 export interface StoryModel {
@@ -118,6 +123,7 @@ export function computeSuggestions(groups: StoryGroup[], ctx: BuildContext): Map
         inProgress,
         done,
         doneEnd,
+        fixed: !done && hasRealDates(t) ? { start: stampStartPt(t.start!), end: stampEndPt(t.end!) } : null,
       });
     }
   }
@@ -133,13 +139,24 @@ export function computeSuggestions(groups: StoryGroup[], ctx: BuildContext): Map
   });
 }
 
+/** 1 hora em fração da jornada. */
+const HOUR = 60 / (JORNADA.fimMin - JORNADA.inicioMin);
+
 function spanOfStamps(t: CronoTask): Span | null {
   const a = t.start ?? t.end;
   const b = t.end ?? t.start;
   if (!a || !b) return null;
-  const start = stampStartPt(a);
+  let start = stampStartPt(a);
   let end = stampEndPt(b);
-  if (ptNum(end) < ptNum(start)) end = { day: start.day, frac: 1 };
+  // Barra mínima de 1 hora (início = fim, ou fim antes do início).
+  if (ptNum(end) < ptNum(start) + HOUR - 1e-9) {
+    if (start.frac + HOUR <= 1) {
+      end = { day: start.day, frac: start.frac + HOUR };
+    } else {
+      end = { day: start.day, frac: 1 };
+      start = { day: start.day, frac: 1 - HOUR };
+    }
+  }
   return { start, end };
 }
 
@@ -165,7 +182,7 @@ export function buildStory(
     const phase = resolveWorkflowPhase(task, ctx.phases);
     const suggestion = suggestions.get(task.key) ?? null;
     const capacity = ctx.capacityOf(task.assigneeId, task.assigneeName);
-    const real = hasRealDates(task);
+    const real = hasJiraWindow(task);
     let approx = task.start || task.end ? spanOfStamps(task) : null;
     // Data inventada (criação/última edição) inteira fora da sprint não diz nada sobre quando o trabalho acontece.
     if (approx && ctx.sprintStartDay != null && ctx.sprintEndDay != null
@@ -185,17 +202,22 @@ export function buildStory(
       planned = approx;
     }
     const manual = !!sim && sim.key === task.key && sim.days > 0;
-    const auto = origin === 'jira' ? inferSlip(task, today, capacity.hours) : null;
+    // Janela sem duração não é plano de verdade: nada de atraso. Atraso presumido nunca empurra ninguém.
+    const auto = origin === 'jira' && !task.zeroWindow ? inferSlip(task, today, capacity.hours) : null;
+    const presumed = auto?.reason === 'remaining-work' ? auto : null;
+    const observed = auto && !presumed ? auto : null;
     return {
       task, phase, progress: computeTaskProgress(task), origin, suggestion, capacity, planned, effective: planned,
       slip: {
-        own: manual ? sim!.days : auto?.days ?? 0,
+        own: manual ? sim!.days : observed?.days ?? 0,
+        presumedDays: manual ? 0 : presumed?.days ?? 0,
         pushed: 0,
         shift: 0,
         reason: manual ? 'none' : auto?.reason ?? 'none',
         confidence: manual ? 'observed' : auto?.confidence ?? 'observed',
         manual,
       },
+      zeroWindow: origin === 'jira' && task.zeroWindow,
     };
   });
 
@@ -204,6 +226,8 @@ export function buildStory(
   const casc = cascadeStory(
     rows.filter((r) => r.planned).map((r) => ({
       key: r.task.key, order: r.phase.order, tie: r.task.orderIndex, start: r.planned!.start, end: r.planned!.end, ownSlip: r.slip.own,
+      // Só fase com data real do Jira é empurrada: aproximada ou sugerida fica como está.
+      pushable: r.origin === 'jira' && !r.zeroWindow,
     })),
   );
   for (const r of rows) {
@@ -254,26 +278,39 @@ export interface Kpis {
   phases: number;
   done: number;
   inProgress: number;
+  /** Atrasadas CONFIRMADAS (atraso próprio observado, simulado ou empurrada por fase com data real). */
   delayed: number;
+  /** Podem atrasar: sobrou mais trabalho que prazo (presumido). */
+  mayDelay: number;
+  /** Dias úteis que o fim previsto passa do fim da sprint (0 = cabe). */
+  overrunDays: number;
+  /** O fim previsto vem de sugestão pelas horas. */
+  forecastIsSuggestion: boolean;
   /** Maior fim previsto entre fases com data confiável (Jira ou sugestão); null se não houver. */
   forecastEnd: Pt | null;
 }
 
-export function computeKpis(stories: StoryModel[]): Kpis {
-  let phases = 0, done = 0, inProgress = 0, delayed = 0;
+export function computeKpis(stories: StoryModel[], sprintEndDay?: number | null): Kpis {
+  let phases = 0, done = 0, inProgress = 0, delayed = 0, mayDelay = 0;
   let forecastEnd: Pt | null = null;
+  let forecastIsSuggestion = false;
   for (const s of stories) {
     for (const r of s.tasks) {
       phases += 1;
       if (isDone(r.task)) done += 1;
       else if (isInProgress(r.task)) inProgress += 1;
       if (r.slip.shift > 0) delayed += 1;
+      if (r.slip.presumedDays > 0 && r.slip.shift === 0) mayDelay += 1;
       if (r.effective && (r.origin === 'jira' || r.origin === 'sugestao') && (!forecastEnd || ptNum(r.effective.end) > ptNum(forecastEnd))) {
         forecastEnd = r.effective.end;
+        forecastIsSuggestion = r.origin === 'sugestao';
       }
     }
   }
-  return { phases, done, inProgress, delayed, forecastEnd };
+  const overrunDays = forecastEnd && sprintEndDay != null && (forecastEnd as Pt).day > sprintEndDay
+    ? Math.max(0, businessDaysBetween(sprintEndDay, (forecastEnd as Pt).day))
+    : 0;
+  return { phases, done, inProgress, delayed, mayDelay, overrunDays, forecastIsSuggestion, forecastEnd };
 }
 
 /** Mostrar a faixa "datas aproximadas": alguma subtarefa visível sem datas reais do Jira. */

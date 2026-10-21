@@ -6,21 +6,25 @@ import {
   dayFromYmd, parseDay, ptNum, shiftPt, todayDay, ymdOfDay, type Pt,
 } from './dates';
 import type { PlannedTask, StoryModel } from './schedule';
-import { personKeyOf, type CronoTask } from './task';
+import { isDone, isInProgress, personKeyOf, type CronoTask } from './task';
 
 export const ALL = 'ALL';
 
+export type QuickFilter = 'ALL' | 'LATE' | 'MAY_LATE' | 'DOING' | 'MINE';
+
 export interface Filters {
+  /** Atalho: Todas, Atrasadas (confirmadas), Podem atrasar, Em andamento, Minhas. */
+  quick: QuickFilter;
   search: string;
   status: string;
   type: string;
   assignee: string;
 }
 
-export const EMPTY_FILTERS: Filters = { search: '', status: ALL, type: ALL, assignee: ALL };
+export const EMPTY_FILTERS: Filters = { quick: 'ALL', search: '', status: ALL, type: ALL, assignee: ALL };
 
 export const hasActiveFilters = (f: Filters): boolean =>
-  f.search.trim() !== '' || f.status !== ALL || f.type !== ALL || f.assignee !== ALL;
+  f.quick !== 'ALL' || f.search.trim() !== '' || f.status !== ALL || f.type !== ALL || f.assignee !== ALL;
 
 const lower = (s: string) => s.toLowerCase();
 
@@ -43,16 +47,66 @@ export interface VisibleStory {
 }
 
 /** Histórias e fases que passam nos filtros. Buscar a chave ou o título da história mostra as fases dela inteiras. */
-export function filterStories(stories: StoryModel[], f: Filters): VisibleStory[] {
-  if (!hasActiveFilters(f)) return stories.map((story) => ({ story, tasks: story.tasks }));
+export interface FilterContext {
+  /** Id do Jira de quem está logado (para "Minhas"). */
+  myAccountId?: string;
+  /** Esconde fases fechadas sem datas e sem horas. */
+  hideEmptyClosed?: boolean;
+}
+
+/** Fase fechada (concluída ou cancelada) que não tem datas nem horas: só faz ruído no Gantt. */
+export function isEmptyClosed(p: PlannedTask): boolean {
+  const t = p.task;
+  return isDone(t) && p.planned === null && t.estimateSec === 0 && t.remainingSec === 0;
+}
+
+export function quickMatches(p: PlannedTask, q: QuickFilter, ctx: FilterContext): boolean {
+  switch (q) {
+    case 'LATE': return p.slip.shift > 0;
+    case 'MAY_LATE': return p.slip.presumedDays > 0;
+    case 'DOING': return isInProgress(p.task);
+    case 'MINE': return !!ctx.myAccountId && p.task.assigneeId === ctx.myAccountId;
+    default: return true;
+  }
+}
+
+export function quickCounts(stories: StoryModel[], ctx: FilterContext) {
+  const c = { late: 0, mayLate: 0, doing: 0, mine: 0 };
+  for (const s of stories) {
+    for (const p of s.tasks) {
+      if (quickMatches(p, 'LATE', ctx)) c.late += 1;
+      if (p.slip.presumedDays > 0 && p.slip.shift === 0) c.mayLate += 1;
+      if (quickMatches(p, 'DOING', ctx)) c.doing += 1;
+      if (quickMatches(p, 'MINE', ctx)) c.mine += 1;
+    }
+  }
+  return c;
+}
+
+/** Quantas fases fechadas sem dados existem (ficam escondidas por padrão). */
+export function countEmptyClosed(stories: StoryModel[]): number {
+  let n = 0;
+  for (const s of stories) for (const p of s.tasks) if (isEmptyClosed(p)) n += 1;
+  return n;
+}
+
+export function filterStories(stories: StoryModel[], f: Filters, ctx: FilterContext = {}): VisibleStory[] {
+  const hide = ctx.hideEmptyClosed === true;
+  const active = hasActiveFilters(f);
+  if (!active && !hide) return stories.map((story) => ({ story, tasks: story.tasks }));
   const out: VisibleStory[] = [];
   for (const story of stories) {
+    if (hide && !active) {
+      const tasks = story.tasks.filter((p) => !isEmptyClosed(p));
+      if (tasks.length > 0 || story.tasks.length === 0) out.push({ story, tasks });
+      continue;
+    }
     const storyHit = !!story.story && matchesSearch(story.story, f.search);
     const keyHit = story.key.toLowerCase().includes(f.search.trim().toLowerCase()) && f.search.trim() !== '';
-    const tasks = story.tasks.filter((r) => matchesFacets(r.task, f) && (storyHit || keyHit || matchesSearch(r.task, f.search)));
+    const tasks = story.tasks.filter((r) => matchesFacets(r.task, f) && quickMatches(r, f.quick, ctx) && !(hide && isEmptyClosed(r)) && (storyHit || keyHit || matchesSearch(r.task, f.search)));
     if (tasks.length > 0) {
       out.push({ story, tasks });
-    } else if (story.tasks.length === 0 && story.story && matchesFacets(story.story, f) && matchesSearch(story.story, f.search)) {
+    } else if (f.quick === 'ALL' && story.tasks.length === 0 && story.story && matchesFacets(story.story, f) && matchesSearch(story.story, f.search)) {
       out.push({ story, tasks: [] });
     }
   }
