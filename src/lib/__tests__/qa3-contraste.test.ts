@@ -191,7 +191,7 @@ describe('varredura dos arquivos tocados', () => {
   });
 
   it('Prompt Hub: nenhum chip desabilitado usa opacity-40 e os chips de tag têm 24 px de altura', () => {
-    const src = read('src/app/prompt-hub/components/Dashboard.tsx');
+    const src = ['Chips', 'ItemCard', 'CatalogParts'].map(f => read(`src/components/prompt-hub/${f}.tsx`)).join(' ');
     expect(src).not.toMatch(/cursor-not-allowed opacity-40/);
     expect(src.match(/min-h-6/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
