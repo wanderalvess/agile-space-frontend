@@ -1,8 +1,9 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Save, Settings2, Users, WalletCards } from 'lucide-react';
+import { Clock, Save, Settings2, Users } from 'lucide-react';
 import { cleanTemplateName, deleteTemplate, listTemplates, renameTemplate, saveTemplate, TEMPLATE_NAME_MAX, type PokerTemplate } from '@/lib/poker-templates';
 import { TSHIRT_UNIT_LABELS, type DeckType, type TshirtUnit } from '@/lib/types';
 import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
@@ -282,7 +283,7 @@ export function CreateSessionModal({
       onOpenChange={onOpenChange}
       size="lg"
       className="sm:max-w-[800px]"
-      icon={WalletCards}
+      icon={moduleIcon('poker')}
       title="Nova sessão"
       preventClose={isCreating}
       footer={

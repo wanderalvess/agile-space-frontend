@@ -3,7 +3,6 @@
 import React from 'react';
 import { 
   Sparkles, 
-  Library,
   MessageSquare, 
   GitFork, 
   Users, 
@@ -123,7 +122,6 @@ export default function PromptHubPage() {
         module="prompt-hub"
         title="Biblioteca de IA"
         description="O acervo da empresa para prompts, skills, agentes, Gems e iniciativas de IA — em um lugar só, fácil de achar e de reaproveitar."
-        icon={<Library />}
         themeColor="blue"
         secondaryActionLabel="Explorar Biblioteca Pública"
         onSecondaryAction={handleShowPublic}

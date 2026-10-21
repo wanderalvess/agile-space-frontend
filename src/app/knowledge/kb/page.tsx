@@ -1,5 +1,6 @@
 "use client";
 
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,6 @@ import {
   FileUp,
   RefreshCw,
   Download,
-  BookOpen,
   AlertTriangle,
   X
 } from 'lucide-react';
@@ -695,7 +695,7 @@ function KBExplorerContent() {
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                           <div className="max-w-2xl space-y-2.5">
                             <div className="inline-flex items-center gap-2 font-mono text-xs tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground font-semibold">
-                              <BookOpen className="h-3.5 w-3.5" />
+                              <ModuleIcon module="knowledge" className="h-3.5 w-3.5" />
                               Wiki Space
                             </div>
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">

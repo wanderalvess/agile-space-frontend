@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
-import { Bot, BookOpen, HelpCircle, Plus, Search, Settings } from 'lucide-react';
+import { Bot, HelpCircle, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { moduleIcon } from '@/lib/modules-registry';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +39,9 @@ export default function KnowledgeLayout({
   useDocumentTitle(TITULOS.find(([prefixo]) => pathname.startsWith(prefixo))?.[1]);
 
   const navItems = [
-    { label: 'Base de conhecimento', path: '/knowledge/kb', icon: BookOpen },
+    { label: 'Base de conhecimento', path: '/knowledge/kb', icon: moduleIcon('knowledge') },
     { label: 'Assistente virtual', path: '/knowledge/chat', icon: Bot },
-    { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
+    { label: 'Ajustes', path: '/knowledge/settings', icon: SlidersHorizontal },
   ];
 
   const effectiveUser = session || userProfile;
