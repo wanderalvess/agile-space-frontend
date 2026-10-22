@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Hourglass } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingSkeleton, PageHeader } from '@/components/page';
 import { ModalButton, PhaseStepper, StatusChip, TabBar } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
@@ -32,18 +32,12 @@ import {
 import { applyScope, canAdvanceFromScope } from '@/lib/sprint-planner/scope';
 import { CapacityStep } from './CapacityStep';
 import { DistributionStep } from './DistributionStep';
+import { ReviewStep } from './ReviewStep';
 import { ScopeStep } from './ScopeStep';
 
 type Load = { state: 'loading' } | { state: 'error'; notFound: boolean } | { state: 'ok'; plan: PlanView };
 
 export const CONFLICT_MESSAGE = 'Outra pessoa alterou este planejamento. Recarregamos a versão atual: confira e refaça a sua mudança.';
-
-const PLACEHOLDER: Record<'revisao', { title: string; description: string }> = {
-  revisao: {
-    title: 'Revisar e enviar chega numa próxima entrega',
-    description: 'Aqui vai aparecer o resumo, as pendências e a prévia do que seria gravado no Jira. O envio ao Jira ainda não está disponível.',
-  },
-};
 
 /** Tela do plano: cabeçalho, as 4 etapas (Capacidade e Escopo funcionais) e o tratamento de conflito 409. */
 export function PlanScreen({
@@ -146,6 +140,14 @@ export function PlanScreen({
     setTimeout(() => document.getElementById('cap-tipos')?.scrollIntoView({ block: 'start' }), 150);
   };
 
+  /** Atalho "Ir para" da revisão: troca a etapa e, quando dá, rola até a subtarefa ou pessoa. */
+  const jumpTo = (to: StepId, focus: string | null) => {
+    onStepChange(to);
+    if (!focus) return;
+    const sel = to === 'distribuicao' ? `[data-testid="sub-${CSS.escape(focus)}"]` : to === 'capacidade' ? `[data-testid*="${CSS.escape(focus)}"]` : `[data-testid*="${CSS.escape(focus)}"]`;
+    [200, 700, 1500].forEach((ms) => setTimeout(() => document.querySelector(sel)?.scrollIntoView({ block: 'center' }), ms));
+  };
+
   const changeStatus = async (to: PlanStatus) => {
     // O escopo precisa de pelo menos uma tarefa para seguir (o backend também exige e responde 422).
     if (plan.status === 'ESCOPO' && to === 'DISTRIBUICAO' && !canAdvanceFromScope(plan)) {
@@ -230,8 +232,17 @@ export function PlanScreen({
           />
         ) : step === 'distribuicao' ? (
           <DistributionStep squadId={squadId} planId={planId} planStatus={plan.status} />
+        ) : plan.status !== 'REVISAO' && plan.status !== 'ENVIADO' ? (
+          <EmptyState title="A revisão ainda não abriu" description="Ela abre quando o planejamento avança da Distribuição para a Revisão. Aí você confere pendências e a prévia do que iria para o Jira." />
         ) : (
-          <EmptyState icon={Hourglass} title={PLACEHOLDER.revisao.title} description={PLACEHOLDER.revisao.description} />
+          <ReviewStep
+            squadId={squadId}
+            planId={planId}
+            refreshKey={plan.version}
+            onJump={jumpTo}
+            onBack={plan.status === 'REVISAO' && canEdit ? () => void changeStatus('DISTRIBUICAO') : undefined}
+            backing={changingStatus}
+          />
         )}
       </div>
     </>

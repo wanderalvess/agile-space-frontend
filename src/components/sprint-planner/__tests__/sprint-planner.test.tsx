@@ -221,10 +221,10 @@ describe('Capacidade', () => {
     await waitFor(() => expect(h.api.patch).toHaveBeenCalledWith('SQ', 'p1', { reservePct: 15, version: 3 }));
   });
 
-  it('etapas futuras são placeholders, sem dados', async () => {
+  it('a revisão de um plano que ainda não chegou lá mostra estado vazio, sem dados', async () => {
     h.api.get.mockResolvedValue(planView());
     renderPlan('revisao');
-    expect(await screen.findByText('Revisar e enviar chega numa próxima entrega')).toBeTruthy();
+    expect(await screen.findByText('A revisão ainda não abriu')).toBeTruthy();
     expect(screen.queryByTestId('total-DEV')).toBeNull();
   });
 });
