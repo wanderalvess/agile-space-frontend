@@ -606,3 +606,117 @@ export const distributionApi = {
     return distributionView(res, 'Não foi possível salvar as datas.');
   },
 };
+
+// ---- Revisão e prévia (E5: `GET .../sprint-plans/{id}/review`, `POST .../send-to-jira`) ----
+
+export type PendingSeverity = 'BLOCKING' | 'WARNING';
+export type PreviewKind = 'SET' | 'CHANGE' | 'UNCHANGED';
+export type PreviewField = 'assignee' | 'sprint' | 'plannedStart' | 'plannedEnd';
+
+export interface ReviewPerson extends DistributionPerson {
+  subtaskCount: number;
+  datedSubtaskCount: number;
+}
+
+export interface ReviewSubtask {
+  key: string;
+  title: string | null;
+  typeName: string | null;
+  cls: 'DEV' | 'QA' | 'FORA' | 'SEM';
+  assigneeId: string | null;
+  assigneeName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  estimateH: number;
+}
+
+export interface ReviewTask {
+  itemId: string;
+  parentKey: string;
+  title: string | null;
+  devHours: number;
+  qaHours: number;
+  subtasks: ReviewSubtask[];
+}
+
+export interface ReviewPending {
+  code: string;
+  severity: PendingSeverity;
+  message: string;
+  subtaskKey: string | null;
+  accountId: string | null;
+  itemId: string | null;
+}
+
+export interface JiraChange {
+  issueKey: string;
+  summary: string | null;
+  field: PreviewField;
+  /** Nome do campo no Jira; null enquanto a regra de escrita não define qual campo recebe a data. */
+  jiraFieldName: string | null;
+  from: string | null;
+  to: string | null;
+  kind: PreviewKind;
+}
+
+export interface JiraPreview {
+  rulesNote: string | null;
+  sprintGoal: { from: string | null; to: string | null; kind: PreviewKind } | null;
+  changes: JiraChange[];
+  counts: { set: number; change: number; unchanged: number; issues: number };
+}
+
+export interface ReviewView {
+  planId: string;
+  status: PlanStatus;
+  syncedAt: string | null;
+  canEditPlan: boolean;
+  sprint: { name: string; startDate: string; endDate: string };
+  goal: string | null;
+  goalSavedInJira: boolean;
+  people: ReviewPerson[];
+  tasks: ReviewTask[];
+  pendings: ReviewPending[];
+  blockingCount: number;
+  warningCount: number;
+  canSend: boolean;
+  writeRulesDefined: boolean;
+  jiraPreview: JiraPreview;
+  jiraSprintUrl: string | null;
+}
+
+function isReviewView(v: unknown): v is ReviewView {
+  const x = v as ReviewView | null;
+  return (
+    !!x && typeof x === 'object' && typeof x.planId === 'string' && typeof x.canEditPlan === 'boolean' &&
+    Array.isArray(x.people) && Array.isArray(x.tasks) && Array.isArray(x.pendings) &&
+    typeof x.blockingCount === 'number' && typeof x.warningCount === 'number' &&
+    typeof x.canSend === 'boolean' && typeof x.writeRulesDefined === 'boolean' &&
+    !!x.sprint && typeof x.sprint === 'object' && typeof x.sprint.startDate === 'string' &&
+    !!x.jiraPreview && typeof x.jiraPreview === 'object' && Array.isArray(x.jiraPreview.changes) &&
+    !!x.jiraPreview.counts && typeof x.jiraPreview.counts === 'object'
+  );
+}
+
+/** Valida a forma do `ReviewView`; outra coisa (vazio, DistributionView, PlanView) vira erro em vez de tela errada. */
+export function parseReviewView(data: unknown, fallback = 'Resposta inesperada do servidor.'): ReviewView {
+  if (!isReviewView(data)) throw new CeremonyApiError(fallback, 502);
+  return data;
+}
+
+export const SEND_NOT_AVAILABLE = 'O envio ao Jira ainda não está liberado: regras de escrita em definição.';
+
+export const reviewApi = {
+  async get(squadId: string, planId: string): Promise<ReviewView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/review`);
+    if (!res.ok) await ensureOk(res, 'Não foi possível carregar a revisão.');
+    return parseReviewView(await res.json().catch(() => null), 'Não foi possível carregar a revisão.');
+  },
+
+  /** Hoje o servidor responde 501; a tela mostra `SEND_NOT_AVAILABLE`. Outros erros trazem a mensagem do servidor. */
+  async sendToJira(squadId: string, planId: string): Promise<void> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/send-to-jira`, { method: 'POST' });
+    if (res.status === 501) throw new CeremonyApiError(SEND_NOT_AVAILABLE, 501);
+    await ensureOk(res, 'Não foi possível enviar ao Jira.');
+  },
+};
