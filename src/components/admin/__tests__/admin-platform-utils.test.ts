@@ -120,10 +120,10 @@ describe('Crescimento: métricas e rótulos honestos', () => {
     avgSessionDurationMinutes: 48,
     sessionDurationSampleSize: 31,
   };
-  it('interações somam os seis módulos (Showcase entra) e o ranking vem do maior ao menor', () => {
+  it('interações somam os seis módulos (Review entra) e o ranking vem do maior ao menor', () => {
     const g = computeGrowth(stats);
     expect(g.interactions).toBe(168 + 96 + 74 + 38 + 36 + 21);
-    expect(g.modules.map((m) => m.label)).toEqual(['Scrum Poker', 'Retrospectivas', 'Sprint Planner', 'Brainstorming', 'Health Check', 'Showcase']);
+    expect(g.modules.map((m) => m.label)).toEqual(['Scrum Poker', 'Retrospectiva', 'Planejamento', 'Brainstorming', 'Radar de clima', 'Review']);
     expect(g.modules.at(-1)?.module).toBe('showcase');
   });
   it('taxa de feedback = feedbacks ÷ usuários; média = interações ÷ usuários', () => {

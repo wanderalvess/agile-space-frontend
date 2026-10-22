@@ -173,9 +173,15 @@ describe('ArticleEditor: artigo novo', () => {
     expect(document.activeElement).toBe(title);
   });
 
-  it('enquanto o servidor não aceita rascunho, não oferece "Salvar rascunho"', async () => {
+  it('como o servidor aceita rascunho, oferece "Salvar rascunho": grava como draft e reabre o artigo pelo id', async () => {
     await renderNew();
-    expect(screen.queryByRole('button', { name: 'Salvar rascunho' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Título do artigo'), { target: { value: 'Ideia solta' } });
+    await typeInEditor('Primeiras linhas');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar rascunho' }));
+    await waitFor(() => expect(h.api.saveOrUpdateDocument).toHaveBeenCalledTimes(1));
+    expect(h.api.saveOrUpdateDocument).toHaveBeenCalledWith(expect.objectContaining({ title: 'Ideia solta', status: 'draft', authorId: 'u1' }));
+    await waitFor(() => expect(h.replace).toHaveBeenCalledWith('/knowledge/admin/new-asset?id=novo-1', { scroll: false }));
+    expect(h.push).not.toHaveBeenCalled();
   });
 
   it('voltar sem alterações sai direto; com alterações pergunta antes', async () => {

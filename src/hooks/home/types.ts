@@ -25,7 +25,7 @@ export interface HomeAnnouncement {
 
 export type NotificationTab = 'foryou' | 'messages' | 'announcements';
 
-export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT' | 'LINK_REQUEST';
+export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT' | 'LINK_REQUEST' | 'SUPPORT_REPLY';
 
 export interface HomeNotification {
   id: string;
@@ -36,7 +36,7 @@ export interface HomeNotification {
   text: string;
   /** Presente quando `who` é uma pessoa: vira o avatar de iniciais. */
   personName?: string;
-  icon?: 'megaphone' | 'wrench' | 'alert' | 'calendar' | 'list';
+  icon?: 'megaphone' | 'wrench' | 'alert' | 'calendar' | 'list' | 'message';
   createdAt?: string;
   unread: boolean;
   cta?: { label: string; href: string };

@@ -3,7 +3,7 @@ import { dayFromYmd, formatPt, parseStamp } from '../dates';
 import { buildModel, computeKpis, inferredSubtasks, type BuildContext } from '../schedule';
 import { buildCapacityResolver } from '../suggest';
 import { toCronoTask, type CronoTask } from '../task';
-import { EMPTY_FILTERS, axisDays, barGeometry, buildRows, filterStories, presetRange, sprintRange } from '../view';
+import { EMPTY_FILTERS, axisDays, barGeometry, buildRows, countEmptyClosed, filterStories, presetRange, quickCounts, sprintRange } from '../view';
 
 const NOW = Date.parse('2026-10-20T12:00:00Z'); // terça 09:00 em Brasília
 const d = (day: number) => dayFromYmd(2026, 10, day);
@@ -12,11 +12,16 @@ let n = 0;
 function task(over: Partial<CronoTask> & { key: string }): CronoTask {
   n += 1;
   return {
-    title: over.key, type: 'Sub-task', status: 'To Do', statusCategory: 'new', assigneeId: '', assigneeName: '', parentKey: '', parentTitle: '',
+    title: over.key, type: 'Sub-task', zeroWindow: false, status: 'To Do', statusCategory: 'new', assigneeId: '', assigneeName: '', parentKey: '', parentTitle: '',
     orderIndex: n, estimateSec: 0, remainingSec: 0, isBug: false, start: null, end: null, datesAreInferred: true, resolvedAt: null, sprintName: 'S1', ...over,
   };
 }
-const real = (s: string, e: string) => ({ start: parseStamp(s), end: parseStamp(e), datesAreInferred: false });
+const real = (s: string, e: string) => {
+  const st = parseStamp(s);
+  const en = parseStamp(e);
+  const zeroWindow = !!st && !!en && st.minutes !== null && en.minutes !== null && (en.day - st.day) * 1440 + en.minutes - st.minutes < 60;
+  return { start: st, end: en, datesAreInferred: false, zeroWindow };
+};
 
 const ctx = (over: Partial<BuildContext> = {}): BuildContext => ({
   nowMs: NOW, source: 'jira', capacityOf: buildCapacityResolver([], undefined), ...over,
@@ -32,6 +37,16 @@ describe('toCronoTask', () => {
     expect(t.end).toEqual({ day: d(22), minutes: null });
     expect(t.datesAreInferred).toBe(false);
     expect(toCronoTask({ key: 'A-2', type: 'x' } as never, 1).datesAreInferred).toBe(true);
+  });
+});
+
+describe('toCronoTask: janela sem duração', () => {
+  it('início e fim no mesmo minuto (ou invertidos) são janela sem duração; com duração normal não', () => {
+    const mk = (s: string, e: string) => toCronoTask({ key: 'A-1', type: 'x', targetStart: s, targetEnd: e, datesAreInferred: false } as never, 0);
+    expect(mk('2026-10-20T17:35:00-03:00', '2026-10-20T17:35:00-03:00').zeroWindow).toBe(true);
+    expect(mk('2026-10-20T17:35:00-03:00', '2026-10-20T17:00:00-03:00').zeroWindow).toBe(true);
+    expect(mk('2026-10-21T17:38:00-03:00', '2026-10-22T17:38:00-03:00').zeroWindow).toBe(false);
+    expect(mk('2026-10-20', '2026-10-20').zeroWindow).toBe(false);
   });
 });
 
@@ -214,5 +229,113 @@ describe('desempenho', () => {
     expect(model).toHaveLength(120);
     expect(model[0].tasks).toHaveLength(5);
     expect(ms).toBeLessThan(1500);
+  });
+});
+
+describe('ajustes do cronograma real (DDWMISSI)', () => {
+  const doing = { status: 'In Progress', statusCategory: 'indeterminate' as const };
+
+  it('janela sem duração: barra mínima de 1 hora, aviso e nenhum atraso presumido nem cascata', () => {
+    const tasks = [
+      story(),
+      sub('DEV', 'Codificação', { ...real('2026-10-20T17:35:00-03:00', '2026-10-20T17:35:00-03:00'), ...doing, estimateSec: hours6(), remainingSec: hours6(), assigneeName: 'W', assigneeId: 'w' }),
+      sub('QA', 'Teste QA', real('2026-10-22', '2026-10-23')),
+    ];
+    const [h] = buildModel(tasks, ctx());
+    const dev = h.tasks.find((t) => t.task.key === 'DEV')!;
+    expect(dev.zeroWindow).toBe(true);
+    expect(dev.slip).toMatchObject({ own: 0, presumedDays: 0, shift: 0 });
+    const w = dev.planned!;
+    expect((w.end.day + w.end.frac) - (w.start.day + w.start.frac)).toBeCloseTo(60 / 540, 5);
+    expect(h.tasks.find((t) => t.task.key === 'QA')!.slip.pushed).toBe(0);
+  });
+
+  it('atraso presumido aparece só na própria fase: não empurra e não entra no KPI de atraso', () => {
+    const tasks = [
+      story(),
+      sub('DEV', 'Codificação', { ...real('2026-10-19T09:00:00-03:00', '2026-10-20T18:00:00-03:00'), ...doing, remainingSec: 40 * 3600 }),
+      sub('QA', 'Teste QA', real('2026-10-22', '2026-10-23')),
+    ];
+    const [h] = buildModel(tasks, ctx());
+    const dev = h.tasks.find((t) => t.task.key === 'DEV')!;
+    expect(dev.slip.presumedDays).toBeGreaterThan(0);
+    expect(dev.slip.own).toBe(0);
+    expect(h.tasks.find((t) => t.task.key === 'QA')!.slip.shift).toBe(0);
+    expect(computeKpis([h])).toMatchObject({ delayed: 0, mayDelay: 1 });
+  });
+
+  it('atraso observado empurra; fase com data aproximada nunca é empurrada', () => {
+    const tasks = [
+      story(),
+      sub('DEV', 'Codificação', { ...real('2026-10-14T09:00:00-03:00', '2026-10-16T18:00:00-03:00'), ...doing }),
+      sub('QA', 'Teste QA', { start: parseStamp('2026-10-22'), end: parseStamp('2026-10-23'), datesAreInferred: true }),
+    ];
+    const [h] = buildModel(tasks, ctx());
+    const qa = h.tasks.find((t) => t.task.key === 'QA')!;
+    expect(h.tasks.find((t) => t.task.key === 'DEV')!.slip.own).toBe(2);
+    expect(qa.slip.pushed).toBe(0);
+    expect(computeKpis([h]).delayed).toBe(1);
+  });
+
+  it('a sugestão nunca substitui data real do Jira, mesmo com a fonte "horas"', () => {
+    const tasks = [
+      story(),
+      sub('A', 'Codificação', { ...real('2026-10-21T17:38:00-03:00', '2026-10-22T17:38:00-03:00'), assigneeId: 'w', assigneeName: 'W', estimateSec: 8 * 3600 }),
+      sub('B', 'Codificação', { assigneeId: 'w', assigneeName: 'W', estimateSec: 8 * 3600, start: parseStamp('2026-10-01'), end: parseStamp('2026-10-02') }),
+    ];
+    const [h] = buildModel(tasks, ctx({ source: 'horas' }));
+    const a = h.tasks.find((t) => t.task.key === 'A')!;
+    expect(a.origin).toBe('jira');
+    expect(a.suggestion).toBeNull();
+    expect(formatPt(a.planned!.start)).toBe('21/10 17:38');
+    expect(h.tasks.find((t) => t.task.key === 'B')!.origin).toBe('sugestao');
+  });
+
+  it('kpi: fim previsto depois do fim da sprint vira aviso em dias úteis', () => {
+    const tasks = [story(), sub('A', 'Codificação', { assigneeId: 'x', estimateSec: 30 * 3600 })];
+    const k = computeKpis(buildModel(tasks, ctx({ source: 'horas' })), d(21));
+    expect(k.overrunDays).toBeGreaterThan(0);
+    expect(k.forecastIsSuggestion).toBe(true);
+    expect(computeKpis(buildModel(tasks, ctx({ source: 'horas' })), d(30)).overrunDays).toBe(0);
+  });
+});
+
+function hours6() { return 6 * 3600; }
+
+describe('filtros rápidos e fases ocultas', () => {
+  const doingT = { status: 'In Progress', statusCategory: 'indeterminate' as const };
+  const tasks = [
+    story(),
+    sub('LATE', 'Codificação', { ...real('2026-10-14T09:00:00-03:00', '2026-10-16T18:00:00-03:00'), ...doingT, assigneeId: 'me' }),
+    sub('OPEN', 'Teste QA', { assigneeId: 'other', estimateSec: 3600 }),
+    sub('CLOSED1', 'Teste QA', { status: 'Fechado', statusCategory: 'done' }),
+    sub('CLOSED2', 'Execução TI', { status: 'Cancelado', statusCategory: 'done' }),
+    sub('CLOSED_WITH_DATES', 'Code Review', { status: 'Fechado', statusCategory: 'done', ...real('2026-10-15', '2026-10-15') }),
+    sub('NO_ESTIMATE', 'Execução TI', { assigneeId: 'other' }),
+  ];
+  const model = () => buildModel(tasks, ctx());
+
+  it('Atrasadas, Em andamento e Minhas', () => {
+    const keys = (quick: 'LATE' | 'DOING' | 'MINE' | 'MAY_LATE') => filterStories(model(), { ...EMPTY_FILTERS, quick }, { myAccountId: 'me' }).flatMap((v) => v.tasks.map((t) => t.task.key));
+    expect(keys('LATE')).toContain('LATE');
+    expect(keys('LATE')).not.toContain('OPEN');
+    expect(keys('DOING')).toEqual(['LATE']);
+    expect(keys('MINE')).toEqual(['LATE']);
+    expect(filterStories(model(), { ...EMPTY_FILTERS, quick: 'MINE' }, {})).toEqual([]);
+    expect(quickCounts(model(), { myAccountId: 'me' })).toMatchObject({ late: expect.any(Number), doing: 1, mine: 1 });
+  });
+
+  it('esconde fechadas sem datas e sem horas; fases visíveis + ocultas = total', () => {
+    const m = model();
+    const total = m.reduce((a, s) => a + s.tasks.length, 0);
+    const hidden = countEmptyClosed(m);
+    expect(hidden).toBe(2);
+    const shown = filterStories(m, EMPTY_FILTERS, { hideEmptyClosed: true }).reduce((a, v) => a + v.tasks.length, 0);
+    expect(shown + hidden).toBe(total);
+    const all = filterStories(m, EMPTY_FILTERS, { hideEmptyClosed: false }).reduce((a, v) => a + v.tasks.length, 0);
+    expect(all).toBe(total);
+    const keys = filterStories(m, EMPTY_FILTERS, { hideEmptyClosed: true })[0].tasks.map((t) => t.task.key);
+    expect(keys).toContain('CLOSED_WITH_DATES');
+    expect(keys).toContain('NO_ESTIMATE');
   });
 });

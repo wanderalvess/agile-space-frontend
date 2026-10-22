@@ -1,5 +1,7 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useMemo, useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
@@ -9,7 +11,7 @@ import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards, Trash2 } from 'lucide-react';
+import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
@@ -130,7 +132,7 @@ const AsyncPokerRoomComponent = ({
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
         <RoomTopBar
           toolName="Scrum Poker"
-          toolIcon={WalletCards}
+          toolIcon={moduleIcon('poker')}
           title={title}
           chips={chips}
           presence={{ people: presencePeople, open: isParticipantsOpen, onClick: () => setIsParticipantsOpen(v => !v), unknown: true }}
@@ -169,7 +171,7 @@ const AsyncPokerRoomComponent = ({
               {pendingIssues.length === 0 && completedIssues.length === 0 ? (
                 <section className="flex flex-col items-center gap-5 py-24 text-center">
                   <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground">
-                    <WalletCards className="h-8 w-8" strokeWidth={1.5} />
+                    <ModuleIcon module="poker" className="h-8 w-8" />
                   </span>
                   <h2 className="m-0 text-3xl font-bold tracking-tight">Nenhuma tarefa ainda</h2>
                   <p className="m-0 max-w-md text-[15px] leading-relaxed text-muted-foreground">Cada pessoa vota no seu tempo. Comece adicionando as tarefas que o time deve estimar.</p>

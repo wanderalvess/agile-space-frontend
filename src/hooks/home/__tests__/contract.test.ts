@@ -99,6 +99,11 @@ describe('notificações do servidor', () => {
     expect(mapNotificationDto({ ...request, link: '/admin?tab=aprovacoes' }, 'foryou').cta).toEqual({ label: 'Ver pedido', href: '/admin?tab=aprovacoes' });
   });
 
+  it('SUPPORT_REPLY: resposta do time vira o aviso do chamado, com ícone de mensagem e botão "Ver chamado"', () => {
+    const n = mapNotificationDto({ ...base, kind: 'SUPPORT_REPLY' as const, title: 'Seu chamado SUP-0042 recebeu resposta', text: 'O time respondeu: Cronograma vazio', actorName: null, link: '/support?ticket=t1' }, 'foryou');
+    expect(n).toMatchObject({ who: 'Seu chamado SUP-0042 recebeu resposta', icon: 'message', cta: { label: 'Ver chamado', href: '/support?ticket=t1' } });
+  });
+
   it('feed: contadores do servidor valem; sem eles, calcula', () => {
     const forYou = [base, { ...base, id: 'n2', readAt: 'x' }];
     expect(buildNotificationFeed(forYou, [], { forYou: 5, messages: 3, announcements: 1, total: 9 }).unread).toEqual({ foryou: 5, messages: 3, announcements: 1, total: 9 });

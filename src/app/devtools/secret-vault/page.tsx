@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { DevToolPage } from '@/components/devtools/DevToolPage';
+import { ConfirmDialog } from '@/components/room-kit';
 
 /*
  * Cofre LOCAL, zero-knowledge:
@@ -153,8 +154,8 @@ export default function SecretVaultPage() {
     catch { toast({ title: 'Não foi possível copiar', variant: 'destructive' }); }
   };
 
+  const [confirmDestroy, setConfirmDestroy] = useState(false);
   const destroy = () => {
-    if (!window.confirm('Apagar o cofre e todos os segredos deste navegador? Não há como recuperar.')) return;
     try { localStorage.removeItem(STORE_KEY); } catch { /* ignora */ }
     setStore(null); lock();
   };
@@ -167,7 +168,7 @@ export default function SecretVaultPage() {
       toolId="secret-vault"
       scrollBody
       actions={unlocked ? (
-        <Button variant="outline" size="sm" onClick={lock} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={lock} className="h-8 gap-1.5 rounded-xl text-xs font-bold">
           <Lock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Bloquear</span>
         </Button>
       ) : undefined}
@@ -177,7 +178,7 @@ export default function SecretVaultPage() {
         <div className={`${card} mx-auto mt-6 max-w-md space-y-4 p-5`}>
           <div className="flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-primary" />
-            <h2 className="font-headline text-lg font-black uppercase tracking-tight">{store ? 'Desbloquear cofre' : 'Criar cofre'}</h2>
+            <h2 className="font-headline text-lg font-bold tracking-tight">{store ? 'Desbloquear cofre' : 'Criar cofre'}</h2>
           </div>
           <p className="text-xs font-medium text-muted-foreground">
             {store
@@ -188,12 +189,12 @@ export default function SecretVaultPage() {
             <Input type="password" autoComplete="off" placeholder="Senha mestra" value={password} onChange={e => setPassword(e.target.value)} aria-label="Senha mestra" />
             {!store && <Input type="password" autoComplete="off" placeholder="Confirme a senha" value={confirm} onChange={e => setConfirm(e.target.value)} aria-label="Confirmar senha" />}
             {authError && <p className="text-xs font-semibold text-destructive">{authError}</p>}
-            <Button type="submit" disabled={busy || !password} className="w-full gap-2 rounded-xl text-[11px] font-black uppercase tracking-wider">
+            <Button type="submit" disabled={busy || !password} className="w-full gap-2 rounded-xl text-xs font-bold">
               <LockOpen className="h-4 w-4" /> {busy ? 'Derivando chave…' : store ? 'Desbloquear' : 'Criar cofre'}
             </Button>
           </form>
           {store && (
-            <button type="button" onClick={destroy} className="text-[11px] font-semibold text-muted-foreground underline-offset-2 hover:text-destructive hover:underline">
+            <button type="button" onClick={() => setConfirmDestroy(true)} className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-destructive hover:underline">
               Esqueci a senha: apagar cofre
             </button>
           )}
@@ -203,19 +204,19 @@ export default function SecretVaultPage() {
         <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-4">
           <section className={`${card} space-y-3 p-4 md:self-start`}>
             <div className="flex items-center justify-between">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Novo segredo</h2>
-              <Badge variant="secondary" className="gap-1 text-[10px] font-black uppercase"><ShieldCheck className="h-3 w-3" /> AES-GCM 256</Badge>
+              <h2 className="text-xs font-bold text-muted-foreground">Novo segredo</h2>
+              <Badge variant="secondary" className="gap-1 text-xs font-bold"><ShieldCheck className="h-3 w-3" /> AES-GCM 256</Badge>
             </div>
             <Input placeholder="Rótulo (ex.: Token do Jira)" value={label} onChange={e => setLabel(e.target.value)} aria-label="Rótulo" />
             <Textarea placeholder="Valor secreto…" value={secret} onChange={e => setSecret(e.target.value)} spellCheck={false} aria-label="Segredo" className="min-h-32 resize-none font-code text-[13px]" />
-            <Button onClick={() => void addItem()} disabled={busy || !secret.trim()} className="w-full gap-2 rounded-xl text-[11px] font-black uppercase tracking-wider">
+            <Button onClick={() => void addItem()} disabled={busy || !secret.trim()} className="w-full gap-2 rounded-xl text-xs font-bold">
               <Plus className="h-4 w-4" /> Cifrar e guardar
             </Button>
-            <p className="text-[11px] font-medium text-muted-foreground">Cifrado no navegador; o servidor nunca vê o conteúdo. Os dados ficam só neste navegador.</p>
+            <p className="text-xs font-medium text-muted-foreground">Cifrado no navegador; o servidor nunca vê o conteúdo. Os dados ficam só neste navegador.</p>
           </section>
 
           <section className={`${card} p-4`}>
-            <h2 className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Segredos guardados ({items.length})</h2>
+            <h2 className="mb-3 text-xs font-bold text-muted-foreground">Segredos guardados ({items.length})</h2>
             {items.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum segredo ainda.</p>
             ) : (
@@ -229,7 +230,7 @@ export default function SecretVaultPage() {
                           {revealed[it.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar" onClick={() => void copy(it)}>
-                          {copiedId === it.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedId === it.id ? <Check className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
                         </Button>
                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" aria-label="Excluir" onClick={() => removeItem(it.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -237,7 +238,7 @@ export default function SecretVaultPage() {
                       </div>
                     </div>
                     <p className="mt-1 break-all font-code text-xs text-muted-foreground">{revealed[it.id] ? it.secret : '•'.repeat(Math.min(it.secret.length, 24))}</p>
-                    <p className="mt-1 text-[10px] font-semibold text-muted-foreground/70">{new Date(it.createdAt).toLocaleString('pt-BR')}</p>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground/70">{new Date(it.createdAt).toLocaleString('pt-BR')}</p>
                   </li>
                 ))}
               </ul>
@@ -245,6 +246,15 @@ export default function SecretVaultPage() {
           </section>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDestroy}
+        onOpenChange={setConfirmDestroy}
+        tone="danger"
+        title="Apagar o cofre?"
+        description="O cofre e todos os segredos somem deste navegador. Não há como recuperar."
+        confirmLabel="Apagar o cofre"
+        onConfirm={destroy}
+      />
     </DevToolPage>
   );
 }

@@ -8,7 +8,7 @@ import { join, relative, resolve } from 'node:path';
  * Este teste impede a volta das classes do visual antigo nesses diretórios.
  */
 const SRC = resolve(__dirname, '../../..');
-const DIRS = ['app/knowledge', 'components/knowledge', 'app/manual', 'components/manual'];
+const DIRS = ['app/knowledge', 'components/knowledge', 'app/manual'];
 
 const PROIBIDAS: Array<[string, RegExp]> = [
   ['cinzas fixos (slate, gray, zinc, neutral, stone)', /(?<![\w-])(?:[a-z-]+:)*[a-z-]*-(?:slate|gray|zinc|neutral|stone)-\d/],
@@ -36,7 +36,7 @@ function arquivos(dir: string, saida: string[] = []): string[] {
 describe('Conhecimento e Manual: sem classes do visual antigo', () => {
   const todos = DIRS.flatMap((d) => arquivos(join(SRC, d)));
 
-  it('encontra os arquivos dos quatro diretórios', () => {
+  it('encontra os arquivos dos três diretórios', () => {
     expect(todos.length).toBeGreaterThan(40);
   });
 

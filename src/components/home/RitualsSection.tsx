@@ -44,7 +44,7 @@ interface Props {
   /** "Tentar de novo" dos avisos de histórico indisponível (refaz a busca; `loading` fica true enquanto isso). */
   onRetry?: () => void;
   showSquad: boolean;
-  /** "Squad Phoenix" ou "Todas as squads", exibido no painel lateral. */
+  /** "Squad Phoenix" ou "Todas as squads" (só com várias squads; vazio com uma), exibido no painel lateral. */
   scopeLabel: string;
   now: Date;
 }
@@ -130,7 +130,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                 <IconTile icon={TOOL_ICON[open.key]} size="lg" />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <SheetTitle className="text-xl font-bold">{open.title}</SheetTitle>
-                  <SheetDescription>{scopeLabel}</SheetDescription>
+                  {scopeLabel ? <SheetDescription>{scopeLabel}</SheetDescription> : null}
                 </div>
               </div>
               <div className="flex gap-2 border-b border-border px-5 py-4">

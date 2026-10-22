@@ -136,6 +136,11 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(isOpenRoute('/changelogs')).toBe(false);
       expect(isOpenRoute('/invite/abc123')).toBe(true);
       expect(isOpenRoute('/invites')).toBe(false);
+      // Jolt: visitante lê e edita; executar, gerar e salvar pedem login dentro da tela.
+      expect(isOpenRoute('/jolt')).toBe(true);
+      expect(isOpenRoute('/jolt/sandbox')).toBe(true);
+      expect(isOpenRoute('/jolt/gerador')).toBe(true);
+      expect(isOpenRoute('/joltx')).toBe(false);
       expect(isOpenRoute('/admin')).toBe(false);
       expect(isOpenRoute('/painel')).toBe(false);
       expect(isOpenRoute('/login')).toBe(false);

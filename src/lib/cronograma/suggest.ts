@@ -26,6 +26,11 @@ export interface SuggestTask {
   done: boolean;
   /** Fim já conhecido de uma fase concluída (data real ou de resolução), para a fase seguinte esperar. */
   doneEnd?: Pt | null;
+  /**
+   * Data e hora REAIS do Jira (compromisso da pessoa): nunca são recalculadas. Ocupam a fila da pessoa nesse
+   * horário e as demais fases contornam o bloco; a fase seguinte espera o fim delas.
+   */
+  fixed?: { start: Pt; end: Pt } | null;
 }
 
 export interface Suggestion {
@@ -91,8 +96,19 @@ export function suggestSchedule(tasks: SuggestTask[], opts: SuggestOptions): Map
   const ends = new Map<string, Pt>(); // key -> fim já definido (sugerido ou de fase concluída)
   for (const t of tasks) if (t.done && t.doneEnd) ends.set(t.key, t.doneEnd);
 
+  // Blocos ocupados por fase com data real, por pessoa.
+  const blocks = new Map<string, { start: Pt; end: Pt }[]>();
+  for (const t of tasks) {
+    if (t.done || !t.fixed) continue;
+    ends.set(t.key, t.fixed.end);
+    if (t.person) {
+      const list = blocks.get(t.person);
+      if (list) list.push(t.fixed); else blocks.set(t.person, [t.fixed]);
+    }
+  }
+
   const place = (t: SuggestTask, respectPhases: boolean) => {
-    if (t.done || t.hours <= 0) return;
+    if (t.done || t.fixed || t.hours <= 0) return;
     const cap = Math.max(opts.capacityOf(t.person), 0.5);
     let startNum = floor;
     const consider = (p: Pt | undefined) => {
@@ -104,8 +120,18 @@ export function suggestSchedule(tasks: SuggestTask[], opts: SuggestOptions): Map
       }
     }
     if (t.person) consider(cursor.get(t.person));
-    const start = normalizeStart(startNum);
-    const end = advance(start, t.hours / cap);
+    const need = t.hours / cap;
+    let start = normalizeStart(startNum);
+    let end = advance(start, need);
+    const mine = t.person ? blocks.get(t.person) : undefined;
+    if (mine) {
+      for (let guard = 0; guard <= mine.length * 2; guard += 1) {
+        const hit = mine.find((b) => ptNum(b.start) < ptNum(end) - EPS && ptNum(b.end) > ptNum(start) + EPS);
+        if (!hit) break;
+        start = normalizeStart(ptNum(hit.end) > ptNum(start) ? hit.end : start);
+        end = advance(start, need);
+      }
+    }
     if (t.person) cursor.set(t.person, end);
     ends.set(t.key, end);
     out.set(t.key, { start, end, hours: t.hours, capacityHours: cap, person: t.person });

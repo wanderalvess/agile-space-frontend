@@ -8,7 +8,7 @@ import { useSquadStore } from '@/store/useSquadStore';
 import { formatDay, isoOfDay, parseDay } from '@/lib/cronograma/dates';
 import { computeKpis, inferredSubtasks, type DateSource, type Simulation } from '@/lib/cronograma/schedule';
 import {
-  EMPTY_FILTERS, axisDays, buildRows, filterStories, presetRange, sprintRange, uniqueValues,
+  EMPTY_FILTERS, axisDays, buildRows, countEmptyClosed, filterStories, presetRange, quickCounts, sprintRange, uniqueValues,
   type DayRange, type Filters, type Grouping, type HierarchyLevel, type PeriodPreset,
 } from '@/lib/cronograma/view';
 import { CronogramaToolbar } from './CronogramaToolbar';
@@ -42,7 +42,8 @@ function timeAgo(iso: string | undefined, nowMs: number): string {
 }
 
 export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, onSync, canConfigure = false }: CronogramaViewProps) {
-  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing, members } = useSquadStore();
+  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing, members, myClaim } = useSquadStore();
+  const myAccountId = myClaim?.jiraAccountId || undefined;
   const issues = viewingSprintId ? viewedIssuesSnapshot : issuesSnapshot;
   const activeRollup = viewingSprintId ? viewedRollup : rollup;
   const nowMs = useNowMs();
@@ -65,6 +66,7 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
   const [selection, setSelection] = useState<Selection | null>(null);
   const [sim, setSim] = useState<Simulation | null>(null);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [showEmptyClosed, setShowEmptyClosed] = useState(false);
 
   const { tasks, stories } = useCronogramaModel({
     issues,
@@ -88,9 +90,12 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
   }, [preset, customStart, customEnd, sprint, nowMs]);
   const days = useMemo(() => axisDays(range), [range]);
 
-  const visible = useMemo(() => filterStories(stories, filters), [stories, filters]);
+  const filterCtx = useMemo(() => ({ myAccountId, hideEmptyClosed: !showEmptyClosed }), [myAccountId, showEmptyClosed]);
+  const visible = useMemo(() => filterStories(stories, filters, filterCtx), [stories, filters, filterCtx]);
+  const hiddenClosed = useMemo(() => countEmptyClosed(stories), [stories]);
+  const counts = useMemo(() => quickCounts(stories, { myAccountId }), [stories, myAccountId]);
   const rows = useMemo(() => buildRows(visible, { grouping, level, collapsed }), [visible, grouping, level, collapsed]);
-  const kpis = useMemo(() => computeKpis(stories), [stories]);
+  const kpis = useMemo(() => computeKpis(stories, sprint.end), [stories, sprint.end]);
   const inferred = useMemo(() => inferredSubtasks(visible.flatMap((v) => v.tasks.map((t) => t.task))), [visible]);
 
   const statuses = useMemo(() => uniqueValues(tasks, (t) => t.status), [tasks]);
@@ -174,7 +179,7 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
             />
           )}
 
-          <CronogramaKpis kpis={kpis} />
+          <CronogramaKpis kpis={kpis} quick={filters.quick} onQuick={(quick) => setFilters((f) => ({ ...f, quick }))} />
 
           <CronogramaToolbar
             filters={filters} onFilters={setFilters}
@@ -189,6 +194,7 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
             dayWidth={dayWidth} onZoom={zoom}
             simulating={!!sim} onClearSim={() => setSim(null)}
             canConfigure={canConfigure} onOpenFields={() => setFieldsOpen(true)}
+            counts={counts} canMine={!!myAccountId}
           />
 
           <section aria-label="Cronograma" className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -199,6 +205,18 @@ export function CronogramaView({ squadId, jiraConnected = true, onConnectJira, o
                 rows={rows} days={days} dayWidth={dayWidth} leftWidth={leftWidth} onLeftWidth={setLeftWidth}
                 grouping={grouping} nowMs={nowMs} selected={selection} onSelect={setSelection} onToggle={toggle}
               />
+            )}
+            {hiddenClosed > 0 && (
+              <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 text-sm text-muted-foreground">
+                <span>
+                  {showEmptyClosed
+                    ? `${hiddenClosed} ${hiddenClosed === 1 ? 'fase fechada sem datas aparece' : 'fases fechadas sem datas aparecem'} na lista.`
+                    : `${hiddenClosed} ${hiddenClosed === 1 ? 'fase fechada sem datas fica oculta' : 'fases fechadas sem datas ficam ocultas'}.`}
+                </span>
+                <Button type="button" variant="outline" onClick={() => setShowEmptyClosed((v) => !v)} className="h-8 rounded-lg px-3 text-sm font-semibold">
+                  {showEmptyClosed ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              </div>
             )}
             <CronogramaLegend phases={config?.phases} />
           </section>

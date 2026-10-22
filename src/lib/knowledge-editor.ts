@@ -10,11 +10,12 @@ import type { KnowledgeDocument } from '@/lib/knowledge-types';
 export const EMPTY_DOC_HTML = '<p></p>';
 
 /**
- * O servidor (KnowledgeService.DOC_STATUS) só aceita "indexed", "published" e "deleted": "draft" e
- * "archived" voltam 400 ("Status inválido"). Enquanto o backend não aceitar, a tela não oferece
- * "Salvar rascunho" nem grava "Arquivado". Quando o backend passar a aceitar, basta virar esta chave.
+ * O servidor (KnowledgeService.DOC_STATUS) aceita "draft" (Rascunho: só o autor e admin veem) e "archived"
+ * (Arquivado: fora de listas e buscas, legível por link e restaurável por quem edita). Se um backend mais
+ * antigo voltar 400 ("Status inválido"), basta desligar esta chave para esconder "Salvar rascunho" e
+ * desabilitar as opções Rascunho/Arquivado.
  */
-export const SERVER_SUPPORTS_DRAFT_ARCHIVED = false;
+export const SERVER_SUPPORTS_DRAFT_ARCHIVED = true;
 
 /** Limites do servidor (KnowledgeService.MAX_TAGS / MAX_TAG_LENGTH). */
 export const MAX_TAGS = 50;

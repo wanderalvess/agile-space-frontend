@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { AnnouncementBanner } from '@/components/home/AnnouncementBanner';
 import { HomeHero } from '@/components/home/HomeHero';
@@ -24,6 +24,7 @@ import { useMySquads } from '@/hooks/home/useMySquads';
 import { useRitualHistory } from '@/hooks/home/useRitualHistory';
 import { formatCountdown } from '@/lib/ceremony-countdown';
 import { cn } from '@/lib/utils';
+import { moduleLabel } from '@/lib/modules-registry';
 
 export default function Home() {
   const { userProfile } = useUserContext();
@@ -37,10 +38,6 @@ export default function Home() {
   const [scope, setScope] = useState<string | null>(null);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
-
-  useEffect(() => {
-    document.title = 'Hub | Portal Tech V&D';
-  }, []);
 
   const handleOpenFeedback = useCallback(() => setFeedbackSignal(Date.now()), []);
 
@@ -82,7 +79,7 @@ export default function Home() {
   );
 
   const scopedSquad = effectiveScope ? squads.find((s) => s.id === effectiveScope) : undefined;
-  const scopeLabel = isMulti ? (scopedSquad ? `Squad ${scopedSquad.name}` : 'Todas as squads') : activeSquad ? `Squad ${activeSquad.name}` : '';
+  const scopeLabel = isMulti ? (scopedSquad ? `Squad ${scopedSquad.name}` : 'Todas as squads') : '';
 
   const chips = heroChips({
     squadCount: squads.length,
@@ -94,6 +91,7 @@ export default function Home() {
 
   return (
     <PageShell
+      documentTitle={moduleLabel('home')}
       header={{
         squadControl: { squads, scope: effectiveScope, isMulti, switchingTo, onPick: handlePickSquad },
         search: { query, onQueryChange: setQuery },

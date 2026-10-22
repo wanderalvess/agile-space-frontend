@@ -7,6 +7,8 @@ import { FeedbackWidget } from '@/components/feedback-widget';
 import { FOCUS_RING } from '@/components/home/home-ui';
 import { cn } from '@/lib/utils';
 import { getModule, type ModuleKey } from '@/lib/modules-registry';
+import { useNewVersion } from '@/lib/new-version';
+import { NewVersionNotice } from './NewVersionNotice';
 import packageInfo from '../../../package.json';
 
 /** Atalhos do rodapé, na ordem: o texto e a rota vêm do registro de módulos. */
@@ -32,6 +34,8 @@ export function AppFooter({ toolName, onOpenFeedback, className }: AppFooterProp
   const openOwnFeedback = useCallback(() => setSignal(Date.now()), []);
   const handleFeedback = onOpenFeedback ?? openOwnFeedback;
 
+  const { unread } = useNewVersion();
+
   const linkClass = cn(
     'inline-flex h-8 items-center rounded-lg px-3 text-xs max-sm:h-11 font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
     FOCUS_RING,
@@ -53,14 +57,22 @@ export function AppFooter({ toolName, onOpenFeedback, className }: AppFooterProp
           </button>
           {FOOTER_LINKS.map((key) => {
             const m = getModule(key);
+            const hasDot = key === 'changelog' && unread;
             return (
-              <Link key={key} href={m.href} className={linkClass}>
+              <Link
+                key={key}
+                href={m.href}
+                aria-label={hasDot ? `${m.label}, há uma versão nova` : undefined}
+                className={cn(linkClass, hasDot && 'relative gap-2')}
+              >
                 {m.label}
+                {hasDot && <span aria-hidden="true" data-testid="versions-dot" className="h-2 w-2 rounded-full bg-primary ring-[3px] ring-primary/25" />}
               </Link>
             );
           })}
         </nav>
       </div>
+      <NewVersionNotice />
       {!onOpenFeedback && (
         <FeedbackWidget toolName={toolName ? `Portal Tech V&D - ${toolName}` : 'Portal Tech V&D'} triggerVariant="none" externalTriggerSignal={signal} />
       )}

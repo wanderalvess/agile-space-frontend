@@ -3,6 +3,7 @@
 import { Suspense, use } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { EmptyState, LoadingSkeleton, PageShell } from '@/components/page';
+import { moduleLabel } from '@/lib/modules-registry';
 import { PlanScreen } from '@/components/sprint-planner/PlanScreen';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
@@ -35,7 +36,7 @@ function PlanRoute({ planId }: { planId: string }) {
 export default function SprintPlanPage({ params }: { params: Promise<{ planId: string }> }) {
   const { planId } = use(params);
   return (
-    <PageShell documentTitle="Planejamento da sprint">
+    <PageShell documentTitle={moduleLabel('sprint-planner')}>
       <Suspense fallback={<LoadingSkeleton variant="page" />}>
         <PlanRoute planId={planId} />
       </Suspense>

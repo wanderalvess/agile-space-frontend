@@ -167,8 +167,9 @@ describe('varredura dos arquivos tocados', () => {
     'src/components/poker/team-chat/ChatMessageContent.tsx',
     'src/app/prompt-hub/tutorial/page.tsx',
     'src/app/manual/components/ModuleApiToolSection.tsx',
-    'src/app/manual/components/ManualHero.tsx',
-    'src/app/manual/page.tsx',
+    'src/app/manual/components/ManualIndex.tsx',
+    'src/app/manual/components/TopicPage.tsx',
+    'src/app/manual/components/TopicBlocks.tsx',
     'src/components/showcase/ShowcaseCover.tsx',
     'src/components/squad/cronograma/CronogramaView.tsx',
     'src/components/squad/cronograma/CronogramaToolbar.tsx',
@@ -190,7 +191,7 @@ describe('varredura dos arquivos tocados', () => {
   });
 
   it('Prompt Hub: nenhum chip desabilitado usa opacity-40 e os chips de tag têm 24 px de altura', () => {
-    const src = read('src/app/prompt-hub/components/Dashboard.tsx');
+    const src = ['Chips', 'ItemCard', 'CatalogParts'].map(f => read(`src/components/prompt-hub/${f}.tsx`)).join(' ');
     expect(src).not.toMatch(/cursor-not-allowed opacity-40/);
     expect(src.match(/min-h-6/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
@@ -205,7 +206,8 @@ describe('varredura dos arquivos tocados', () => {
       'src/components/squad/hub/SquadHub.tsx',
       'src/components/squad/hub/SummaryTab.tsx',
       'src/components/squad/SquadWorkflowPhasesDialog.tsx',
-      'src/components/manual/IntegrationsSection.tsx',
+      'src/app/manual/components/ModuleApiToolSection.tsx',
+      'src/app/manual/components/TopicBlocks.tsx',
     ]) {
       const code = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
       expect(code, file).not.toMatch(/\b(pra|pro|pras|pros)\b/i);

@@ -16,6 +16,8 @@ export interface CascadeInput {
   end: Pt;
   /** Atraso próprio em dias úteis (detectado ou simulado). */
   ownSlip: number;
+  /** false = fase sem data real: nunca é empurrada (fica como está). Padrão: true. */
+  pushable?: boolean;
 }
 
 export interface CascadeResult {
@@ -43,14 +45,15 @@ export function cascadeStory(items: CascadeInput[]): Map<string, CascadeResult> 
       pending = 0;
     }
     lastOrder = it.order;
-    const shift = push + it.ownSlip;
+    const pushed = it.pushable === false ? 0 : push;
+    const shift = pushed + it.ownSlip;
     out.set(it.key, {
-      start: shiftPt(it.start, push),
+      start: shiftPt(it.start, pushed),
       end: shiftPt(it.end, shift),
       plannedEnd: it.end,
       shift,
       own: it.ownSlip,
-      pushed: push,
+      pushed,
     });
     pending = Math.max(pending, it.ownSlip);
   }

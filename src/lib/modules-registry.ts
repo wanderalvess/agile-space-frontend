@@ -18,7 +18,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  TestTube,
   UserCog,
   Users,
   Wrench,
@@ -48,7 +47,6 @@ export type ModuleKey =
   | 'action-plan'
   | 'jolt'
   | 'devtools'
-  | 'qa'
   | 'sprint-planner'
   | 'knowledge'
   | 'prompt-hub'
@@ -131,8 +129,7 @@ export const MODULES: readonly PortalModule[] = [
 
   // Ferramentas
   { key: 'jolt', label: 'Jolt', href: '/jolt', icon: Braces, group: 'ferramentas', description: 'Layouts e especificações', aliases: ['layouts', 'spec'], home: { group: 'quality', order: 1 } },
-  { key: 'devtools', label: 'DevTools', href: '/devtools', icon: Wrench, group: 'ferramentas', description: 'JSON, Base64, JWT, Regex, Diff e mais', aliases: ['ferramentas', 'json', 'regex', 'base64'], home: { group: 'quality', order: 2 } },
-  { key: 'qa', label: 'Central de qualidade', href: '/qa', icon: TestTube, group: 'ferramentas', description: 'Zephyr, massa de dados, BDD, automação e mocks', aliases: ['qa', 'qualidade', 'zephyr'], home: { group: 'quality', order: 3 } },
+  { key: 'devtools', label: 'DevTools', href: '/devtools', icon: Wrench, group: 'ferramentas', description: 'JSON, Base64, JWT, Regex, Diff, Zephyr, massa de dados e mais', aliases: ['ferramentas', 'json', 'regex', 'base64', 'qa', 'qualidade', 'central de qualidade', 'zephyr'], paths: ['/qa'], home: { group: 'quality', order: 2 } },
   { key: 'sprint-planner', label: 'Planejamento', href: '/sprint-planner', icon: CalendarDays, group: 'ferramentas', description: 'Capacidade e planejamento da sprint', aliases: ['planejamento', 'sprint planner', 'capacidade'], home: { group: 'flow', order: 3 } },
 
   // Conhecimento

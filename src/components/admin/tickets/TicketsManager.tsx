@@ -10,7 +10,7 @@ import { FOCUS_RING } from '@/components/room-kit/tokens';
 import { cn } from '@/lib/utils';
 import { Segmented } from '../Segmented';
 import { TicketDrawer } from './TicketDrawer';
-import { emptyTicketsCopy, filterTickets, splitSubject, statusCounts, statusMeta, type TicketFilter } from './ticket-utils';
+import { emptyTicketsCopy, filterTickets, statusCounts, statusMeta, ticketKind, type TicketFilter } from './ticket-utils';
 
 type Phase = 'loading' | 'ready' | 'error';
 
@@ -109,7 +109,7 @@ export function TicketsManager({ onOpenCount }: { onOpenCount?: (n: number) => v
           onClick={() => open(t)}
           className={cn('flex min-w-0 flex-col items-start gap-0.5 rounded-md text-left', FOCUS_RING)}
         >
-          <span className="max-w-full truncate text-sm font-bold text-foreground">{splitSubject(t.subject).title}</span>
+          <span className="max-w-full truncate text-sm font-bold text-foreground">{ticketKind(t).title}</span>
           <span className="max-w-full truncate text-[13px] text-muted-foreground">{t.message}</span>
         </button>
       ),
@@ -120,7 +120,7 @@ export function TicketsManager({ onOpenCount }: { onOpenCount?: (n: number) => v
       width: '104px',
       cell: (t) => (
         <span className="inline-flex h-[22px] w-fit items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">
-          {splitSubject(t.subject).type}
+          {ticketKind(t).type}
         </span>
       ),
     },
@@ -147,7 +147,7 @@ export function TicketsManager({ onOpenCount }: { onOpenCount?: (n: number) => v
       width: '40px',
       align: 'end',
       cell: (t) => (
-        <IconButton size="sm" label={`Abrir o chamado: ${splitSubject(t.subject).title}`} icon={ChevronRight} className="border-transparent" onClick={() => open(t)} />
+        <IconButton size="sm" label={`Abrir o chamado: ${ticketKind(t).title}`} icon={ChevronRight} className="border-transparent" onClick={() => open(t)} />
       ),
     },
   ];

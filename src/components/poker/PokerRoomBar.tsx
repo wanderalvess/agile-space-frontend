@@ -1,5 +1,6 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
 import React from 'react';
 import {
   Eye,
@@ -15,7 +16,6 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  WalletCards,
 } from 'lucide-react';
 import type { TimerState } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -127,7 +127,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
   return (
     <RoomTopBar
       toolName="Scrum Poker"
-      toolIcon={WalletCards}
+      toolIcon={moduleIcon('poker')}
       title={p.roomTitle}
       status={p.status}
       chips={chips}

@@ -41,7 +41,7 @@ Todos apontam para rota que existe (conferido por `page.tsx` em 2026-10-09):
 |---|---|---|
 | Jolt | `/jolt` | Funciona (ver `jolt.md`) |
 | DevTools | `/devtools` | Funciona (ver `devtools.md`) |
-| Central de Qualidade | `/qa` | Funciona (ver `central-de-qualidade.md`) |
+| Central de Qualidade | `/qa` | Descontinuada como módulo: redireciona ao filtro Qualidade do DevTools (ver `central-de-qualidade.md`) |
 | Painel do Time | `/painel` | Existe |
 | Meu Quadro | `/workspace` | Existe |
 | Planejador | `/sprint-planner` | **Placeholder "Em breve"** (marcado `soon` no card; não é card morto, mas também não há funcionalidade) |

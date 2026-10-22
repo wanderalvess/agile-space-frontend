@@ -1,8 +1,9 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users, WalletCards } from 'lucide-react';
+import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
@@ -80,7 +81,7 @@ function SessionListCard({
           </li>
         ) : failed && rooms.length === 0 ? (
           <li aria-live="polite" className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-            <IconTile icon={WalletCards} tone="neutral" />
+            <IconTile icon={moduleIcon('poker')} tone="neutral" />
             <p className="text-sm text-muted-foreground">Não foi possível carregar as sessões.</p>
             {onRetry && (
               <button
@@ -101,7 +102,7 @@ function SessionListCard({
           </li>
         ) : rooms.length === 0 ? (
           <li className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-            <IconTile icon={WalletCards} tone="neutral" />
+            <IconTile icon={moduleIcon('poker')} tone="neutral" />
             <p className="text-sm text-muted-foreground">{totalCount > 0 ? 'Nenhuma sessão neste filtro' : emptyLabel}</p>
           </li>
         ) : (

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
 import { EmptyState, LoadingSkeleton, PageShell } from '@/components/page';
+import { moduleLabel } from '@/lib/modules-registry';
 import { CreatePlanDialog } from '@/components/sprint-planner/CreatePlanDialog';
 import { PlannerLobby } from '@/components/sprint-planner/PlannerLobby';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +21,7 @@ export default function SprintPlannerPage() {
   const canCreate = !!membership?.leadership || isAdmin;
 
   return (
-    <PageShell documentTitle="Planejamento da sprint">
+    <PageShell documentTitle={moduleLabel('sprint-planner')}>
       {isLoading ? (
         <LoadingSkeleton variant="cards" rows={3} />
       ) : !squadId ? (

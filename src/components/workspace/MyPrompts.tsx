@@ -1,255 +1,210 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { MessageSquare, Plus, Search, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MessageSquare, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { ConfirmDialog, FIELD, ModalButton } from '@/components/room-kit';
 import { EmptyState, ErrorState, LoadingSkeleton } from '@/components/page';
+import { FIELD, ModalButton } from '@/components/room-kit';
 import { useAuth } from '@/context/AuthContext';
+import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import { PromptItem } from '@/app/prompt-hub/types';
-import { promptApi } from '@/app/prompt-hub/api';
-import { deletePromptWithChildren } from '@/app/prompt-hub/deletePrompt';
-import { PromptCard } from '@/app/prompt-hub/components/PromptCard';
-import { PromptEditor } from '@/app/prompt-hub/components/PromptEditor';
-import { PromptView } from '@/app/prompt-hub/components/PromptView';
+import { DEFAULT_FILTERS } from '@/app/prompt-hub/catalog-logic';
+import { fetchCatalog, invalidateCatalogCache, type CatalogResponse } from '@/app/prompt-hub/catalog-query';
+import type { PromptItem } from '@/app/prompt-hub/types';
+import { DeleteItemDialog } from '@/components/prompt-hub/DeleteItemDialog';
+import { ItemCard, type ItemCardHandlers } from '@/components/prompt-hub/ItemCard';
+import { ItemPanel } from '@/components/prompt-hub/ItemPanel';
+import { usePromptActions } from '@/components/prompt-hub/usePromptActions';
 import { WorkspaceSectionHeader } from './workspace-ui';
 
-/** Filtra os prompts por título, conteúdo ou tag (sem diferenciar caixa). */
-export function filterPrompts(prompts: PromptItem[], search: string): PromptItem[] {
-  const q = search.trim().toLowerCase();
-  if (!q) return prompts;
-  return prompts.filter(
-    (item) =>
-      item.title.toLowerCase().includes(q) ||
-      item.content?.toLowerCase().includes(q) ||
-      (item.tags || []).some((t) => t.toLowerCase().includes(q)),
-  );
-}
+const PAGE_SIZE = 24;
 
+/**
+ * Aba "Prompts" do Meu espaço: os itens da própria pessoa, com os mesmos cartões, painel lateral e
+ * editor da Biblioteca de IA (o filtro "Meus itens" do catálogo). Busca e paginação são do servidor.
+ */
 export function MyPrompts({ userProfile }: { userProfile: any }) {
+  const router = useRouter();
   const { session } = useAuth();
-  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id;
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState<PromptItem | null>(null);
-  const [viewingPrompt, setViewingPrompt] = useState<PromptItem | null>(null);
+  const effectiveUserId: string | undefined = userProfile?.id || userProfile?.email || session?.id;
+
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 300).trim();
+  const [items, setItems] = useState<PromptItem[]>([]);
+  const [result, setResult] = useState<CatalogResponse | null>(null);
+  const [page, setPage] = useState(0);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [selected, setSelected] = useState<PromptItem | null>(null);
   const [toDelete, setToDelete] = useState<PromptItem | null>(null);
-  const [isCloning, setIsCloning] = useState(false);
-  const [search, setSearch] = useState('');
+  const requestId = useRef(0);
 
-  const [rawPrompts, setRawPrompts] = useState<PromptItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-
-  const loadPrompts = useCallback(async () => {
-    if (!effectiveUserId) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setLoadError(false);
-    try {
-      const response = await promptApi.listPrompts(undefined, effectiveUserId, 0, 100);
-      setRawPrompts(response.content);
-    } catch (err: any) {
-      console.error('Erro ao carregar prompts do usuário', err);
-      setLoadError(true);
-      toast.error('Erro ao carregar seus prompts.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [effectiveUserId]);
-
-  useEffect(() => {
-    loadPrompts();
-  }, [loadPrompts]);
-
-  const filteredPrompts = useMemo(() => filterPrompts(rawPrompts || [], search), [rawPrompts, search]);
-
-  const authorSnapshot = () => ({
-    authorName: userProfile?.name || session?.name || session?.email?.split('@')[0] || 'Membro',
-    authorRole: userProfile?.role || 'Colaborador',
-    authorSquad: userProfile?.squadId || 'Squad Geral',
-    authorAvatar: userProfile?.avatarSeed || '',
+  const actions = usePromptActions({
+    onUsed: id => {
+      setItems(prev => prev.map(item => (item.id === id ? { ...item, useCount: (item.useCount || 0) + 1 } : item)));
+      setSelected(prev => (prev && prev.id === id ? { ...prev, useCount: (prev.useCount || 0) + 1 } : prev));
+    },
   });
 
-  const openNew = () => {
-    setEditingPrompt(null);
-    setIsEditorOpen(true);
-  };
+  const request = useCallback(
+    (pageNumber: number) => ({
+      filters: { ...DEFAULT_FILTERS, search, status: 'all' as const },
+      sort: 'recent' as const,
+      favoritesOnly: false,
+      mineOnly: true,
+      page: pageNumber,
+      size: PAGE_SIZE,
+      sessionId: effectiveUserId,
+      anonymous: false,
+    }),
+    [search, effectiveUserId]
+  );
 
-  const handleEdit = (prompt: PromptItem) => {
-    setViewingPrompt(null);
-    setEditingPrompt(prompt);
-    setIsEditorOpen(true);
-  };
-
-  const handleSave = async (data: Partial<PromptItem>) => {
-    if (!effectiveUserId) return;
-
-    const loadingToast = toast.loading('Salvando...');
-    try {
-      const payload: Partial<PromptItem> = { ...data, authorId: effectiveUserId, ...authorSnapshot() };
-      delete (payload as any).id;
-      delete (payload as any).createdAt;
-      delete (payload as any).updatedAt;
-
-      if (data.id) {
-        await promptApi.updatePrompt(data.id, payload);
-      } else {
-        await promptApi.createPrompt(payload);
-      }
-      toast.success('Prompt salvo com sucesso!', { id: loadingToast });
-      setIsEditorOpen(false);
-      setEditingPrompt(null);
-      loadPrompts();
-    } catch (err: any) {
-      toast.error('Erro ao salvar: ' + err.message, { id: loadingToast });
+  const load = useCallback(async () => {
+    if (!effectiveUserId) {
+      setState('ready');
+      setItems([]);
+      return;
     }
-  };
-
-  const handleDelete = async () => {
-    const target = toDelete;
-    if (!target) return;
-    if (viewingPrompt?.id === target.id) setViewingPrompt(null);
+    const id = ++requestId.current;
+    setState(prev => (prev === 'ready' ? prev : 'loading'));
     try {
-      await deletePromptWithChildren(target.id);
-      toast.success('Prompt removido.');
-      loadPrompts();
-    } catch (err: any) {
-      toast.error('Erro ao remover: ' + err.message);
-    }
-  };
-
-  // Duplicar cria a cópia na biblioteca privada e já abre para ajustar (mesmo caminho do Prompt Hub).
-  const handleFork = async (source: PromptItem) => {
-    if (isCloning) return;
-    setIsCloning(true);
-    const loadingToast = toast.loading('Duplicando...');
-    try {
-      const copy = await promptApi.clonePrompt(source.id, authorSnapshot());
-      toast.success('Cópia criada na sua biblioteca privada', { id: loadingToast });
-      setViewingPrompt(null);
-      loadPrompts();
-      setTimeout(() => {
-        setEditingPrompt(copy);
-        setIsEditorOpen(true);
-      }, 250);
-    } catch (err: any) {
-      toast.error('Erro ao duplicar', { id: loadingToast, description: err.message });
-    } finally {
-      setIsCloning(false);
-    }
-  };
-
-  // Contabiliza o uso quando o conteúdo é copiado.
-  const handleCopied = async (id: string) => {
-    try {
-      await promptApi.usePrompt(id);
-      setRawPrompts((prev) => prev.map((p) => (p.id === id ? { ...p, useCount: (p.useCount || 0) + 1 } : p)));
+      const response = await fetchCatalog(request(0), actions.localFavorites);
+      if (id !== requestId.current) return;
+      setResult(response);
+      setItems(response.items);
+      setPage(0);
+      setState('ready');
     } catch (err) {
-      console.warn('Não foi possível atualizar o contador de uso.', err);
+      console.error('[meu-espaco] erro ao carregar os itens da pessoa', err);
+      if (id === requestId.current) setState('error');
+    }
+    // localFavorites só importa ao servidor antigo e não deve refazer a busca.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveUserId, request]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const next = await fetchCatalog(request(page + 1), actions.localFavorites);
+      setItems(prev => {
+        const known = new Set(prev.map(item => item.id));
+        return [...prev, ...next.items.filter(item => !known.has(item.id))];
+      });
+      setResult(prev => (prev ? { ...prev, total: next.total, totalPages: next.totalPages } : next));
+      setPage(page + 1);
+    } catch (err) {
+      toast.error('Não foi possível carregar mais itens', { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setLoadingMore(false);
     }
   };
+
+  const patchItem = (id: string, patch: Partial<PromptItem>) => {
+    setItems(prev => prev.map(item => (item.id === id ? { ...item, ...patch } : item)));
+    setSelected(prev => (prev && prev.id === id ? { ...prev, ...patch } : prev));
+  };
+
+  const afterDelete = () => {
+    setSelected(null);
+    invalidateCatalogCache();
+    void load();
+  };
+
+  const handlers: ItemCardHandlers = {
+    onOpen: item => setSelected(items.find(candidate => candidate.id === item.id) ?? item),
+    onCopy: item => actions.copyText(item, item.content ?? ''),
+    onOpenTool: (item, link) => void actions.openTool(item, link),
+    onToggleFavorite: async item => {
+      const next = await actions.toggleFavorite({ id: item.id, favorite: item.favorite }, !!item.favorite);
+      if (next !== null && typeof item.favorite === 'boolean') patchItem(item.id, { favorite: next });
+    },
+    onCopyLink: item => void actions.copyLink(item),
+    onEdit: item => router.push(`/prompt-hub/${encodeURIComponent(item.id)}/editar`),
+    onDuplicate: item => void actions.duplicate(item),
+    onDelete: item => setToDelete(item),
+    onSelectTag: tag => setSearchInput(tag),
+  };
+
+  const total = result?.total ?? 0;
+  const newItem = () => router.push('/prompt-hub/novo');
 
   return (
     <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
         title="Meus prompts"
-        subtitle="Sua biblioteca privada de modelos de escrita, instruções de IA e prompts"
+        subtitle="Sua biblioteca de prompts, skills, agentes e outros modelos. Os públicos também aparecem na Biblioteca de IA."
         action={
           <>
             <div className="relative w-full sm:w-[280px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
               <input
                 type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filtrar prompts..."
-                aria-label="Filtrar prompts"
+                value={searchInput}
+                onChange={event => setSearchInput(event.target.value)}
+                placeholder="Filtrar meus itens..."
+                aria-label="Filtrar meus itens"
                 className={cn(FIELD, 'h-[42px] pl-9 text-sm')}
               />
             </div>
-            <ModalButton variant="primary" onClick={openNew}>
+            <ModalButton variant="primary" onClick={newItem}>
               <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo
             </ModalButton>
           </>
         }
       />
 
-      {isLoading ? (
-        <LoadingSkeleton variant="cards" rows={3} label="Carregando seus prompts" />
-      ) : loadError ? (
-        <ErrorState title="Não foi possível carregar os prompts" description="Verifique a conexão e tente de novo." onRetry={loadPrompts} />
-      ) : filteredPrompts.length === 0 ? (
+      {state === 'loading' && <LoadingSkeleton variant="cards" rows={3} label="Carregando seus itens" />}
+      {state === 'error' && (
+        <ErrorState title="Não foi possível carregar os itens" description="Confira a conexão e tente de novo." onRetry={() => void load()} />
+      )}
+      {state === 'ready' && total === 0 && (
         <EmptyState
           icon={MessageSquare}
-          title="Nenhum prompt encontrado"
-          description={rawPrompts.length === 0 ? 'Você ainda não possui prompts registrados nesta conta. Comece criando um novo modelo para acelerar seu trabalho.' : `Nenhum prompt combina com "${search.trim()}".`}
+          title="Nenhum item encontrado"
+          description={
+            search
+              ? `Nenhum item combina com "${search}".`
+              : 'Você ainda não possui itens nesta conta. Comece criando um novo modelo para acelerar seu trabalho.'
+          }
           actions={
-            rawPrompts.length === 0 ? (
-              <ModalButton variant="primary" onClick={openNew}>
-                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar primeiro prompt
-              </ModalButton>
+            search ? (
+              <ModalButton onClick={() => setSearchInput('')}>Limpar filtro</ModalButton>
             ) : (
-              <ModalButton onClick={() => setSearch('')}>Limpar filtro</ModalButton>
+              <ModalButton variant="primary" onClick={newItem}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar primeiro item
+              </ModalButton>
             )
           }
         />
-      ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
-          {filteredPrompts.map((prompt) => (
-            <PromptCard
-              key={prompt.id}
-              prompt={prompt}
-              isOwner={true}
-              // Favoritos vivem no navegador e este painel não os carrega: sem estrela. O menu
-              // Editar/Duplicar/Excluir é do dono e aparece aqui (antes ficava oculto por isReadOnly).
-              hideFavorite
-              onFork={handleFork}
-              onEdit={handleEdit}
-              onView={() => setViewingPrompt(prompt)}
-              onDelete={() => setToDelete(prompt)}
-              onCopy={handleCopied}
-            />
-          ))}
-        </div>
+      )}
+      {state === 'ready' && total > 0 && (
+        <>
+          <section aria-label="Meus itens" className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
+            {(result?.mode === 'legacy' ? items.map(item => ({ ...item, favorite: actions.localFavorites.has(item.id) })) : items).map(item => (
+              <ItemCard key={item.id} item={item} query={search} sessionId={effectiveUserId} handlers={handlers} />
+            ))}
+          </section>
+          {page + 1 < (result?.totalPages ?? 1) && (
+            <div className="flex flex-col items-center gap-2">
+              <ModalButton onClick={() => void loadMore()} disabled={loadingMore}>
+                {loadingMore ? 'Carregando…' : 'Carregar mais'}
+              </ModalButton>
+              <span className="text-[13px] text-muted-foreground">
+                Mostrando {items.length.toLocaleString('pt-BR')} de {total.toLocaleString('pt-BR')}
+              </span>
+            </div>
+          )}
+        </>
       )}
 
-      <PromptEditor
-        isOpen={isEditorOpen}
-        onClose={() => {
-          setIsEditorOpen(false);
-          setEditingPrompt(null);
-        }}
-        onSave={handleSave}
-        initialData={editingPrompt}
-      />
-
-      <PromptView
-        isOpen={!!viewingPrompt}
-        onClose={() => setViewingPrompt(null)}
-        prompt={viewingPrompt}
-        isOwner={true}
-        onCopy={handleCopied}
-        onEdit={handleEdit}
-        onDelete={(id) => setToDelete(rawPrompts.find((p) => p.id === id) ?? viewingPrompt)}
-        onFork={handleFork}
-        userProfile={userProfile}
-      />
-
-      <ConfirmDialog
-        open={!!toDelete}
-        onOpenChange={(open) => {
-          if (!open) setToDelete(null);
-        }}
-        tone="danger"
-        icon={Trash2}
-        title={`Excluir "${toDelete?.title ?? 'prompt'}"?`}
-        description="Isso não pode ser desfeito."
-        confirmLabel="Excluir"
-        onConfirm={handleDelete}
-      />
+      <ItemPanel item={selected} onClose={() => setSelected(null)} onPatch={patchItem} onDeleted={afterDelete} onSelectTag={tag => { setSelected(null); setSearchInput(tag); }} />
+      <DeleteItemDialog item={toDelete} sessionId={effectiveUserId} onClose={() => setToDelete(null)} onDeleted={afterDelete} />
     </div>
   );
 }

@@ -98,7 +98,7 @@ export default function FuzzPage() {
           <Tabs value={category} onValueChange={v => setCategory(v as Category | 'all')}>
             <TabsList className="h-9 rounded-xl p-0.5">
               {CATEGORIES.map(c => (
-                <TabsTrigger key={c.id} value={c.id} className="h-8 rounded-lg px-2.5 text-[10px] font-black uppercase tracking-wider">{c.label}</TabsTrigger>
+                <TabsTrigger key={c.id} value={c.id} className="h-8 rounded-lg px-2.5 text-xs font-bold">{c.label}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -115,19 +115,19 @@ export default function FuzzPage() {
                   <article key={index} className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="flex items-center gap-2 font-headline text-xs font-black uppercase tracking-tight text-foreground">
+                        <h3 className="flex items-center gap-2 font-headline text-xs font-bold tracking-tight text-foreground">
                           <Icon className="h-4 w-4 shrink-0 text-primary" />
                           {p.title}
                         </h3>
-                        <Badge variant="outline" className="shrink-0 rounded-full font-code text-[10px]">{p.value.length} chars</Badge>
+                        <Badge variant="outline" className="shrink-0 rounded-full font-code text-xs">{p.value.length} chars</Badge>
                       </div>
                       <p className="text-xs font-medium leading-relaxed text-muted-foreground">{p.description}</p>
                       <div className="custom-scrollbar max-h-24 overflow-y-auto break-all rounded-xl border border-border bg-muted p-3 font-code text-xs text-foreground">
-                        {p.value === '' ? <span className="italic text-muted-foreground">(string vazia, 0 bytes)</span> : p.value}
+                        {p.value === '' ? <span className="text-muted-foreground">(string vazia, 0 bytes)</span> : p.value}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => copyPayload(p.value, index)} className="h-9 w-full gap-2 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                      {copiedIndex === index ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                    <Button size="sm" variant="outline" onClick={() => copyPayload(p.value, index)} className="h-9 w-full gap-2 rounded-lg text-xs font-bold">
+                      {copiedIndex === index ? <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
                       Copiar payload
                     </Button>
                   </article>

@@ -1,7 +1,8 @@
 "use client";
 
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useEffect, useRef } from 'react';
-import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2, WalletCards } from 'lucide-react';
+import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2 } from 'lucide-react';
 import type { DeckType, Participant } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
 import { useToast } from '@/hooks/use-toast';
@@ -160,7 +161,7 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
       <div className="mt-2 flex flex-col items-center gap-3.5 text-center">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Sua sala está pronta</h2>
         <div className="flex items-center gap-2">
-          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
+          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
         </div>
         <ul className="m-0 flex list-none flex-wrap justify-center gap-x-[18px] gap-y-1 p-0 text-[13px] text-muted-foreground" aria-label="Progresso da sala">
@@ -263,7 +264,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
       <div className="mt-2 flex flex-col items-center gap-3.5">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Boas-vindas à sala</h2>
         <div className="flex items-center gap-2">
-          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
+          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
         </div>
       </div>

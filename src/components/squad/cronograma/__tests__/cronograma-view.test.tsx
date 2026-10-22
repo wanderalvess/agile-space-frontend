@@ -138,6 +138,24 @@ describe('IssueSheet', () => {
     expect(onSim).toHaveBeenCalledWith(0);
   });
 
+  it('fase com data real mostra "Data do Jira" (não "Sugestão") e sem responsável explica a capacidade padrão', () => {
+    const issues = [...realIssues(), issue({ key: 'H-9', jiraKey: 'H-9', type: 'Codificação', parentKey: 'H-1', estimateSec: hours(6) })];
+    const real = plannedOf(issues, 'H-2');
+    const { unmount } = render(<IssueSheet task={real} story={null} simDays={0} onSimDays={() => {}} onClose={() => {}} />);
+    expect(screen.getByText('Data do Jira')).toBeTruthy();
+    expect(screen.queryByText('Sugestão do portal')).toBeNull();
+    unmount();
+    const orphan = plannedOf(issues, 'H-9');
+    render(<IssueSheet task={orphan} story={null} simDays={0} onSimDays={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole('dialog').textContent).toMatch(/Sem responsável: usando a capacidade padrão do portal \(8,2 h\/dia\)/);
+  });
+
+  it('fase aberta sem estimativa sugere lançar a estimativa e não calcula', () => {
+    const p = plannedOf([...realIssues(), issue({ key: 'H-8', jiraKey: 'H-8', type: 'Codificação', parentKey: 'H-1', assigneeName: 'Ana' })], 'H-8');
+    render(<IssueSheet task={p} story={null} simDays={0} onSimDays={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole('dialog').textContent).toContain('lance a estimativa no Jira');
+  });
+
   it('com datas reais mostra início e fim com hora', () => {
     const p = plannedOf(realIssues(), 'H-2');
     render(<IssueSheet task={p} story={null} simDays={0} onSimDays={() => {}} onClose={() => {}} />);
@@ -275,5 +293,62 @@ describe('CronogramaView', () => {
     expect(screen.getByText(/Sprint 41/)).toBeTruthy();
     expect(screen.getByText('Sincronizando…')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Sincronizar agora' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  const lateIssues = (): SquadIssueSnapshot[] => [
+    issue({ key: 'L-1', jiraKey: 'L-1', title: 'História atrasada', type: 'Story' }),
+    issue({
+      key: 'L-2', jiraKey: 'L-2', title: 'Codificar', type: 'Codificação', parentKey: 'L-1', assigneeId: 'acc-ana', assigneeName: 'Ana', status: 'In Progress', statusCategory: 'indeterminate',
+      targetStart: '2026-10-14T09:00:00-03:00', targetEnd: '2026-10-16T18:00:00-03:00', datesAreInferred: false, estimateSec: hours(8),
+    }),
+    issue({
+      key: 'L-3', jiraKey: 'L-3', title: 'Testar', type: 'Codificação', parentKey: 'L-1', assigneeId: 'acc-diego', assigneeName: 'Diego',
+      targetStart: '2026-10-28', targetEnd: '2026-10-29', datesAreInferred: false, estimateSec: hours(8),
+    }),
+    issue({ key: 'L-4', jiraKey: 'L-4', title: 'Fechada vazia', type: 'Execução TI', parentKey: 'L-1', status: 'Cancelado', statusCategory: 'done' }),
+    issue({
+      key: 'L-5', jiraKey: 'L-5', title: 'Janela zerada', type: 'Code Review', parentKey: 'L-1', assigneeId: 'acc-ana', assigneeName: 'Ana', status: 'In Progress', statusCategory: 'indeterminate',
+      targetStart: '2026-10-20T17:35:00-03:00', targetEnd: '2026-10-20T17:35:00-03:00', datesAreInferred: false, estimateSec: hours(6), remainingSec: hours(6),
+    }),
+  ];
+
+  it('o cartão "com atraso confirmado" liga o filtro Atrasadas; o chip mostra o contador', () => {
+    setStore(lateIssues(), { myClaim: { jiraAccountId: 'acc-ana' } });
+    render(<CronogramaView squadId="S" />);
+    expect(screen.getByRole('button', { name: /L-3, Codificação/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /com atraso confirmado: filtrar/ }));
+    expect(screen.queryByRole('button', { name: /L-3, Codificação/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /L-2, Codificação/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Atrasadas/ }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Todas' }));
+    expect(screen.getByRole('button', { name: /L-3, Codificação/ })).toBeTruthy();
+  });
+
+  it('"Minhas" usa o usuário logado e fica desabilitado quando não se sabe quem é', () => {
+    setStore(lateIssues(), { myClaim: { jiraAccountId: 'acc-diego' } });
+    const { unmount } = render(<CronogramaView squadId="S" />);
+    fireEvent.click(screen.getByRole('button', { name: /Minhas/ }));
+    expect(screen.getByRole('button', { name: /L-3, Codificação/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /L-2, Codificação/ })).toBeNull();
+    unmount();
+    setStore(lateIssues(), { myClaim: null });
+    render(<CronogramaView squadId="S" />);
+    expect((screen.getByRole('button', { name: /Minhas/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('fases fechadas sem datas ficam ocultas, com resumo e botão Mostrar', () => {
+    setStore(lateIssues());
+    render(<CronogramaView squadId="S" />);
+    expect(screen.queryByRole('button', { name: 'Abrir detalhes de L-4' })).toBeNull();
+    expect(screen.getByText(/1 fase fechada sem datas fica oculta/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar' }));
+    expect(screen.getByRole('button', { name: 'Abrir detalhes de L-4' })).toBeTruthy();
+  });
+
+  it('janela sem duração mostra o aviso na fase e uma barra de 1 hora, sem atraso', () => {
+    setStore(lateIssues());
+    render(<CronogramaView squadId="S" />);
+    expect(screen.getByText('janela sem duração')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /L-5, Code review, Ana, de 20\/10 17:00 a 20\/10 18:00|L-5, Code review, Ana, de 20\/10 1/ })).toBeTruthy();
   });
 });

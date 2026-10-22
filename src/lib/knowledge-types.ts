@@ -1,4 +1,4 @@
-export type KnowledgeDocStatus = 'indexed' | 'published' | 'pending' | 'error' | 'trash' | 'deleted';
+export type KnowledgeDocStatus = 'indexed' | 'published' | 'draft' | 'archived' | 'pending' | 'error' | 'trash' | 'deleted';
 export type KnowledgeDocCategory = 'Técnico' | 'Processo' | 'Produto' | 'Outro';
 
 export interface KnowledgeDocument {

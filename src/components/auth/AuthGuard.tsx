@@ -15,8 +15,10 @@ const PUBLIC_ROUTES = ['/login'];
  * Só páginas cujo dado vem de endpoint público do servidor: o changelog (`GET /api/changelog`) e a
  * redefinição de senha pelo link (`POST /api/auth/reset-password`, a pessoa não tem sessão) e a página do convite
  * (`GET /api/public/invites/{token}`): quem recebe o link precisa ver a squad antes de entrar ou criar a conta.
+ * O Jolt (`/jolt`, Sandbox e Gerador) abre a visitantes só para ler e editar: executar, gerar e salvar pedem login
+ * (a execução no servidor exige token) e as telas mostram o diálogo "Entre para executar".
  */
-const OPEN_ROUTES = ['/changelog', '/reset-password', '/invite'];
+const OPEN_ROUTES = ['/changelog', '/reset-password', '/invite', '/jolt'];
 
 export function isOpenRoute(path: string): boolean {
   return OPEN_ROUTES.some((route) => path === route || path.startsWith(route + '/'));
