@@ -622,7 +622,8 @@ export interface ReviewSubtask {
   key: string;
   title: string | null;
   typeName: string | null;
-  cls: 'DEV' | 'QA' | 'FORA' | 'SEM';
+  /** O backend só manda subtarefas distribuíveis: DEV ou QA (FORA/SEM ficam de fora da revisão). */
+  cls: 'DEV' | 'QA';
   assigneeId: string | null;
   assigneeName: string | null;
   startDate: string | null;
@@ -652,7 +653,7 @@ export interface JiraChange {
   issueKey: string;
   summary: string | null;
   field: PreviewField;
-  /** Nome do campo no Jira; null enquanto a regra de escrita não define qual campo recebe a data. */
+  /** Nome do campo de data no Jira, ou "campo a definir" (texto do servidor) enquanto a regra não o escolhe; null em assignee e sprint. */
   jiraFieldName: string | null;
   from: string | null;
   to: string | null;
@@ -692,9 +693,12 @@ function isReviewView(v: unknown): v is ReviewView {
     Array.isArray(x.people) && Array.isArray(x.tasks) && Array.isArray(x.pendings) &&
     typeof x.blockingCount === 'number' && typeof x.warningCount === 'number' &&
     typeof x.canSend === 'boolean' && typeof x.writeRulesDefined === 'boolean' &&
-    !!x.sprint && typeof x.sprint === 'object' && typeof x.sprint.startDate === 'string' &&
+    typeof x.status === 'string' && typeof x.goalSavedInJira === 'boolean' &&
+    !!x.sprint && typeof x.sprint === 'object' && typeof x.sprint.name === 'string' && typeof x.sprint.startDate === 'string' && typeof x.sprint.endDate === 'string' &&
+    x.pendings.every((p) => !!p && typeof p.code === 'string' && (p.severity === 'BLOCKING' || p.severity === 'WARNING') && typeof p.message === 'string') &&
+    x.tasks.every((t) => !!t && typeof t.itemId === 'string' && Array.isArray(t.subtasks)) &&
     !!x.jiraPreview && typeof x.jiraPreview === 'object' && Array.isArray(x.jiraPreview.changes) &&
-    !!x.jiraPreview.counts && typeof x.jiraPreview.counts === 'object'
+    !!x.jiraPreview.counts && typeof x.jiraPreview.counts === 'object' && typeof x.jiraPreview.counts.issues === 'number'
   );
 }
 
