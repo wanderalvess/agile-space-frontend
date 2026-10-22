@@ -65,7 +65,7 @@ describe('Revisão: contadores e pendências', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ir para a capacidade' }));
     expect(onJump).toHaveBeenLastCalledWith('capacidade', 'acc-ana');
     fireEvent.click(screen.getByRole('button', { name: 'Ir para o escopo' }));
-    expect(onJump).toHaveBeenLastCalledWith('escopo', 'i9');
+    expect(onJump).toHaveBeenLastCalledWith('escopo', 'DDWMISSI-5810');
   });
 });
 
@@ -97,15 +97,20 @@ describe('Revisão: prévia do Jira', () => {
     renderStep();
     await screen.findByTestId('previa-tabela');
     const linhas = screen.getAllByTestId('previa-linha');
-    expect(linhas).toHaveLength(3);
-    expect(linhas[0].textContent).toContain('SET');
-    expect(linhas[0].textContent).toContain('Assignee');
-    expect(linhas[0].textContent).toContain('vazio');
-    expect(linhas[1].textContent).toContain('CHANGE');
-    expect(linhas[1].textContent).toContain('campo a definir');
-    expect(linhas[1].textContent).toContain('20/10/2026');
+    expect(linhas).toHaveLength(5);
+    expect(linhas[0].textContent).toContain('DDWMISSI-5810');
+    expect(linhas[0].textContent).toContain('Tarefa');
+    expect(linhas[0].textContent).toContain('Sprint');
+    expect(linhas[1].textContent).toContain('SET');
+    expect(linhas[1].textContent).toContain('Responsável');
+    expect(linhas[1].textContent).toContain('Subtarefa');
+    expect(linhas[1].textContent).toContain('vazio');
     expect(linhas[2].textContent).toContain('UNCHANGED');
-    expect(screen.getByTestId('contadores-previa').textContent).toContain('1 issue · 1 a definir · 1 a alterar · 1 iguais');
+    expect(linhas[3].textContent).toContain('CHANGE');
+    expect(linhas[3].textContent).toContain('campo a definir');
+    expect(linhas[3].textContent).toContain('20/10/2026');
+    expect(linhas[4].textContent).toContain('Target end');
+    expect(screen.getByTestId('contadores-previa').textContent).toContain('2 issues · 3 a definir · 1 a alterar · 1 iguais');
     expect(screen.getByTestId('previa-meta').textContent).toContain('será gravada no Sprint goal');
     const prev = screen.getByTestId('previa-jira').textContent ?? '';
     expect(prev).toContain('Regras de escrita no Jira em definição');
@@ -149,7 +154,7 @@ describe('Revisão: envio', () => {
   it('link "Iniciar a sprint no Jira" abre em nova aba e some sem URL', async () => {
     const { unmount } = renderStep();
     const a = (await screen.findByRole('link', { name: /Iniciar a sprint no Jira/ })) as HTMLAnchorElement;
-    expect(a.getAttribute('href')).toBe('https://jira.exemplo.com.br/sprints/42');
+    expect(a.getAttribute('href')).toBe('https://jira.exemplo.com.br/secure/RapidBoard.jspa');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toContain('noopener');
     unmount();

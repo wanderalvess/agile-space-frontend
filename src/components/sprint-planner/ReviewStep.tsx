@@ -12,7 +12,7 @@ import { ZONE_TONE, formatHours, formatPct, formatRange, type StepId } from '@/l
 import { connectPlanSocket } from '@/lib/sprint-planner/plan-socket';
 import { syncedAgo } from '@/lib/sprint-planner/scope';
 import {
-  FIELD_LABEL, KIND_LABEL, datedLabel, jiraFieldLabel, jumpLabel, jumpTarget, pendingsCounter, pendingsOf, previewValue, sendBlockReason, summaryLine,
+  FIELD_LABEL, KIND_LABEL, datedLabel, issueKindLabel, jiraFieldLabel, jumpLabel, jumpTarget, pendingsCounter, pendingsOf, previewValue, resolveJumpFocus, sendBlockReason, summaryLine,
   type JumpTarget,
 } from '@/lib/sprint-planner/review';
 import { ZONE_BAR } from './CapacityThermometer';
@@ -202,10 +202,11 @@ function KindChip({ kind }: { kind: PreviewKind }) {
 }
 
 function FieldCell({ c }: { c: JiraChange }) {
+  const jira = jiraFieldLabel(c);
   return (
     <>
       <span className="font-semibold text-foreground">{FIELD_LABEL[c.field]}</span>
-      <span className={cn('text-xs text-muted-foreground', !c.jiraFieldName && 'italic')}>{jiraFieldLabel(c)}</span>
+      {jira && <span className={cn('text-xs text-muted-foreground', jira === 'campo a definir' && 'italic')}>{jira}</span>}
     </>
   );
 }
@@ -230,7 +231,7 @@ function JiraPreviewSection({ view, mobile }: { view: ReviewView; mobile: boolea
           <span className="font-semibold text-foreground">Meta da sprint</span>
           <KindChip kind={p.sprintGoal.kind} />
           <span className="min-w-0 flex-1 text-muted-foreground">
-            {p.sprintGoal.to ? `“${p.sprintGoal.to}”` : 'Sem meta'} será gravada no Sprint goal{view.goalSavedInJira && p.sprintGoal.kind === 'UNCHANGED' ? ' (já está no Jira)' : ''}.
+            {p.sprintGoal.to ? `“${p.sprintGoal.to}” será gravada no Sprint goal${view.goalSavedInJira && p.sprintGoal.kind === 'UNCHANGED' ? ' (já está no Jira)' : ''}.` : 'Sem meta para gravar: preencha a meta no Escopo.'}
           </span>
         </div>
       )}
@@ -242,7 +243,7 @@ function JiraPreviewSection({ view, mobile }: { view: ReviewView; mobile: boolea
           {p.changes.map((c, i) => (
             <li key={`${c.issueKey}-${c.field}-${i}`} className="flex flex-col gap-1 rounded-xl border border-border p-3 text-sm" data-testid="previa-linha">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-foreground">{c.issueKey}</span>
+                <span className="font-bold text-foreground">{c.issueKey} <span className="text-xs font-normal text-muted-foreground">· {issueKindLabel(c.issueKey, view)}</span></span>
                 <KindChip kind={c.kind} />
               </div>
               {c.summary && <span className="text-muted-foreground">{c.summary}</span>}
@@ -268,7 +269,7 @@ function JiraPreviewSection({ view, mobile }: { view: ReviewView; mobile: boolea
               {p.changes.map((c, i) => (
                 <tr key={`${c.issueKey}-${c.field}-${i}`} data-testid="previa-linha">
                   <th scope="row" className="py-2 pr-3 align-top font-semibold text-foreground">
-                    {c.issueKey}
+                    {c.issueKey} <span className="text-xs font-normal text-muted-foreground">· {issueKindLabel(c.issueKey, view)}</span>
                     {c.summary && <span className="block text-xs font-normal text-muted-foreground">{c.summary}</span>}
                   </th>
                   <td className="py-2 pr-3 align-top"><div className="flex flex-col"><FieldCell c={c} /></div></td>
@@ -281,7 +282,7 @@ function JiraPreviewSection({ view, mobile }: { view: ReviewView; mobile: boolea
           </table>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Mudanças depois do envio: regra em definição.</p>
+      {!p.rulesNote?.includes('depois do envio') && <p className="text-xs text-muted-foreground">Mudanças depois do envio: regra em definição.</p>}
     </section>
   );
 }
@@ -389,7 +390,7 @@ export function ReviewStep({ squadId, planId, onJump, onBack, backing, refreshKe
         <EmptyState title="Nada para revisar ainda" description="Adicione tarefas ao escopo e distribua as subtarefas para ver o resumo aqui." />
       ) : (
         <>
-          <Pendings view={view} mobile={mobile} onJump={(t) => onJump(t.step, t.focus)} />
+          <Pendings view={view} mobile={mobile} onJump={(t) => onJump(t.step, resolveJumpFocus(t, view))} />
           <PeopleSummary people={view.people} />
           <TasksSummary tasks={view.tasks} />
           <JiraPreviewSection view={view} mobile={mobile} />

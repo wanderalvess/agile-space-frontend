@@ -54,8 +54,20 @@ export const FIELD_LABEL: Record<JiraChange['field'], string> = {
 };
 
 /** Nome do campo no Jira, ou "campo a definir" enquanto as regras de escrita não o escolhem. */
-export function jiraFieldLabel(c: Pick<JiraChange, 'field' | 'jiraFieldName'>): string {
+export function jiraFieldLabel(c: Pick<JiraChange, 'field' | 'jiraFieldName'>): string | null {
+  if (c.field === 'assignee' || c.field === 'sprint') return null; // campos nativos: o servidor manda null
   return c.jiraFieldName?.trim() || 'campo a definir';
+}
+
+/** A mudança de `sprint` também vem para a issue PAI; este rótulo diferencia pai de subtarefa. */
+export function issueKindLabel(issueKey: string, view: Pick<ReviewView, 'tasks'>): 'Tarefa' | 'Subtarefa' {
+  return view.tasks.some((t) => t.parentKey === issueKey) ? 'Tarefa' : 'Subtarefa';
+}
+
+/** Para a tarefa, o alvo do atalho no Escopo é a chave da issue (os cartões do Escopo usam a chave, não o id). */
+export function resolveJumpFocus(t: JumpTarget, view: Pick<ReviewView, 'tasks'>): string | null {
+  if (t.step !== 'escopo' || !t.focus) return t.focus;
+  return view.tasks.find((k) => k.itemId === t.focus)?.parentKey ?? t.focus;
 }
 
 /** Valor da prévia: datas ISO viram dd/mm/aaaa; vazio vira "vazio". */
