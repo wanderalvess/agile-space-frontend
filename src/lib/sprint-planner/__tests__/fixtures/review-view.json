@@ -1,0 +1,42 @@
+{
+  "planId": "p1",
+  "status": "REVISAO",
+  "syncedAt": "2026-10-20T12:00:00-03:00",
+  "canEditPlan": true,
+  "sprint": { "name": "Missi - 2026.10/2", "startDate": "2026-10-21", "endDate": "2026-11-03" },
+  "goal": "Caixa sem fila",
+  "goalSavedInJira": false,
+  "people": [
+    { "accountId": "acc-carla", "name": "Carla", "role": "DEV", "capacityHours": 30, "allocatedHours": 8, "freeHours": 22, "pct": 27, "zone": "VERDE", "state": "DENTRO_DA_CAPACIDADE", "subtaskCount": 2, "datedSubtaskCount": 1 },
+    { "accountId": "acc-ana", "name": "Ana", "role": "QA", "capacityHours": 20, "allocatedHours": 22, "freeHours": 0, "pct": 110, "zone": "VERMELHO", "state": "ACIMA_DA_RESERVA", "subtaskCount": 1, "datedSubtaskCount": 1 }
+  ],
+  "tasks": [
+    {
+      "itemId": "i1", "parentKey": "DDWMISSI-5810", "title": "Troca de produto no caixa", "devHours": 18, "qaHours": 6,
+      "subtasks": [
+        { "key": "DDWMISSI-5811", "title": "Codificação da troca", "typeName": "Codificação", "cls": "DEV", "assigneeId": "acc-carla", "assigneeName": "Carla", "startDate": "2026-10-21", "endDate": "2026-10-23", "estimateH": 8 },
+        { "key": "DDWMISSI-5812", "title": "Testes da troca", "typeName": "QA", "cls": "QA", "assigneeId": null, "assigneeName": null, "startDate": null, "endDate": null, "estimateH": 6 }
+      ]
+    }
+  ],
+  "pendings": [
+    { "code": "SUBTASK_UNASSIGNED", "severity": "BLOCKING", "message": "DDWMISSI-5812 está sem responsável.", "subtaskKey": "DDWMISSI-5812", "accountId": null, "itemId": null },
+    { "code": "PERSON_OVER_CAPACITY", "severity": "WARNING", "message": "Ana passou da capacidade.", "subtaskKey": null, "accountId": "acc-ana", "itemId": null },
+    { "code": "TASK_NO_SUBTASKS", "severity": "WARNING", "message": "A tarefa DDWMISSI-5900 não tem subtarefas.", "subtaskKey": null, "accountId": null, "itemId": "i9" }
+  ],
+  "blockingCount": 1,
+  "warningCount": 2,
+  "canSend": false,
+  "writeRulesDefined": false,
+  "jiraPreview": {
+    "rulesNote": "Regras de escrita em definição.",
+    "sprintGoal": { "from": null, "to": "Caixa sem fila", "kind": "SET" },
+    "changes": [
+      { "issueKey": "DDWMISSI-5811", "summary": "Codificação da troca", "field": "assignee", "jiraFieldName": "Assignee", "from": null, "to": "Carla", "kind": "SET" },
+      { "issueKey": "DDWMISSI-5811", "summary": "Codificação da troca", "field": "plannedStart", "jiraFieldName": null, "from": "2026-10-20", "to": "2026-10-21", "kind": "CHANGE" },
+      { "issueKey": "DDWMISSI-5811", "summary": "Codificação da troca", "field": "sprint", "jiraFieldName": "Sprint", "from": "Missi - 2026.10/2", "to": "Missi - 2026.10/2", "kind": "UNCHANGED" }
+    ],
+    "counts": { "set": 1, "change": 1, "unchanged": 1, "issues": 1 }
+  },
+  "jiraSprintUrl": "https://jira.exemplo.com.br/sprints/42"
+}
