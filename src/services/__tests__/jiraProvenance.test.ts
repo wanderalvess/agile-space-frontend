@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIssueSources } from '../jiraService';
+import { buildIssueSources, limitGuess, MAX_GUESS } from '../jiraService';
 import type { JiraIssue } from '../jiraService';
 import {
   applyChoice, applyChoices, classify, fieldValue, pendingFields, summarize, withFallbackSources, type TextSource,
@@ -146,5 +146,41 @@ describe('escolhas da conferência', () => {
   it('issue sem fontes (XML) conta como certa e não pede revisão', () => {
     expect(pendingFields(baseIssue())).toEqual([]);
     expect(summarize([baseIssue()])).toEqual({ certas: 1, revisar: 0, semTexto: 0 });
+  });
+});
+
+describe('limpeza da marcação do Jira e limite da sugestão', () => {
+  const problemOf = (description: string) => fieldValue(buildIssueSources({ description: `Problema:\n${description}`, comments: [] }).problem);
+
+  it('tira imagem anexada, link e itálico, e deixa identificador com underline em paz', () => {
+    expect(problemOf('Antes !image-2026-02-03.png|width=707,height=126! depois')).toBe('Antes depois');
+    expect(problemOf('Antes !print.png! depois')).toBe('Antes depois');
+    expect(problemOf('Antes _image-2026-02-03.png|width=707,height=126!_ depois')).toBe('Antes depois');
+    expect(problemOf('Como _Gestor de Varejo_')).toBe('Como Gestor de Varejo');
+    expect(problemOf('veja [o manual|https://tdn.totvs.com/x]')).toBe('veja o manual');
+    expect(problemOf('tabela PROCESSO_CARGA_INT e arquivo.png')).toBe('tabela PROCESSO_CARGA_INT e arquivo.png');
+  });
+
+  it('sugestão de Problema grande fica no primeiro parágrafo que cabe', () => {
+    const paragraph = 'O fluxo atual de carga não contempla a descida dos vendedores. '.repeat(4).trim();
+    const description = `${paragraph}\n\n${'Segundo parágrafo. '.repeat(60)}\n\nTerceiro parágrafo.`;
+    const s = buildIssueSources({ description, comments: [] });
+
+    expect(s.problem.candidates[0].text).toBe(paragraph);
+    expect(s.problem.candidates[0].explicit).toBe(false);
+    expect(fieldValue(s.problem)).toBe('');
+  });
+
+  it('parágrafo único maior que o limite é cortado no fim de uma frase ou numa palavra', () => {
+    const cut = limitGuess('Esta frase tem um tamanho razoável para o teste. '.repeat(40));
+    expect(cut.length).toBeLessThanOrEqual(MAX_GUESS);
+    expect(cut.endsWith('.')).toBe(true);
+
+    const cutWords = limitGuess('palavra '.repeat(200));
+    expect(cutWords.length).toBeLessThanOrEqual(MAX_GUESS + 1);
+    expect(cutWords.endsWith('…')).toBe(true);
+
+    expect(limitGuess('  curto ')).toBe('curto');
+    expect(limitGuess('')).toBe('');
   });
 });

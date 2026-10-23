@@ -242,6 +242,12 @@ const stripWikiMarkup = (text: string): string => {
     .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
     .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
     .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    // Imagem anexada (!arquivo.png!, !arquivo.png|width=707,height=126!) e o que sobra quando o "!" inicial se perdeu.
+    .replace(/_?!([^\s!|]+\.(?:png|jpe?g|gif|webp|svg|bmp))(?:\|[^!\n]*)?!_?/gi, '')
+    .replace(/_?[^\s!|]+\.(?:png|jpe?g|gif|webp|svg|bmp)\|[^!\s]*!_?/gi, '')
+    // Link [texto|https://...] vira só o texto; itálico _texto_ perde o underline (menos em PROCESSO_CARGA).
+    .replace(/\[([^\]|\n]+)\|https?:\/\/[^\]\s]+\]/g, '$1')
+    .replace(/(?<![\p{L}\p{N}_])_(\S(?:[^_\n]*\S)?)_(?![\p{L}\p{N}_])/gu, '$1')
     .replace(/^-{3,}[ \t]*$/gm, '');
 };
 
@@ -436,6 +442,30 @@ const parseQAFromDescription = (desc: string) => {
 
 export interface RawJiraComment { body: string; author?: string; created?: string }
 
+/** Tamanho máximo de um palpite: a sugestão não despeja a descrição inteira no campo (igual ao backend). */
+export const MAX_GUESS = 600;
+
+/**
+ * Encurta um palpite: fica com os primeiros parágrafos que cabem em `max`; se o primeiro já passa disso, corta no fim de uma
+ * frase (ou numa palavra) e termina em "…". Texto que cabe volta como está.
+ */
+export const limitGuess = (text: string, max: number = MAX_GUESS): string => {
+  const t = (text || '').trim();
+  if (t.length <= max) return t;
+  let kept = '';
+  for (const paragraph of t.split(/\n{2,}/)) {
+    const next = kept ? kept.length + 2 + paragraph.length : paragraph.length;
+    if (next > max) break;
+    kept = kept ? `${kept}\n\n${paragraph}` : paragraph;
+  }
+  if (kept) return kept.trim();
+  const cut = t.slice(0, max);
+  const sentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
+  if (sentence > max / 3) return cut.slice(0, sentence + 1).trim();
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 3 ? cut.slice(0, space) : cut).trim()}…`;
+};
+
 /**
  * Monta as fontes candidatas de Problema, Solução e Critérios de uma issue (cada comentário, a descrição, o campo de
  * critérios do Jira) e classifica cada campo. Só texto de título explícito ou de campo do Jira é "explícito"; o começo da
@@ -455,7 +485,7 @@ export const buildIssueSources = (input: { criteriaField?: string; description: 
     problem: classify([
       ...fromComments(parseProblemFromDescription),
       desc('descricao', 'Descrição, seção “Problema”', problemSections, true),
-      desc('descricao-inicio', 'Descrição, início do texto', guessProblemFromPreamble(description), false),
+      desc('descricao-inicio', 'Descrição, início do texto', limitGuess(guessProblemFromPreamble(description)), false),
     ]),
     solution: classify([
       ...fromComments(parseSolutionFromDescription),
@@ -464,7 +494,7 @@ export const buildIssueSources = (input: { criteriaField?: string; description: 
     acceptanceCriteria: classify([
       { id: 'campo', kind: 'campo', label: 'Campo “Critérios de aceite” do Jira', text: stripHtml(criteriaField || ''), explicit: true },
       desc('descricao', 'Descrição, seção de critérios', description ? extractSection(description, SECTION_ALIASES.acceptanceCriteria) : '', true),
-      desc('descricao-linhas', 'Descrição, linhas de teste', description ? guessAcceptanceCriteria(description) : '', false),
+      desc('descricao-linhas', 'Descrição, linhas de teste', limitGuess(description ? guessAcceptanceCriteria(description) : ''), false),
     ]),
   };
 };
