@@ -24,10 +24,16 @@ export async function ensureOk(res: Response, fallback: string): Promise<void> {
       try {
         const json = JSON.parse(text);
         if (typeof json?.message === 'string' && json.message.trim()) message = json.message;
+        // O filtro de rate limit (429) responde {"error":"Muitas requisições. Tente de novo em N s."} sem "message".
+        else if (res.status === 429 && typeof json?.error === 'string' && json.error.trim()) message = json.error;
       } catch {
         if (text && text.length < 200 && !text.trim().startsWith('<')) message = text;
       }
     } catch { /* corpo ilegível: fica o texto padrão */ }
+  }
+  if (res.status === 429 && message === fallback) {
+    const wait = Number(res.headers?.get?.('Retry-After'));
+    if (Number.isFinite(wait) && wait > 0) message = `Tente de novo em ${Math.ceil(wait)} s.`;
   }
   throw new CeremonyApiError(message, res.status);
 }

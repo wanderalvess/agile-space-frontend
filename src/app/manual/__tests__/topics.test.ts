@@ -194,6 +194,15 @@ describe('manual: o que o texto não pode dizer', () => {
     expect(getTopicById('planner')?.actionLabel).not.toMatch(/breve/i);
   });
 
+  it('Planejamento explica Code Review, reserva, classificação por tipo, mapeamento e os botões novos', () => {
+    const text = bodyText(TOPIC_CONTENT.planner);
+    for (const termo of ['Code Review', 'Reserva', 'Copiar da sprint anterior', 'Buscar a próxima sprint do Jira', 'subir e descer', 'Iniciar a sprint no Jira', 'AM']) expect(text, termo).toContain(termo);
+    expect(text).toMatch(/título mais o Code Review/);
+    expect(text).toMatch(/não inclui o Code Review/);
+    expect(text).toMatch(/vem do tipo/);
+    expect(text).not.toMatch(/engenharia|TOTVS/i);
+  });
+
   it('Integrações e API usa os nomes reais das ferramentas MCP e dos endereços do backend', () => {
     const text = bodyText(TOPIC_CONTENT.integracoes);
     for (const nome of ['listDocuments', 'getDocument', 'importDocument', 'listPrompts', 'getPrompt', 'listPromptCollections', 'getPromptCollection', 'importSkill', 'batchImportSkills', 'getSquadStatus', 'listSquadMembers', 'listSquadIssues', 'createPokerSession', 'searchPokerEstimates']) {

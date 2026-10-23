@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RETRO_TEMPLATES, type RetroBoard, type RetroCard, type RetroParticipant, type RetroTemplateKey } from '../../../lib/types';
 
@@ -48,11 +48,20 @@ import { useRetroSceneMode } from '../useRetroSceneMode';
 import { RETRO_SCENE_PREF_KEY } from '../retro-scene-mode';
 import { RETRO_FORMATS } from '../../../lib/retro-formats';
 import { RETRO_FORMAT_THEMES } from '../../../lib/retro-format-themes';
+import { RETRO_SCENE_LOADERS } from '../retro-scene-loaders';
+
+// Instabilidade na suíte completa: cada cenário (17 SVGs) é um import dinâmico que o Vite transforma na
+// primeira vez, e sob carga isso passa de 1 s (waitFor padrão) e às vezes de 5 s (timeout do teste).
+// Aquecemos os 17 chunks uma vez e damos folga a este arquivo (só ele; os outros seguem com o padrão).
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 90_000 });
+configure({ asyncUtilTimeout: 8_000 });
+
 
 // ---- matchMedia controlável: cada teste diz quais consultas "batem". ----
 let mediaMatches: (query: string) => boolean = () => false;
 
-beforeAll(() => {
+beforeAll(async () => {
+  await Promise.all(Object.values(RETRO_SCENE_LOADERS).map((load) => load()));
   window.matchMedia = ((query: string) => ({
     get matches() { return mediaMatches(query); },
     media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),

@@ -26,6 +26,6 @@ export function scopeTotalsOf(items: readonly PlanItem[]): ScopeTotals {
 
 export function scopeViewOf(items: readonly PlanItem[], thermometer: Record<string, Thermometer>, over: Partial<ScopeView> = {}): ScopeView {
   return {
-    planId: 'p1', status: 'ESCOPO', syncedAt: null, items: [...items], totals: scopeTotalsOf(items), thermometer, canEditPlan: true, ...over,
+    planId: 'p1', planVersion: 1, status: 'ESCOPO', syncedAt: null, items: [...items], totals: scopeTotalsOf(items), thermometer, canEditPlan: true, ...over,
   };
 }

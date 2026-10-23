@@ -164,7 +164,21 @@
       "freeHours": 22,
       "pct": 26.666666666666668,
       "zone": "VERDE",
-      "state": "DENTRO_DA_CAPACIDADE"
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": [
+        {
+          "startDate": "2026-10-21",
+          "endDate": "2026-10-22",
+          "hours": null,
+          "reason": "Férias"
+        },
+        {
+          "startDate": "2026-10-26",
+          "endDate": "2026-10-26",
+          "hours": 4,
+          "reason": null
+        }
+      ]
     },
     {
       "accountId": "acc-ana",
@@ -175,7 +189,8 @@
       "freeHours": 28,
       "pct": 6.666666666666667,
       "zone": "VERDE",
-      "state": "DENTRO_DA_CAPACIDADE"
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": []
     },
     {
       "accountId": "acc-fabio",
@@ -186,7 +201,8 @@
       "freeHours": 18,
       "pct": 25.0,
       "zone": "VERDE",
-      "state": "DENTRO_DA_CAPACIDADE"
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": []
     }
   ],
   "warnings": [

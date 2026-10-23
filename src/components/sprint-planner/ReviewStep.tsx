@@ -231,6 +231,12 @@ function JiraPreviewSection({ view, mobile }: { view: ReviewView; mobile: boolea
           <span className="font-semibold text-foreground">Meta da sprint</span>
           <KindChip kind={p.sprintGoal.kind} />
           <span className="min-w-0 flex-1 text-muted-foreground">
+            <span className="block" data-testid="previa-meta-atual">
+              {p.sprintGoal.from?.trim() ? <>Meta atual no Jira: <span className="text-foreground">{p.sprintGoal.from}</span></> : 'Meta atual no Jira: nenhuma.'}
+            </span>
+            {p.sprintGoal.kind === 'CHANGE' && p.sprintGoal.to && (
+              <span className="block text-foreground" data-testid="previa-meta-de-para">De “{p.sprintGoal.from}” para “{p.sprintGoal.to}”.</span>
+            )}
             {p.sprintGoal.to ? `“${p.sprintGoal.to}” será gravada no Sprint goal${view.goalSavedInJira && p.sprintGoal.kind === 'UNCHANGED' ? ' (já está no Jira)' : ''}.` : 'Sem meta para gravar: preencha a meta no Escopo.'}
           </span>
         </div>

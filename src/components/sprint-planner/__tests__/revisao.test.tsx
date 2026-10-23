@@ -213,3 +213,26 @@ describe('Revisão: somente leitura, estados e celular', () => {
     expect(screen.queryByTestId('previa-tabela')).toBeNull();
   });
 });
+
+describe('Revisão: meta atual no Jira', () => {
+  it('SET: mostra "nenhuma" como meta atual', async () => {
+    renderStep();
+    expect((await screen.findByTestId('previa-meta-atual')).textContent).toBe('Meta atual no Jira: nenhuma.');
+    expect(screen.queryByTestId('previa-meta-de-para')).toBeNull();
+  });
+
+  it('CHANGE: mostra a meta atual e o de → para', async () => {
+    withView((v) => { v.jiraPreview.sprintGoal = { from: 'Meta antiga', to: 'Meta nova', kind: 'CHANGE' }; });
+    renderStep();
+    expect((await screen.findByTestId('previa-meta-atual')).textContent).toBe('Meta atual no Jira: Meta antiga');
+    expect(screen.getByTestId('previa-meta-de-para').textContent).toBe('De “Meta antiga” para “Meta nova”.');
+  });
+
+  it('o link para iniciar a sprint continua abrindo em nova aba', async () => {
+    withView((v) => { clear(v); v.jiraSprintUrl = 'https://jira.exemplo/sprint/777'; });
+    renderStep();
+    const link = await screen.findByRole('link', { name: /Iniciar a sprint no Jira/ });
+    expect(link.getAttribute('href')).toBe('https://jira.exemplo/sprint/777');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+});

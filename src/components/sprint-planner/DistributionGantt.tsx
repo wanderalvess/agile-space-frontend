@@ -9,12 +9,13 @@ import { axisDays, barGeometry } from '@/lib/cronograma/view';
 import { DAY_W, HEADER_H, LEFT_W, ROW_H, phaseStyle } from '@/components/squad/cronograma/styles';
 import type { DistributionView } from '@/lib/sprint-planner/api';
 import {
-  distributableTasks, ownershipOf, phaseKindOf, phaseLabelOf, sprintHolidayDays, type Distributable,
+  absenceLabel, absenceSegments, distributableTasks, ownershipOf, phaseKindOf, phaseLabelOf, sprintHolidayDays, type Distributable,
 } from '@/lib/sprint-planner/distribution';
 import { formatDay } from '@/lib/sprint-planner/format';
 
 const TASK_ROW_H = 32;
 const HATCH = 'repeating-linear-gradient(135deg, currentColor 0 2px, transparent 2px 8px)';
+const HATCH_ABSENCE = 'repeating-linear-gradient(45deg, currentColor 0 3px, transparent 3px 7px)';
 
 interface RowPos { sub: Distributable; top: number; mid: number }
 
@@ -30,6 +31,7 @@ export function DistributionGantt({ view, compact = false }: { view: Distributio
   const startDay = parseDay(view.sprint.startDate);
   const endDay = parseDay(view.sprint.endDate);
   const days = useMemo(() => (startDay !== null && endDay !== null ? axisDays({ start: startDay, end: endDay }) : []), [startDay, endDay]);
+  const peopleById = useMemo(() => new Map(view.people.map((p) => [p.accountId, p])), [view.people]);
   const dayW = compact ? 40 : DAY_W.initial;
   const leftW = compact ? 150 : LEFT_W.initial - 60;
 
@@ -128,6 +130,8 @@ export function DistributionGantt({ view, compact = false }: { view: Distributio
                   const geom = barFor(sub);
                   const ps = phaseStyle({ kind: phaseKindOf(sub) });
                   const label = `${sub.key}, ${phaseLabelOf(sub)}, ${sub.assigneeName ?? 'sem responsável'}, ${geom ? `de ${formatDay(sub.startDate)} a ${formatDay(sub.endDate)}` : 'sem datas'}${own === 'other' ? ', somente leitura' : ''}`;
+                  const person = sub.assigneeId ? peopleById.get(sub.assigneeId) : undefined;
+                  const absences = person ? absenceSegments(person.absences, days) : [];
                   return (
                     <div key={sub.key} className="absolute inset-x-0 border-b border-border/40" style={{ top: rowTop, height: ROW_H.task }}>
                       <div className="sticky left-0 z-10 flex h-full flex-col justify-center border-r border-border bg-card px-3" style={{ width: leftW }}>
@@ -140,6 +144,14 @@ export function DistributionGantt({ view, compact = false }: { view: Distributio
                           {sub.assigneeName ?? 'Sem responsável'}
                         </span>
                       </div>
+                      {absences.map(({ from, to, absence }) => (
+                        <span
+                          key={`h-${absence.startDate}-${absence.endDate}-${from}`}
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 text-amber-700 dark:text-amber-300"
+                          style={{ left: leftW + from * dayW, width: (to - from + 1) * dayW, backgroundImage: HATCH_ABSENCE, opacity: 0.3 }}
+                        />
+                      ))}
                       {geom ? (
                         <span
                           role="img"
@@ -162,6 +174,20 @@ export function DistributionGantt({ view, compact = false }: { view: Distributio
                       ) : (
                         <span className="absolute text-xs text-muted-foreground" style={{ left: leftW + 8, top: (ROW_H.task - 16) / 2 }}>sem datas</span>
                       )}
+                      {absences.map(({ from, to, absence }) => {
+                        const text = absenceLabel(person?.name ?? 'pessoa', absence);
+                        return (
+                          <span
+                            key={`a-${absence.startDate}-${absence.endDate}-${from}`}
+                            role="img"
+                            aria-label={text}
+                            title={text}
+                            data-testid={`ausencia-${sub.key}`}
+                            className="absolute z-[5] rounded-sm border-t-2 border-amber-700 bg-amber-500/25 dark:border-amber-300"
+                            style={{ left: leftW + from * dayW, width: (to - from + 1) * dayW, bottom: 0, height: 8 }}
+                          />
+                        );
+                      })}
                     </div>
                   );
                 })}
@@ -204,7 +230,8 @@ export function DistributionGantt({ view, compact = false }: { view: Distributio
         <span>Barra cheia: sua subtarefa</span>
         <span>Barra suave: colega (somente leitura)</span>
         <span>Tracejada: sem dono</span>
-        <span>Hachurado: feriado</span>
+        <span>Hachurado cinza: feriado</span>
+        <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="inline-block h-3 w-4 rounded-sm border border-amber-700 bg-amber-500/25 dark:border-amber-300" />Hachurado âmbar: ausência da pessoa</span>
         <span>Seta: a etapa seguinte começa quando a anterior termina</span>
       </p>
     </div>

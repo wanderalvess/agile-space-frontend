@@ -5,8 +5,8 @@
  */
 import { isoOfDay, isWeekendDay, parseDay } from '@/lib/cronograma/dates';
 import type { PhaseKind } from '@/lib/cronograma/phases';
-import type { DistributionPerson, DistributionSubtask, DistributionTask, DistributionView } from './api';
-import { formatDay } from './format';
+import type { DistributionPerson, PersonAbsence, DistributionSubtask, DistributionTask, DistributionView } from './api';
+import { formatDay, formatHours } from './format';
 
 export type Ownership = 'mine' | 'other' | 'free';
 export type Distributable = DistributionSubtask & { cls: 'DEV' | 'QA' };
@@ -146,4 +146,38 @@ const WARNING_LABEL: Record<string, string> = {
 
 export function warningTitle(code: string): string {
   return WARNING_LABEL[code] ?? 'Atenção';
+}
+
+export interface AbsenceSegment {
+  /** Índices (inclusive) no eixo de dias úteis do Gantt. */
+  from: number;
+  to: number;
+  absence: PersonAbsence;
+}
+
+/** Trechos do eixo (dias úteis) cobertos pelas ausências da pessoa; ausência fora da sprint não gera trecho. */
+export function absenceSegments(absences: readonly PersonAbsence[] | undefined, days: readonly number[]): AbsenceSegment[] {
+  const out: AbsenceSegment[] = [];
+  for (const absence of absences ?? []) {
+    const a = parseDay(absence.startDate);
+    const b = parseDay(absence.endDate);
+    if (a === null || b === null) continue;
+    let from = -1;
+    let to = -1;
+    days.forEach((d, i) => {
+      if (d >= a && d <= b) {
+        if (from < 0) from = i;
+        to = i;
+      }
+    });
+    if (from >= 0) out.push({ from, to, absence });
+  }
+  return out;
+}
+
+/** Texto do tooltip: motivo, período e "dia inteiro" ou "N h" por dia. */
+export function absenceLabel(personName: string, a: PersonAbsence): string {
+  const when = a.hours == null ? 'dia inteiro' : `${formatHours(a.hours)} por dia`;
+  const range = a.startDate === a.endDate ? formatDay(a.startDate) : `${formatDay(a.startDate)} a ${formatDay(a.endDate)}`;
+  return `Ausência de ${personName}${a.reason ? `: ${a.reason}` : ''}, ${range}, ${when}`;
 }

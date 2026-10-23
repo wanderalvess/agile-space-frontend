@@ -321,3 +321,26 @@ describe('Distribuição: celular', () => {
     expect(screen.getByTestId('sub-DDWMISSI-5812')).toBeTruthy();
   });
 });
+
+describe('Distribuição: ausências no Gantt', () => {
+  it('hachura os dias de ausência na linha da pessoa, com tooltip acessível e legenda', async () => {
+    renderStep();
+    await screen.findByTestId('barra-DDWMISSI-5811');
+    const marks = screen.getAllByTestId(/^ausencia-/);
+    expect(marks.length).toBeGreaterThan(0);
+    const txt = marks.map((m) => m.getAttribute('aria-label'));
+    expect(txt).toContain('Ausência de Carla Mendes: Férias, 21/10 a 22/10, dia inteiro');
+    expect(txt).toContain('Ausência de Carla Mendes, 26/10, 4 h por dia');
+    expect(marks[0].getAttribute('title')).toBe(marks[0].getAttribute('aria-label'));
+    expect(screen.getByText(/ausência da pessoa/)).toBeTruthy();
+  });
+
+  it('pessoa sem ausência não gera marcação', async () => {
+    const v = clone();
+    v.people.forEach((p) => { (p as { absences: unknown[] }).absences = []; });
+    h.api.get.mockResolvedValue(v);
+    renderStep();
+    await screen.findByTestId('barra-DDWMISSI-5811');
+    expect(screen.queryAllByTestId(/^ausencia-/)).toHaveLength(0);
+  });
+});
