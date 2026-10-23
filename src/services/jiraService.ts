@@ -91,6 +91,20 @@ export interface JiraIssue {
    * Sem isto, o campo é o texto puro de sempre.
    */
   sources?: IssueSources;
+  /** Texto cru que gerou `sources`: é o que vai para o servidor decidir a origem de cada campo. Só na busca pela API. */
+  raw?: RawIssueText;
+  /** Texto cru das subtarefas e da issue pai que a importação buscou para esta issue. */
+  relatedRaw?: { subtasks?: RawIssueText[]; parent?: RawIssueText };
+}
+
+/** Texto cru de uma issue: o que o servidor precisa para dizer de onde vem Problema, Solução e Critérios. */
+export interface RawIssueText {
+  key: string;
+  type?: string;
+  title?: string;
+  description: string;
+  criteriaField?: string;
+  comments: RawJiraComment[];
 }
 
 /**
@@ -941,6 +955,7 @@ export const fetchJiraIssues = async (
       problem: fieldValue(sources.problem),
       solution: fieldValue(sources.solution),
       sources,
+      raw: { key: issue.key, type: fields?.issuetype?.name || '', title: fields?.summary || issue.key, description: desc, criteriaField, comments: rawComments },
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
       techDocUrl: docLinks.techDocUrl,
@@ -1091,9 +1106,11 @@ export const enrichWithCodificacaoChildren = async (
     // codificação/desenvolvimento valem sozinhas quando existem, para a subtarefa de teste não gerar conflito à toa.
     const devSubtasks = sortedSubtasks.filter(isDevSubtask);
     const withSub = withRelated(issue, 'subtarefa', devSubtasks.length > 0 ? devSubtasks : sortedSubtasks);
+    const subtasksRaw = sortedSubtasks.map((c) => c.raw).filter((r): r is RawIssueText => !!r);
 
     return {
       ...withSub,
+      relatedRaw: subtasksRaw.length > 0 ? { ...issue.relatedRaw, subtasks: subtasksRaw } : issue.relatedRaw,
       problem: issue.sources ? withSub.problem : (issue.problem || bestSubtask?.problem || anyWithProblem?.problem),
       solution: issue.sources ? withSub.solution : (issue.solution || bestSubtask?.solution || anyWithSolution?.solution),
       videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
@@ -1147,6 +1164,7 @@ export const enrichWithParentContext = async (
     const withParent = withRelated(issue, 'pai', [parent]);
     return {
       ...withParent,
+      relatedRaw: parent.raw ? { ...issue.relatedRaw, parent: parent.raw } : issue.relatedRaw,
       problem: issue.sources ? withParent.problem : (issue.problem || parent.problem),
       solution: issue.sources ? withParent.solution : (issue.solution || parent.solution),
       acceptanceCriteria: issue.sources ? withParent.acceptanceCriteria : (issue.acceptanceCriteria || parent.acceptanceCriteria),

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, enrichWithParentContext, JiraIssue } from '@/services/jiraService';
 import { JiraImportConferir } from '@/components/shared/JiraImportConferir';
 import { applyChoices, pendingFields, summarize, type ImportChoices, type ProvenanceField } from '@/services/jiraProvenance';
+import { refineSourcesWithServer } from '@/services/jiraTextSources';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { JQL_VISIBILITY_HELP, jqlPresets } from '@/components/showcase/review-room-logic';
@@ -167,7 +168,9 @@ export function JiraImportDialog({
       // Problema/solução às vezes só existem na subtarefa "Codificação" (issue filha), não na história em si.
       const enrichedFromChildren = await enrichWithCodificacaoChildren(domain, token, issues);
       // Caminho inverso: quando a própria subtarefa é a issue buscada, o contexto costuma estar na história pai.
-      const enriched = await enrichWithParentContext(domain, token, enrichedFromChildren);
+      const withParents = await enrichWithParentContext(domain, token, enrichedFromChildren);
+      // A regra de origem dos textos mora no backend; sem ele (backend antigo, erro), vale a que já rodou no navegador.
+      const enriched = await refineSourcesWithServer(withParents);
       setResults(enriched);
       clearFilters();
       setSelected(selectNew(enriched));

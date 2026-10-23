@@ -1,4 +1,5 @@
 import { Evidence, ShowcaseTask, PRESENTATION_PRESETS } from './types';
+import { originsOf } from '@/services/jiraProvenance';
 
 /**
  * Determina com precisão se o fundo escolhido para a apresentação é claro.
@@ -251,7 +252,9 @@ export const makeTask = (issue: any): any => {
   const plannedDev = (titleScan ? titleScan[1] + 'h' : '') || issue.planned?.dev || '';
   const plannedQa = (titleScan ? titleScan[2] + 'h' : '') || issue.planned?.qa || '';
   
-  const problem = issue.problem || issue.description || '';
+  // Issue com origem dos textos (busca pela API): o Problema é só o que a importação aceitou. Sem isso o texto inteiro da
+  // descrição caía no campo sempre que o palpite não era aceito. XML e issues antigas mantêm a regra de antes.
+  const problem = issue.sources ? (issue.problem || '') : (issue.problem || issue.description || '');
   const solution = issue.solution || '';
   const dev = issue.devName || issue.assignee || '';
   const qa = issue.qa || '';
@@ -293,5 +296,7 @@ export const makeTask = (issue: any): any => {
     versionMaster: issue.versionMaster || '',
     versionRelease: issue.versionRelease || '',
     versionDevelop: issue.versionDevelop || '',
+    // De onde veio o texto de cada campo e o que o Jira tinha (selo e "Restaurar do Jira" no card). Só quando há origem.
+    ...(issue.sources ? { origins: originsOf(issue) } : {}),
   };
 };

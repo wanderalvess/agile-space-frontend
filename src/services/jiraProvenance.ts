@@ -147,3 +147,35 @@ export function commentLabel(author?: string, created?: string): string {
   const date = shortDate(created);
   return `Comentário${author ? ` de ${author}` : ''}${date ? `, ${date}` : ''}`;
 }
+
+/** Origem do texto de um campo do card, como o servidor guarda (showcase_task_origins). */
+export interface FieldOrigin {
+  field: ProvenanceField;
+  sourceKind: SourceKind;
+  sourceLabel: string;
+  /** O que o Jira tinha: é o texto de "Restaurar do Jira". */
+  originalText: string;
+  importedBy?: string;
+  importedAt?: string;
+}
+
+/** Origens do card que nasce desta issue: uma por campo que entrou preenchido (certo ou escolhido pela pessoa). */
+export function originsOf(issue: Pick<JiraIssue, 'sources'>): FieldOrigin[] {
+  const s = issue.sources;
+  if (!s) return [];
+  const out: FieldOrigin[] = [];
+  for (const field of PROVENANCE_FIELDS) {
+    const p = s[field];
+    const chosen = p.candidates.find((c) => c.id === p.sourceId);
+    if (chosen && chosen.text.trim()) {
+      out.push({ field, sourceKind: chosen.kind, sourceLabel: chosen.label, originalText: chosen.text });
+    }
+  }
+  return out;
+}
+
+/** Texto igual para quem lê: ignora espaços e quebras de linha repetidos. */
+export function sameText(a: string | undefined, b: string | undefined): boolean {
+  const n = (v?: string) => (v ?? '').replace(/\s+/g, ' ').trim();
+  return n(a) === n(b);
+}
