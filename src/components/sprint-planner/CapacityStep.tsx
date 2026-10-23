@@ -1,7 +1,9 @@
 'use client';
 
-import { Info } from 'lucide-react';
+import { useState } from 'react';
+import { Copy, Info } from 'lucide-react';
 import { PAGE_CARD } from '@/components/page';
+import { ConfirmDialog, ModalButton } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import type { AbsenceRequest, AbsenceView, CapacityUpdateRequest, Holiday, PatchPlanRequest, PlanView } from '@/lib/sprint-planner/api';
 import { formatHours } from '@/lib/sprint-planner/format';
@@ -31,11 +33,25 @@ export interface CapacityStepProps {
   onAddAbsence: (body: AbsenceRequest) => Promise<boolean>;
   onRemoveAbsence: (a: AbsenceView) => void;
   onReplaceHolidays: (next: Holiday[]) => void;
+  /** Copia da sprint anterior (só RASCUNHO e liderança); devolve true se copiou. */
+  onCopyFromPrevious?: () => Promise<boolean>;
 }
 
 /** Etapa 1: capacidade por pessoa, reserva, termômetro, ausências, feriados e tipos de subtarefa. */
-export function CapacityStep({ plan, onUpdatePerson, onPatch, onAddAbsence, onRemoveAbsence, onReplaceHolidays }: CapacityStepProps) {
+export function CapacityStep({ plan, onUpdatePerson, onPatch, onAddAbsence, onRemoveAbsence, onReplaceHolidays, onCopyFromPrevious }: CapacityStepProps) {
   const canEdit = plan.permissions.canEditPlan;
+  const canCopy = canEdit && plan.status === 'RASCUNHO' && !!onCopyFromPrevious;
+  const [confirming, setConfirming] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const doCopy = async () => {
+    setCopying(true);
+    try {
+      await onCopyFromPrevious?.();
+    } finally {
+      setCopying(false);
+      setConfirming(false);
+    }
+  };
   const people = plan.capacity.people;
   const dev = plan.capacity.byClass?.DEV ?? 0;
   const qa = plan.capacity.byClass?.QA ?? 0;
@@ -52,6 +68,15 @@ export function CapacityStep({ plan, onUpdatePerson, onPatch, onAddAbsence, onRe
           <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} />
           Só a liderança da squad monta a capacidade. Você vê como ficou a sua.
         </p>
+      )}
+
+      {canCopy && (
+        <div className="flex flex-wrap items-center justify-between gap-3" data-testid="copiar-anterior">
+          <p className="text-[13px] text-muted-foreground">Já planejou a sprint passada? Aproveite a reserva e o foco, sem refazer.</p>
+          <ModalButton onClick={() => setConfirming(true)} disabled={copying}>
+            <Copy aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} /> Copiar da sprint anterior
+          </ModalButton>
+        </div>
       )}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -95,6 +120,20 @@ export function CapacityStep({ plan, onUpdatePerson, onPatch, onAddAbsence, onRe
           <HolidaysPanel holidays={plan.holidays} sprint={plan.sprint} canEdit={canEdit} onReplace={onReplaceHolidays} />
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        tone="warn"
+        icon={Copy}
+        title="Copiar da sprint anterior?"
+        description="Vai copiar a reserva (percentual e tipos), o foco do time e a inclusão e o foco de cada pessoa. Não copia ausências, feriados nem tarefas. O que você já ajustou na reserva e nas pessoas será substituído."
+        confirmLabel="Copiar"
+        loading={copying}
+        loadingLabel="Copiando…"
+        keepOpenOnConfirm
+        onConfirm={() => void doCopy()}
+      />
 
       <Card id="cap-tipos" title="Tipos de subtarefa da squad" description="A classe vem do tipo no Jira, não do título.">
         <SubtaskTypesSection squadId={plan.squadId} sprintKey={plan.sprint.sprintKey} canEdit={plan.permissions.canEditTypes} />
