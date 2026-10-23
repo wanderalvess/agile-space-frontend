@@ -47,7 +47,7 @@ type ImportStep = 'selecionar' | 'conferir';
 const IMPORT_PHASES = [{ id: 'buscar', label: 'Buscar' }, { id: 'conferir', label: 'Conferir' }, { id: 'importar', label: 'Importar' }] as const;
 
 const LABEL = 'text-[13px] font-semibold text-foreground';
-const CHIP = 'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors';
+const CHIP = 'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[13px] font-semibold transition-colors';
 
 /** Cor do selo de status por heurística de texto (o Jira varia o nome). */
 function statusClasses(s?: string) {
@@ -331,7 +331,7 @@ export function JiraImportDialog({
         icon={CloudDownload}
         title={title}
         description={step === 'conferir' ? 'Confira de onde vem cada texto antes de importar. O que for palpite não preenche o campo sozinho.' : description}
-        className="sm:h-[min(88vh,840px)] sm:max-w-[1100px]"
+        className="sm:h-[min(92vh,940px)] sm:max-w-[1320px]"
         bodyClassName="pt-4"
         headerExtra={step === 'conferir' ? (
           <PhaseStepper steps={IMPORT_PHASES} current="conferir" label="Fases da importação" />
@@ -346,7 +346,7 @@ export function JiraImportDialog({
         )}
         footerStart={
           <div className="hidden min-w-0 flex-col md:flex">
-            <span className="text-xs text-muted-foreground">Status da importação</span>
+            <span className="text-[13px] text-muted-foreground">Status da importação</span>
             <span className="truncate text-sm font-semibold">
               {step === 'conferir'
                 ? <>Passo 2 de 3 · {importable.length} {importable.length === 1 ? 'issue' : 'issues'} · {summarize(importable, choices).revisar} ainda {summarize(importable, choices).revisar === 1 ? 'pede' : 'pedem'} revisão</>
@@ -371,7 +371,7 @@ export function JiraImportDialog({
             <div className="relative flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-within:border-primary/60">
               <FileUp className="mb-2.5 h-8 w-8 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
               <span className="text-sm font-semibold">Arraste ou selecione seu arquivo XML do Jira</span>
-              <span className="mt-1.5 max-w-sm text-xs leading-relaxed text-muted-foreground">
+              <span className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
                 Dica: no Jira, acesse <strong className="font-semibold text-foreground">Filters &gt; View all issues</strong>, aplique a busca e clique em <strong className="font-semibold text-foreground">Export &gt; XML</strong>.
               </span>
               {fileInput('absolute inset-0 cursor-pointer opacity-0')}
@@ -412,13 +412,13 @@ export function JiraImportDialog({
                   value={jql}
                   onChange={(e) => setJql(e.target.value)}
                   placeholder='Ex.: sprint = 123 AND status = "In Progress"'
-                  className={cn(FIELD, 'h-[72px] min-h-[72px] resize-none py-2 font-mono text-xs leading-normal')}
+                  className={cn(FIELD, 'h-[72px] min-h-[72px] resize-none py-2 font-mono text-[13px] leading-normal')}
                 />
                 <div className="mt-1 flex flex-col gap-2" role="group" aria-label="Consultas salvas e predefinições">
                   {sharedReady && (
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="mr-1 text-xs font-semibold text-muted-foreground">Da squad</span>
-                      {shared.items.length === 0 && <span className="text-xs text-muted-foreground">Nenhuma consulta salva para a squad.</span>}
+                      <span className="mr-1 text-[13px] font-semibold text-muted-foreground">Da squad</span>
+                      {shared.items.length === 0 && <span className="text-[13px] text-muted-foreground">Nenhuma consulta salva para a squad.</span>}
                       {shared.items.map((q) => (
                         <span key={q.id} className="group relative inline-flex items-center">
                           <button
@@ -451,14 +451,14 @@ export function JiraImportDialog({
                     </div>
                   )}
                   {shared.status === 'error' && (
-                    <p className="m-0 text-xs text-muted-foreground">
+                    <p className="m-0 text-[13px] text-muted-foreground">
                       Não foi possível carregar as consultas da squad.{' '}
                       <button type="button" onClick={() => { void shared.reload(); }} className={cn('font-semibold text-foreground underline underline-offset-2', FOCUS_RING)}>Tentar de novo</button>
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {/* Consultas salvas neste navegador: nada some, continuam aqui */}
-                    {sharedReady && savedJqls.length > 0 && <span className="mr-1 text-xs font-semibold text-muted-foreground">Neste navegador</span>}
+                    {sharedReady && savedJqls.length > 0 && <span className="mr-1 text-[13px] font-semibold text-muted-foreground">Neste navegador</span>}
                     {savedJqls.map((sj) => (
                       <span key={sj.id} className="group relative inline-flex items-center">
                         <button
@@ -492,7 +492,7 @@ export function JiraImportDialog({
                       </button>
                     ))}
                   </div>
-                  {sharedReady && <p className="m-0 text-xs text-muted-foreground">{SQUAD_JQL_HELP.note}</p>}
+                  {sharedReady && <p className="m-0 text-[13px] text-muted-foreground">{SQUAD_JQL_HELP.note}</p>}
                 </div>
               </div>
 
@@ -508,12 +508,12 @@ export function JiraImportDialog({
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-xs font-bold text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">
+                  <span className="inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-[13px] font-bold text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">
                     {filteredResults.length === results.length ? `${results.length} itens` : `${filteredResults.length} de ${results.length}`}
                   </span>
-                  <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{selected.size} marcadas</span>
+                  <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-[13px] font-bold text-emerald-700 dark:text-emerald-300">{selected.size} marcadas</span>
                   {alreadyCount > 0 && (
-                    <span className="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-xs font-semibold text-muted-foreground">{alreadyCount} já na Review</span>
+                    <span className="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[13px] font-semibold text-muted-foreground">{alreadyCount} já na Review</span>
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1.5">
@@ -610,25 +610,25 @@ export function JiraImportDialog({
                         />
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
-                            {r.type && <span className="rounded-md border border-border px-1.5 text-xs text-muted-foreground">{r.type}</span>}
-                            {r.status && <span className={cn('rounded-md px-1.5 text-xs font-semibold', statusClasses(r.status))}>{r.status}</span>}
-                            {isKnown && <span className="rounded-md bg-amber-500/10 px-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">Já está na Review</span>}
-                            {r.priority && <span className="text-xs text-muted-foreground">• {r.priority}</span>}
-                            {r.points > 0 && <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 text-xs font-semibold text-muted-foreground">{r.points} pts</span>}
+                            <span className="text-[13px] font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
+                            {r.type && <span className="rounded-md border border-border px-1.5 text-[13px] text-muted-foreground">{r.type}</span>}
+                            {r.status && <span className={cn('rounded-md px-1.5 text-[13px] font-semibold', statusClasses(r.status))}>{r.status}</span>}
+                            {isKnown && <span className="rounded-md bg-amber-500/10 px-1.5 text-[13px] font-semibold text-amber-700 dark:text-amber-300">Já está na Review</span>}
+                            {r.priority && <span className="text-[13px] text-muted-foreground">• {r.priority}</span>}
+                            {r.points > 0 && <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 text-[13px] font-semibold text-muted-foreground">{r.points} pts</span>}
                           </div>
                           <h4 className="m-0 line-clamp-2 text-sm font-semibold leading-snug">{r.title}</h4>
-                          {stripHtml(r.description) && <p className="m-0 mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{stripHtml(r.description)}</p>}
+                          {stripHtml(r.description) && <p className="m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{stripHtml(r.description)}</p>}
                           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                            {r.assignee && <p className="m-0 truncate text-xs text-muted-foreground">Resp.: <span className="text-foreground">{r.assignee}</span></p>}
+                            {r.assignee && <p className="m-0 truncate text-[13px] text-muted-foreground">Resp.: <span className="text-foreground">{r.assignee}</span></p>}
                             {r.labels && r.labels.length > 0 && (
                               <div className="flex flex-wrap items-center gap-1.5">
                                 {r.labels.slice(0, 3).map((lb) => (
-                                  <span key={lb} className="inline-flex items-center gap-1 rounded border border-border px-1.5 text-xs text-muted-foreground">
+                                  <span key={lb} className="inline-flex items-center gap-1 rounded border border-border px-1.5 text-[13px] text-muted-foreground">
                                     <Tag className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />{lb}
                                   </span>
                                 ))}
-                                {r.labels.length > 3 && <span className="text-xs text-muted-foreground">+{r.labels.length - 3}</span>}
+                                {r.labels.length > 3 && <span className="text-[13px] text-muted-foreground">+{r.labels.length - 3}</span>}
                               </div>
                             )}
                           </div>
@@ -650,18 +650,18 @@ export function JiraImportDialog({
                         <div className="flex cursor-default flex-col gap-3.5 rounded-b-xl border-t border-border bg-muted/30 px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                           {r.description && (
                             <div className="flex flex-col gap-1.5">
-                              <span className="text-xs font-semibold text-muted-foreground">Descrição</span>
+                              <span className="text-[13px] font-semibold text-muted-foreground">Descrição</span>
                               <p className="m-0 whitespace-pre-line text-[13px] leading-relaxed">{r.description}</p>
                             </div>
                           )}
                           {r.acceptanceCriteria && (
                             <div className="flex flex-col gap-1.5">
-                              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Critérios de aceite</span>
+                              <span className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">Critérios de aceite</span>
                               <p className="m-0 whitespace-pre-line text-[13px] leading-relaxed">{r.acceptanceCriteria}</p>
                             </div>
                           )}
                           {r.url && (
-                            <a href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
+                            <a href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
                               <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Abrir no Jira
                             </a>
                           )}
@@ -704,7 +704,7 @@ export function JiraImportDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <span className={LABEL}>Prévia da consulta</span>
-            <div className="max-h-24 overflow-y-auto break-all rounded-xl border border-border bg-muted/40 p-2.5 font-mono text-xs leading-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+            <div className="max-h-24 overflow-y-auto break-all rounded-xl border border-border bg-muted/40 p-2.5 font-mono text-[13px] leading-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
               {jql || 'Nenhuma JQL preenchida'}
             </div>
           </div>
@@ -714,7 +714,7 @@ export function JiraImportDialog({
           </div>
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
             <legend className={cn(LABEL, 'mb-2 p-0')}>{sharedReady ? 'Onde guardar' : 'Visibilidade do filtro'}</legend>
-            {sharedReady && <p className="m-0 text-xs font-semibold text-muted-foreground">Neste navegador</p>}
+            {sharedReady && <p className="m-0 text-[13px] font-semibold text-muted-foreground">Neste navegador</p>}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {([
                 { dest: 'local-private', icon: User, name: 'Privada', desc: JQL_VISIBILITY_HELP.private },
@@ -725,7 +725,7 @@ export function JiraImportDialog({
             </div>
             {sharedReady && (
               <>
-                <p className="m-0 mt-1 text-xs font-semibold text-muted-foreground">Na squad{squadJql?.label ? ` ${squadJql.label}` : ''}</p>
+                <p className="m-0 mt-1 text-[13px] font-semibold text-muted-foreground">Na squad{squadJql?.label ? ` ${squadJql.label}` : ''}</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {([
                     { dest: 'squad', icon: Users, name: 'Da squad', desc: SQUAD_JQL_HELP.squad },
@@ -738,7 +738,7 @@ export function JiraImportDialog({
             )}
           </fieldset>
           {(saveJqlError || (squadFormError && newJqlLabel.trim())) && (
-            <p role="alert" className="m-0 text-xs font-semibold text-red-700 dark:text-red-300">{saveJqlError || squadFormError}</p>
+            <p role="alert" className="m-0 text-[13px] font-semibold text-red-700 dark:text-red-300">{saveJqlError || squadFormError}</p>
           )}
         </div>
       </Modal>
@@ -756,7 +756,7 @@ function DestinationOption({ icon: Icon, name, desc, on, onClick }: { icon: Reac
       className={cn('flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors', on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40', FOCUS_RING)}
     >
       <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />{name}</span>
-      <span className="text-xs leading-snug text-muted-foreground">{desc}</span>
+      <span className="text-[13px] leading-snug text-muted-foreground">{desc}</span>
     </button>
   );
 }
