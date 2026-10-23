@@ -164,6 +164,8 @@ export interface ScopeTotals {
 /** Resposta de `GET/POST /items` e `PUT /items/order` (`SprintPlanDtos.ScopeView`). */
 export interface ScopeView {
   planId: string;
+  /** Versão do plano depois da escrita (POST/PUT de itens): quem chamou usa para o próximo PATCH/status sem recarregar. */
+  planVersion: number;
   status: PlanStatus;
   syncedAt: string | null;
   items: PlanItem[];
@@ -179,6 +181,8 @@ export interface PlanView {
   status: PlanStatus;
   sprint: SprintView;
   goal: string | null;
+  /** Meta que está hoje no Sprint goal do Jira (null = sem meta lá ou sem leitura). */
+  jiraGoal: string | null;
   reserve: ReserveView;
   syncedAt: string | null;
   capacity: CapacityView;
@@ -194,6 +198,17 @@ export interface PlanView {
   updatedAt: string | null;
   /** Só na resposta do POST /status ao sair da Distribuição: avisos que não bloqueiam. Ausente/null nas demais. */
   warnings?: DistributionWarning[] | null;
+}
+
+/** `GET /sprint-plans/next-sprint`: a próxima sprint futura do quadro no Jira (`found=false` = não há). */
+export interface NextSprintView {
+  found: boolean;
+  jiraSprintId: string | null;
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  goal: string | null;
+  state: string | null;
 }
 
 export interface CreatePlanRequest { jiraSprintId?: string | null; sprintName: string; startDate: string; endDate: string; goal?: string | null }
@@ -312,7 +327,28 @@ async function json<T>(res: Response, fallback: string): Promise<T> {
 
 function isScopeView(v: unknown): v is ScopeView {
   const x = v as ScopeView | null;
-  return !!x && typeof x === 'object' && Array.isArray(x.items) && !!x.totals && typeof x.thermometer === 'object' && 'planId' in x;
+  return (
+    !!x && typeof x === 'object' && Array.isArray(x.items) && !!x.totals && typeof x.thermometer === 'object' && 'planId' in x &&
+    typeof x.planVersion === 'number'
+  );
+}
+
+/** Valida a forma do `NextSprintView`; outra coisa (vazio, PlanView) vira erro. */
+export function parseNextSprintView(data: unknown, fallback = 'Resposta inesperada do servidor.'): NextSprintView {
+  const x = data as NextSprintView | null;
+  if (!x || typeof x !== 'object' || typeof x.found !== 'boolean') throw new CeremonyApiError(fallback, 502);
+  return x;
+}
+
+function isPlanView(v: unknown): v is PlanView {
+  const x = v as PlanView | null;
+  return !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.version === 'number' && !!x.capacity && !!x.permissions && !!x.sprint;
+}
+
+/** Valida a forma do `PlanView` (resposta do copy-from-previous). */
+export function parsePlanView(data: unknown, fallback = 'Resposta inesperada do servidor.'): PlanView {
+  if (!isPlanView(data)) throw new CeremonyApiError(fallback, 502);
+  return data;
 }
 
 /** Valida a forma do `ScopeView`; qualquer outra coisa (corpo vazio, PlanView) vira erro em vez de dado errado na tela. */
@@ -395,6 +431,23 @@ export const sprintPlanApi = {
   async reorderItems(squadId: string, planId: string, orderedItemIds: string[]): Promise<ScopeView> {
     const res = await authFetch(`${base(squadId)}/${enc(planId)}/items/order`, { method: 'PUT', body: JSON.stringify({ orderedItemIds }) });
     return scopeView(res, 'Não foi possível reordenar o escopo.');
+  },
+
+  /** Só liderança e só em RASCUNHO. 404 = "Nenhum planejamento anterior". Copia reserva, foco e inclusão/foco por pessoa. */
+  async copyFromPrevious(squadId: string, planId: string, sourcePlanId?: string): Promise<PlanView> {
+    const res = await authFetch(`${base(squadId)}/${enc(planId)}/copy-from-previous`, {
+      method: 'POST',
+      body: JSON.stringify(sourcePlanId ? { sourcePlanId } : {}),
+    });
+    await ensureOk(res, 'Não foi possível copiar da sprint anterior.');
+    return parsePlanView(await res.json().catch(() => null), 'Não foi possível copiar da sprint anterior.');
+  },
+
+  /** 400 = sem token ou quadro do Jira; 429 = "Tente de novo em N s"; 502 = Jira fora do ar. Mensagem do servidor. */
+  async nextSprint(squadId: string): Promise<NextSprintView> {
+    const res = await authFetch(`${base(squadId)}/next-sprint`);
+    await ensureOk(res, 'Não foi possível buscar a próxima sprint no Jira.');
+    return parseNextSprintView(await res.json().catch(() => null), 'Não foi possível buscar a próxima sprint no Jira.');
   },
 
   async replaceHolidays(squadId: string, planId: string, holidays: Holiday[]): Promise<Holiday[]> {
@@ -504,6 +557,9 @@ export interface DistributionTask {
   subtasks: DistributionSubtask[];
 }
 
+/** Ausência da pessoa no período da sprint, como a Distribuição recebe (`hours` null = dia inteiro). */
+export interface PersonAbsence { startDate: string; endDate: string; hours: number | null; reason: string | null }
+
 export interface DistributionPerson {
   accountId: string;
   name: string;
@@ -514,6 +570,7 @@ export interface DistributionPerson {
   pct: number | null;
   zone: ThermoZone;
   state: ThermoState;
+  absences: PersonAbsence[];
 }
 
 export interface DistributionWarning {
@@ -539,7 +596,8 @@ function isDistributionView(v: unknown): v is DistributionView {
   const x = v as DistributionView | null;
   return (
     !!x && typeof x === 'object' && 'planId' in x && Array.isArray(x.tasks) && Array.isArray(x.people) && Array.isArray(x.warnings) &&
-    !!x.sprint && typeof x.sprint === 'object' && Array.isArray(x.sprint.holidays) && typeof x.sprint.startDate === 'string'
+    !!x.sprint && typeof x.sprint === 'object' && Array.isArray(x.sprint.holidays) && typeof x.sprint.startDate === 'string' &&
+    x.people.every((p) => !!p && Array.isArray(p.absences))
   );
 }
 
@@ -613,7 +671,7 @@ export type PendingSeverity = 'BLOCKING' | 'WARNING';
 export type PreviewKind = 'SET' | 'CHANGE' | 'UNCHANGED';
 export type PreviewField = 'assignee' | 'sprint' | 'plannedStart' | 'plannedEnd';
 
-export interface ReviewPerson extends DistributionPerson {
+export interface ReviewPerson extends Omit<DistributionPerson, 'absences'> {
   subtaskCount: number;
   datedSubtaskCount: number;
 }

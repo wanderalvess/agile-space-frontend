@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Info, Loader2, Presentation, RefreshCw, Search, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Info, Loader2, Presentation, RefreshCw, Search, X } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD } from '@/components/page';
 import { FIELD, FOCUS_RING, ModalButton, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,9 @@ import {
   scopeSummary,
   syncedAgo,
   unclassifiedSummary,
+  applyOrder,
+  moveId,
+  orderedIds,
   type ScopeFilter,
 } from '@/lib/sprint-planner/scope';
 import { ScopeBars } from './ScopeBars';
@@ -41,7 +44,7 @@ export interface ScopeStepProps {
   plan: PlanView;
   /** Aplica ao plano o `ScopeView` devolvido pelo servidor (itens, totais e termômetro novos). */
   onScope: (scope: ScopeView) => void;
-  /** Recarrega o plano inteiro: o escopo mexe na versão do plano e o `ScopeView` não a traz. */
+  /** Recarrega o plano inteiro (usado após remover: o DELETE responde 204 sem corpo, e na sincronização). */
   onReload: () => Promise<void>;
   onPatch: (body: Omit<PatchPlanRequest, 'version'>) => void;
   /** Leva à seção de tipos de subtarefa (etapa Capacidade). */
@@ -49,9 +52,10 @@ export interface ScopeStepProps {
 }
 
 const FILTERS = Object.keys(FILTER_LABEL) as ScopeFilter[];
+const ROW_BTN = 'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent disabled:opacity-50 max-sm:h-11 max-sm:w-11';
 const SYNC_CONFLICT = 'Já existe uma sincronização em andamento para esta squad. Aguarde alguns instantes e tente de novo.';
 
-function GoalCard({ goal, savedInJira, canEdit, onSave }: { goal: string | null; savedInJira?: boolean; canEdit: boolean; onSave: (goal: string) => void }) {
+function GoalCard({ goal, jiraGoal, savedInJira, canEdit, onSave }: { goal: string | null; jiraGoal?: string | null; savedInJira?: boolean; canEdit: boolean; onSave: (goal: string) => void }) {
   const [draft, setDraft] = useState(goal ?? '');
   useEffect(() => { setDraft(goal ?? ''); }, [goal]);
   const dirty = draft.trim() !== (goal ?? '').trim();
@@ -61,6 +65,14 @@ function GoalCard({ goal, savedInJira, canEdit, onSave }: { goal: string | null;
         <h2 id="escopo-meta" className="text-base font-bold text-foreground">Meta da sprint</h2>
         <StatusChip tone={savedInJira ? 'success' : 'neutral'}>{savedInJira ? 'Já gravada no Sprint goal do Jira' : 'Campo Sprint goal do Jira'}</StatusChip>
       </header>
+      {jiraGoal !== undefined && (
+        <p className="text-[13px] text-muted-foreground" data-testid="escopo-meta-jira">
+          {jiraGoal?.trim() ? <>Meta atual no Jira: <span className="text-foreground">{jiraGoal}</span></> : 'Meta atual no Jira: nenhuma.'}
+          {jiraGoal?.trim() && goal?.trim() && jiraGoal.trim() !== goal.trim() && (
+            <span className="mt-0.5 block text-foreground" data-testid="escopo-meta-de-para">Ao enviar, muda de “{jiraGoal}” para “{goal}”.</span>
+          )}
+        </p>
+      )}
       {canEdit ? (
         <>
           <label htmlFor="escopo-meta-texto" className="sr-only">Meta da sprint</label>
@@ -107,6 +119,8 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
   const [cooldown, setCooldown] = useState(0);
   const [presenting, setPresenting] = useState(false);
   const [tab, setTab] = useState<MobileTab>('sprint');
+  const [optimisticOrder, setOptimisticOrder] = useState<string[] | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const loadBacklog = useCallback(async (quiet = false) => {
     if (!quiet) setBacklog({ state: 'loading' });
@@ -127,7 +141,8 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
   }, [cooldown]);
 
   const backlogItems = useMemo(() => (backlog.state === 'ok' ? backlog.data.items : []), [backlog]);
-  const entries = useMemo(() => buildScope(plan.items, backlogItems, pendingAdd, pendingRemove), [plan.items, backlogItems, pendingAdd, pendingRemove]);
+  const shownItems = useMemo(() => (optimisticOrder ? applyOrder(plan.items, optimisticOrder) : plan.items), [plan.items, optimisticOrder]);
+  const entries = useMemo(() => buildScope(shownItems, backlogItems, pendingAdd, pendingRemove), [shownItems, backlogItems, pendingAdd, pendingRemove]);
   const inScope = useMemo(() => new Set(entries.map((e) => e.key)), [entries]);
   const refinadas = useMemo(
     () => filterBacklog(backlog.state === 'ok' ? backlog.data : null, inScope, { query, onlyWithHours, filter }),
@@ -159,8 +174,7 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
   const add = async (keys: string[]) => {
     setPendingAdd((p) => new Set([...p, ...keys]));
     try {
-      onScope(await sprintPlanApi.addItems(plan.squadId, plan.id, keys));
-      await onReload();
+      onScope(await sprintPlanApi.addItems(plan.squadId, plan.id, keys)); // o ScopeView traz planVersion: sem recarga
     } catch (e) {
       await failure(e, 'Não foi possível adicionar ao escopo');
     } finally {
@@ -177,6 +191,23 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
       await failure(e, 'Não foi possível tirar do escopo');
     } finally {
       setPendingRemove((p) => { const n = new Set(p); n.delete(itemId); return n; });
+    }
+  };
+
+  /** Troca o item de lugar na hora (otimista); em erro volta à ordem do servidor e mostra a mensagem (403/409/422). */
+  const move = async (itemId: string, dir: -1 | 1) => {
+    const current = optimisticOrder ?? orderedIds(plan.items);
+    const next = moveId(current, itemId, dir);
+    if (next.every((id, i) => id === current[i])) return;
+    setOptimisticOrder(next);
+    setReordering(true);
+    try {
+      onScope(await sprintPlanApi.reorderItems(plan.squadId, plan.id, next));
+    } catch (e) {
+      await failure(e, 'Não foi possível reordenar o escopo');
+    } finally {
+      setOptimisticOrder(null);
+      setReordering(false);
     }
   };
 
@@ -310,7 +341,7 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
         />
       ) : (
         <ul className="flex flex-col gap-2" aria-label="Tarefas no escopo">
-          {entries.map((e) => (
+          {entries.map((e, idx) => (
             <li key={e.key} className={cn('flex items-start gap-3 rounded-[12px] border border-border bg-card p-3', e.pending && 'opacity-70')} data-testid={`escopo-${e.key}`}>
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -325,15 +356,41 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
                 ) : null}
               </div>
               {canEdit && (
+                <div className="flex shrink-0 items-center gap-1">
+                  {entries.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        className={cn(ROW_BTN, FOCUS_RING)}
+                        onClick={() => e.itemId && void move(e.itemId, -1)}
+                        disabled={!e.itemId || reordering || idx === 0}
+                        aria-label={`Subir ${e.key} na lista`}
+                        data-testid={`subir-${e.key}`}
+                      >
+                        <ArrowUp aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(ROW_BTN, FOCUS_RING)}
+                        onClick={() => e.itemId && void move(e.itemId, 1)}
+                        disabled={!e.itemId || reordering || idx === entries.length - 1}
+                        aria-label={`Descer ${e.key} na lista`}
+                        data-testid={`descer-${e.key}`}
+                      >
+                        <ArrowDown aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  )}
                 <button
                   type="button"
-                  className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent disabled:opacity-50 max-sm:h-11 max-sm:w-11', FOCUS_RING)}
+                  className={cn(ROW_BTN, FOCUS_RING)}
                   onClick={() => e.itemId && void remove(e.itemId)}
                   disabled={!e.itemId}
                   aria-label={`Remover ${e.key} do escopo`}
                 >
                   {e.itemId ? <X aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} /> : <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" strokeWidth={1.5} />}
                 </button>
+                </div>
               )}
             </li>
           ))}
@@ -372,7 +429,7 @@ export function ScopeStep({ plan, onScope, onReload, onPatch, onOpenTypes }: Sco
         </p>
       )}
 
-      <GoalCard goal={plan.goal} savedInJira={plan.goalSavedInJira} canEdit={canEdit} onSave={(goal) => onPatch({ goal })} />
+      <GoalCard goal={plan.goal} jiraGoal={plan.jiraGoal} savedInJira={plan.goalSavedInJira} canEdit={canEdit} onSave={(goal) => onPatch({ goal })} />
 
       {unclassified && (
         <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-amber-700/40 bg-amber-500/10 px-4 py-3 text-[13px] text-foreground" data-testid="escopo-sem-classificacao">

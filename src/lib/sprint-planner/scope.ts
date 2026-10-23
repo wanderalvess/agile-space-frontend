@@ -123,9 +123,30 @@ export function buildScope(
   return out;
 }
 
-/** Aplica a resposta de escopo do servidor (`ScopeView`) ao plano: itens, totais e termômetro. A versão do plano não vem nela. */
+/** Aplica a resposta de escopo do servidor (`ScopeView`) ao plano: versão (`planVersion`), itens, totais e termômetro. */
 export function applyScope(plan: PlanView, scope: ScopeView): PlanView {
-  return { ...plan, items: scope.items, scope: scope.totals, thermometer: scope.thermometer };
+  return { ...plan, version: scope.planVersion, items: scope.items, scope: scope.totals, thermometer: scope.thermometer };
+}
+
+/** Ids dos itens na ordem em que a tela os mostra (sortOrder). */
+export function orderedIds(items: readonly PlanItem[]): string[] {
+  return [...items].sort((a, b) => a.sortOrder - b.sortOrder).map((i) => i.id);
+}
+
+/** Move o item uma posição para cima (-1) ou para baixo (+1); devolve a mesma lista quando não dá para mover. */
+export function moveId(ids: readonly string[], id: string, dir: -1 | 1): string[] {
+  const from = ids.indexOf(id);
+  const to = from + dir;
+  if (from < 0 || to < 0 || to >= ids.length) return [...ids];
+  const out = [...ids];
+  [out[from], out[to]] = [out[to], out[from]];
+  return out;
+}
+
+/** Reaplica a ordem otimista aos itens (sortOrder = posição); ids fora da lista vão para o fim. */
+export function applyOrder(items: readonly PlanItem[], ids: readonly string[]): PlanItem[] {
+  const pos = new Map(ids.map((id, i) => [id, i + 1]));
+  return items.map((it) => ({ ...it, sortOrder: pos.get(it.id) ?? ids.length + it.sortOrder }));
 }
 
 export function scopeTotals(entries: readonly ScopeEntry[]): Record<Cls, number> {

@@ -32,9 +32,9 @@ const plan = planJson as unknown as PlanView;
 const ITEM_VIEW = ['id', 'parentKey', 'title', 'titleDevHours', 'titleQaHours', 'sortOrder', 'carryOver', 'devHours', 'qaHours', 'subtaskDevH', 'subtaskQaH', 'subtaskDevEstimateH', 'subtaskDevRemainingH', 'subtaskQaEstimateH', 'subtaskQaRemainingH', 'divergenceDev', 'divergenceQa', 'divergent', 'noEstimate', 'inBacklog', 'unclassifiedCount', 'unclassifiedHours', 'subtasks', 'codeReviewDevH', 'codeReviewQaH', 'codeReviewDevAssumed'];
 const SUBTASK_VIEW = ['key', 'title', 'typeId', 'typeName', 'cls', 'estimateH', 'remainingH', 'countedH', 'defaultHoursApplied', 'assigneeId', 'assigneeName'];
 const SCOPE_TOTALS = ['itemCount', 'allocated', 'carryOverCount', 'carryOverDevHours', 'carryOverQaHours', 'divergentCount', 'noEstimateCount', 'unclassifiedCount', 'unclassifiedHours', 'unclassifiedTypes'];
-const SCOPE_VIEW = ['planId', 'status', 'syncedAt', 'items', 'totals', 'thermometer', 'canEditPlan'];
+const SCOPE_VIEW = ['planId', 'planVersion', 'status', 'syncedAt', 'items', 'totals', 'thermometer', 'canEditPlan'];
 const THERMOMETER = ['allocatedHours', 'capacityHours', 'pct', 'zone', 'state', 'reservePct', 'reserveLimitHours'];
-const PLAN_VIEW = ['id', 'squadId', 'version', 'status', 'sprint', 'goal', 'reserve', 'syncedAt', 'capacity', 'absences', 'holidays', 'items', 'scope', 'assignments', 'thermometer', 'permissions', 'goalSavedInJira', 'updatedAt'];
+const PLAN_VIEW = ['id', 'squadId', 'version', 'status', 'sprint', 'goal', 'jiraGoal', 'reserve', 'syncedAt', 'capacity', 'absences', 'holidays', 'items', 'scope', 'assignments', 'thermometer', 'permissions', 'goalSavedInJira', 'updatedAt'];
 
 const sorted = (o: object) => Object.keys(o).sort();
 
@@ -114,9 +114,9 @@ describe('contrato: lógica sobre o PlanView real', () => {
     expect(canAdvanceFromScope(plan)).toBe(true);
   });
 
-  it('applyScope (resposta do POST) atualiza itens e termômetro sem mexer na versão', () => {
+  it('applyScope (resposta do POST) atualiza itens, termômetro e a versão (planVersion)', () => {
     const next = applyScope({ ...plan, items: [], version: 9 }, scope);
-    expect(next.version).toBe(9);
+    expect(next.version).toBe(scope.planVersion);
     expect(next.items).toHaveLength(3);
     expect(next.thermometer.DEV.allocatedHours).toBe(23);
   });
@@ -160,7 +160,7 @@ describe('contrato: ScopeStep com o PlanView real', () => {
     await waitFor(() => expect(h.backlog.get).toHaveBeenCalled());
   });
 
-  it('adicionar chama o POST, aplica o ScopeView devolvido e recarrega o plano (a versão mudou)', async () => {
+  it('adicionar chama o POST e aplica o ScopeView devolvido, sem recarregar (planVersion já vem nele)', async () => {
     h.backlog.get.mockResolvedValue({
       status: 'ok',
       data: {
@@ -172,7 +172,7 @@ describe('contrato: ScopeStep com o PlanView real', () => {
     const { props } = renderStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Adicionar SQ-9 ao escopo' }));
     await waitFor(() => expect(props.onScope).toHaveBeenCalledWith(scope));
-    await waitFor(() => expect(props.onReload).toHaveBeenCalled());
+    expect(props.onReload).not.toHaveBeenCalled();
     expect(String(h.authFetch.mock.calls[0][0])).toMatch(/\/sprint-plans\/plan-1\/items$/);
   });
 

@@ -22,7 +22,7 @@ const VIEW = ['planId', 'status', 'syncedAt', 'canEditPlan', 'myAccountId', 'spr
 const SPRINT = ['startDate', 'endDate', 'holidays'];
 const TASK = ['itemId', 'parentKey', 'title', 'devHours', 'qaHours', 'subtasks'];
 const SUB = ['key', 'title', 'typeId', 'typeName', 'cls', 'codeReview', 'estimateH', 'remainingH', 'countedH', 'assigneeId', 'assigneeName', 'startDate', 'endDate', 'startsAfterKey', 'minStartDate', 'canClaim', 'canEditDates', 'status'];
-const PERSON = ['accountId', 'name', 'role', 'capacityHours', 'allocatedHours', 'freeHours', 'pct', 'zone', 'state'];
+const PERSON = ['accountId', 'name', 'role', 'capacityHours', 'allocatedHours', 'freeHours', 'pct', 'zone', 'state', 'absences'];
 const WARNING = ['code', 'message', 'subtaskKey', 'accountId'];
 const sorted = (o: object) => Object.keys(o).sort();
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
