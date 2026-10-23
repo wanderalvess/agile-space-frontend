@@ -5,6 +5,10 @@
  */
 
 import { authFetch } from '@/lib/auth-client';
+import {
+  classify, commentLabel, fieldValue, withFallbackSources,
+  type IssueSources, type ProvenanceField, type TextSource,
+} from './jiraProvenance';
 
 /**
  * Busca um anexo/thumbnail do próprio Jira (ex.: /secure/attachment/...,
@@ -82,6 +86,11 @@ export interface JiraIssue {
   // (Jira Server/DC) — quem consome decide como parsear.
   sprintRaw?: unknown;
   subtaskKeys?: string[];
+  /**
+   * De onde vem cada texto de Problema, Solução e Critérios (só na busca pela API; o XML não traz comentários com autor).
+   * Sem isto, o campo é o texto puro de sempre.
+   */
+  sources?: IssueSources;
 }
 
 /**
@@ -409,6 +418,63 @@ const parseQAFromDescription = (desc: string) => {
   if (!desc) return '';
   const qaMatch = desc.match(/(?:QA|Q\.A\.?):?\s*([^\n|]+)/i);
   return qaMatch ? formatJiraName(qaMatch[1].trim()) : '';
+};
+
+export interface RawJiraComment { body: string; author?: string; created?: string }
+
+/**
+ * Monta as fontes candidatas de Problema, Solução e Critérios de uma issue (cada comentário, a descrição, o campo de
+ * critérios do Jira) e classifica cada campo. Só texto de título explícito ou de campo do Jira é "explícito"; o começo da
+ * descrição e as linhas em Gherkin são palpite e não preenchem o campo sozinhos.
+ */
+export const buildIssueSources = (input: { criteriaField?: string; description: string; comments: RawJiraComment[] }): IssueSources => {
+  const { criteriaField, description, comments } = input;
+  const fromComments = (parse: (t: string) => string): TextSource[] =>
+    comments.map((c, i) => ({
+      id: `comentario-${i}`, kind: 'comentario', label: commentLabel(c.author, c.created), text: parse(c.body), explicit: true,
+    }));
+  const desc = (id: string, label: string, text: string, explicit: boolean): TextSource =>
+    ({ id, kind: 'descricao', label, text, explicit });
+
+  const problemSections = parseProblemFromDescription(description);
+  return {
+    problem: classify([
+      ...fromComments(parseProblemFromDescription),
+      desc('descricao', 'Descrição, seção “Problema”', problemSections, true),
+      desc('descricao-inicio', 'Descrição, início do texto', guessProblemFromPreamble(description), false),
+    ]),
+    solution: classify([
+      ...fromComments(parseSolutionFromDescription),
+      desc('descricao', 'Descrição, seção “Solução”', parseSolutionFromDescription(description), true),
+    ]),
+    acceptanceCriteria: classify([
+      { id: 'campo', kind: 'campo', label: 'Campo “Critérios de aceite” do Jira', text: stripHtml(criteriaField || ''), explicit: true },
+      desc('descricao', 'Descrição, seção de critérios', description ? extractSection(description, SECTION_ALIASES.acceptanceCriteria) : '', true),
+      desc('descricao-linhas', 'Descrição, linhas de teste', description ? guessAcceptanceCriteria(description) : '', false),
+    ]),
+  };
+};
+
+/** Fontes de subtarefa ou issue pai para um campo, a partir do texto que a outra issue já tem como certo. */
+const relatedSources = (kind: 'subtarefa' | 'pai', related: JiraIssue[], field: ProvenanceField): TextSource[] =>
+  related.map((r) => ({
+    id: `${kind}-${r.key}`,
+    kind,
+    label: kind === 'pai' ? `Issue pai · ${r.key}` : `Subtarefa · ${r.key}`,
+    text: fieldValue(r.sources?.[field]) || (r.sources ? '' : (r[field] ?? '')),
+    explicit: true,
+  }));
+
+/** Soma as fontes de issues relacionadas só onde a issue não tem texto explícito, e reaplica o texto do campo. */
+const withRelated = (issue: JiraIssue, kind: 'subtarefa' | 'pai', related: JiraIssue[]): JiraIssue => {
+  if (!issue.sources || related.length === 0) return issue;
+  const sources = { ...issue.sources };
+  const out: Partial<JiraIssue> = {};
+  (['problem', 'solution', 'acceptanceCriteria'] as const).forEach((field) => {
+    const next = withFallbackSources(sources[field], relatedSources(kind, related, field));
+    if (next !== sources[field]) { sources[field] = next; out[field] = fieldValue(next); }
+  });
+  return { ...issue, ...out, sources };
 };
 
 /**
@@ -838,6 +904,14 @@ export const fetchJiraIssues = async (
     const realTargetStart = toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start);
     const realTargetEnd = toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end);
 
+    const rawComments: RawJiraComment[] = Array.isArray(commentsObj?.comments)
+      ? commentsObj.comments
+          .filter((c: any) => typeof c?.body === 'string')
+          .map((c: any) => ({ body: c.body, author: c.author?.displayName, created: c.created }))
+      : [];
+    const criteriaField = typeof fields?.customfield_10100 === 'string' ? fields.customfield_10100 : '';
+    const sources = buildIssueSources({ criteriaField, description: desc, comments: rawComments });
+
     return {
       key: issue.key,
       title: fields?.summary || issue.key,
@@ -863,9 +937,10 @@ export const fetchJiraIssues = async (
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
-      acceptanceCriteria: fields?.customfield_10100 || parseAcceptanceCriteriaFromDescription(desc),
-      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc) || guessProblemFromPreamble(desc),
-      solution: parseSolutionFromDescription(commentsText) || parseSolutionFromDescription(desc),
+      acceptanceCriteria: fieldValue(sources.acceptanceCriteria),
+      problem: fieldValue(sources.problem),
+      solution: fieldValue(sources.solution),
+      sources,
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
       techDocUrl: docLinks.techDocUrl,
@@ -1012,10 +1087,15 @@ export const enrichWithCodificacaoChildren = async (
     const anyWithQA = sortedSubtasks.find(s => s.qa);
     const anyWithDev = sortedSubtasks.find(s => s.devName);
 
+    // Com as fontes mapeadas, a subtarefa vira mais uma fonte (só onde a issue não tem texto explícito). As de
+    // codificação/desenvolvimento valem sozinhas quando existem, para a subtarefa de teste não gerar conflito à toa.
+    const devSubtasks = sortedSubtasks.filter(isDevSubtask);
+    const withSub = withRelated(issue, 'subtarefa', devSubtasks.length > 0 ? devSubtasks : sortedSubtasks);
+
     return {
-      ...issue,
-      problem: issue.problem || bestSubtask?.problem || anyWithProblem?.problem,
-      solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
+      ...withSub,
+      problem: issue.sources ? withSub.problem : (issue.problem || bestSubtask?.problem || anyWithProblem?.problem),
+      solution: issue.sources ? withSub.solution : (issue.solution || bestSubtask?.solution || anyWithSolution?.solution),
       videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
       project: issue.project || bestSubtask?.project || anyWithProject?.project,
       versionSuporte: issue.versionSuporte || bestSubtask?.versionSuporte || anyWithProject?.versionSuporte,
@@ -1064,11 +1144,12 @@ export const enrichWithParentContext = async (
     const parent = parentsByKey.get(issue.parentKey);
     if (!parent) return issue;
 
+    const withParent = withRelated(issue, 'pai', [parent]);
     return {
-      ...issue,
-      problem: issue.problem || parent.problem,
-      solution: issue.solution || parent.solution,
-      acceptanceCriteria: issue.acceptanceCriteria || parent.acceptanceCriteria,
+      ...withParent,
+      problem: issue.sources ? withParent.problem : (issue.problem || parent.problem),
+      solution: issue.sources ? withParent.solution : (issue.solution || parent.solution),
+      acceptanceCriteria: issue.sources ? withParent.acceptanceCriteria : (issue.acceptanceCriteria || parent.acceptanceCriteria),
       videoUrl: issue.videoUrl || parent.videoUrl,
     };
   });

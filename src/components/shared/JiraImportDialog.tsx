@@ -5,10 +5,12 @@ import {
   Bookmark, ChevronDown, CloudDownload, ExternalLink, FileUp, Globe, Loader2, Lock, RotateCcw, Search, Tag, User, Users, X,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FIELD, FOCUS_RING, Modal, ModalButton, TabBar } from '@/components/room-kit';
+import { FIELD, FOCUS_RING, Modal, ModalButton, PhaseStepper, TabBar } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, enrichWithParentContext, JiraIssue } from '@/services/jiraService';
+import { JiraImportConferir } from '@/components/shared/JiraImportConferir';
+import { applyChoices, pendingFields, summarize, type ImportChoices, type ProvenanceField } from '@/services/jiraProvenance';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { JQL_VISIBILITY_HELP, jqlPresets } from '@/components/showcase/review-room-logic';
@@ -38,6 +40,11 @@ interface JiraImportDialogProps {
 type SaveDestination = 'local-private' | 'local-public' | 'squad' | 'squad-private';
 
 type SourceTab = 'xml' | 'api';
+
+/** Selecionar as issues, ou conferir de onde vem cada texto (só quando alguma issue tem campo em dúvida). */
+type ImportStep = 'selecionar' | 'conferir';
+
+const IMPORT_PHASES = [{ id: 'buscar', label: 'Buscar' }, { id: 'conferir', label: 'Conferir' }, { id: 'importar', label: 'Importar' }] as const;
 
 const LABEL = 'text-[13px] font-semibold text-foreground';
 const CHIP = 'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors';
@@ -86,6 +93,8 @@ export function JiraImportDialog({
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   // Quais issues estão com o detalhe (descrição completa/critérios) expandido.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [step, setStep] = useState<ImportStep>('selecionar');
+  const [choices, setChoices] = useState<ImportChoices>({});
 
   // API State
   const [domain, setDomain] = useState('');
@@ -219,6 +228,8 @@ export function JiraImportDialog({
     setSelected(new Set());
     clearFilters();
     setExpanded(new Set());
+    setStep('selecionar');
+    setChoices({});
     setJql('');
     if (!saveDefault) {
       setDomain('');
@@ -232,9 +243,18 @@ export function JiraImportDialog({
     setExpanded(next);
   };
 
+  const importable = results.filter((r) => selected.has(r.key) && !existing.has(r.key));
+
+  const handleChoose = (key: string, field: ProvenanceField, sourceId: string | null) =>
+    setChoices((prev) => ({ ...prev, [key]: { ...prev[key], [field]: sourceId } }));
+
   const handleConfirmImport = () => {
-    const selectedIssues = results.filter((r) => selected.has(r.key) && !existing.has(r.key));
-    onImport(selectedIssues);
+    // Campo em dúvida (palpite ou mais de uma fonte) pede a decisão da pessoa antes de entrar no card.
+    if (step === 'selecionar' && importable.some((i) => pendingFields(i).length > 0)) {
+      setStep('conferir');
+      return;
+    }
+    onImport(applyChoices(importable, choices));
     reset();
     onClose();
   };
@@ -268,7 +288,14 @@ export function JiraImportDialog({
   );
 
   const footerButtons =
-    results.length === 0 ? (
+    step === 'conferir' ? (
+      <>
+        <ModalButton onClick={() => setStep('selecionar')}>Voltar à seleção</ModalButton>
+        <ModalButton variant="primary" onClick={handleConfirmImport}>
+          Importar {importable.length} {importable.length === 1 ? 'issue' : 'issues'}
+        </ModalButton>
+      </>
+    ) : results.length === 0 ? (
       tab === 'xml' ? (
         <span className="relative inline-flex">
           <ModalButton variant="primary" className="gap-2" tabIndex={-1}>
@@ -303,10 +330,12 @@ export function JiraImportDialog({
         size="lg"
         icon={CloudDownload}
         title={title}
-        description={description}
+        description={step === 'conferir' ? 'Confira de onde vem cada texto antes de importar. O que for palpite não preenche o campo sozinho.' : description}
         className="sm:h-[min(88vh,840px)] sm:max-w-[1100px]"
         bodyClassName="pt-4"
-        headerExtra={
+        headerExtra={step === 'conferir' ? (
+          <PhaseStepper steps={IMPORT_PHASES} current="conferir" label="Fases da importação" />
+        ) : (
           <TabBar<SourceTab>
             label="Origem das issues"
             idPrefix="jira"
@@ -314,12 +343,14 @@ export function JiraImportDialog({
             onChange={setTab}
             tabs={[{ id: 'xml', label: 'Upload XML' }, { id: 'api', label: 'Conexão API' }]}
           />
-        }
+        )}
         footerStart={
           <div className="hidden min-w-0 flex-col md:flex">
             <span className="text-xs text-muted-foreground">Status da importação</span>
             <span className="truncate text-sm font-semibold">
-              {results.length > 0
+              {step === 'conferir'
+                ? <>Passo 2 de 3 · {importable.length} {importable.length === 1 ? 'issue' : 'issues'} · {summarize(importable, choices).revisar} ainda {summarize(importable, choices).revisar === 1 ? 'pede' : 'pedem'} revisão</>
+                : results.length > 0
                 ? <>{selected.size} {selected.size === 1 ? 'item selecionado' : 'itens selecionados'}{alreadyCount > 0 && <span className="font-normal text-muted-foreground"> · {alreadyCount} já {alreadyCount === 1 ? 'está' : 'estão'} na Review</span>}</>
                 : tab === 'xml' ? 'Aguardando arquivo…' : 'Preencha os filtros…'}
             </span>
@@ -332,6 +363,9 @@ export function JiraImportDialog({
           </>
         }
       >
+        {step === 'conferir' ? (
+          <JiraImportConferir issues={importable} choices={choices} onChoose={handleChoose} />
+        ) : (
         <div role="tabpanel" id={`jira-panel-${tab}`} aria-labelledby={`jira-tab-${tab}`} className="flex flex-col gap-4">
           {results.length === 0 && tab === 'xml' && (
             <div className="relative flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-within:border-primary/60">
@@ -640,6 +674,7 @@ export function JiraImportDialog({
             </div>
           )}
         </div>
+        )}
       </Modal>
 
       {/* Salvar a consulta JQL: neste navegador (como sempre) ou, com o backend novo, na squad */}
