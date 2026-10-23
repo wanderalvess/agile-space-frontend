@@ -28,6 +28,8 @@ export function CreatePlanDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [jiraSprintId, setJiraSprintId] = useState<string | null>(null);
+  /** Meta que está no Jira (como veio); `goal` é a editável e pode divergir dela. */
+  const [jiraGoal, setJiraGoal] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [fetchNotice, setFetchNotice] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
 
@@ -46,10 +48,12 @@ export function CreatePlanDialog({
       const next = await sprintPlanApi.nextSprint(squadId);
       if (!next.found) {
         setJiraSprintId(null);
+        setJiraGoal(null);
         setFetchNotice({ tone: 'info', text: 'Nenhuma sprint futura encontrada: preencha à mão.' });
         return;
       }
       setJiraSprintId(next.jiraSprintId);
+      setJiraGoal(next.goal);
       if (next.name) setSprintName(next.name);
       if (next.startDate) setStartDate(next.startDate.slice(0, 10));
       if (next.endDate) setEndDate(next.endDate.slice(0, 10));
@@ -77,12 +81,14 @@ export function CreatePlanDialog({
         startDate,
         endDate,
         goal: goal.trim() || null,
+        jiraGoal,
       });
       setSprintName('');
       setStartDate('');
       setEndDate('');
       setGoal('');
       setJiraSprintId(null);
+      setJiraGoal(null);
       setFetchNotice(null);
       onCreated(plan);
     } catch (e) {

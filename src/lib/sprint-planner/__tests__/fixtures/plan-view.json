@@ -11,7 +11,6 @@
     "sprintKey": "plan:plan-1"
   },
   "goal": "Entregar o checkout",
-  "jiraGoal": "Checkout enxuto",
   "reserve": {
     "mode": "HORAS",
     "pct": 12,
@@ -271,5 +270,7 @@
     "myAccountId": "acc-lead"
   },
   "goalSavedInJira": false,
-  "updatedAt": "2026-10-20T12:00:01.123456Z"
+  "updatedAt": "2026-10-20T12:00:01.123456Z",
+  "warnings": null,
+  "jiraGoal": "Checkout enxuto"
 }
