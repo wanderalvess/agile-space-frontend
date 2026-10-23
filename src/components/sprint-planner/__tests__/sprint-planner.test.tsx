@@ -144,7 +144,7 @@ describe('Criar plano', () => {
     fireEvent.change(screen.getByLabelText(/Meta da sprint/), { target: { value: 'Checkout' } });
     fireEvent.click(screen.getByRole('button', { name: 'Começar pela capacidade' }));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: null, sprintName: 'Sprint X', startDate: '2026-10-21', endDate: '2026-11-03', goal: 'Checkout' });
+    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: null, sprintName: 'Sprint X', startDate: '2026-10-21', endDate: '2026-11-03', goal: 'Checkout', jiraGoal: null });
   });
 
   it('409 (a sprint já tem plano) mostra a mensagem do servidor', async () => {
@@ -306,7 +306,7 @@ describe('Criar plano: próxima sprint do Jira', () => {
     fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '2026-11-18' } });
     fireEvent.click(screen.getByRole('button', { name: 'Começar pela capacidade' }));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: '777', sprintName: 'Sprint 2026.11/1', startDate: '2026-11-04', endDate: '2026-11-18', goal: 'Meta do Jira' });
+    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: '777', sprintName: 'Sprint 2026.11/1', startDate: '2026-11-04', endDate: '2026-11-18', goal: 'Meta do Jira', jiraGoal: 'Meta do Jira' });
   });
 
   it('found=false avisa para preencher à mão e não guarda id', async () => {

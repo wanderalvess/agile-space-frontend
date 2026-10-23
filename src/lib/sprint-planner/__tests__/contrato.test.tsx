@@ -34,7 +34,7 @@ const SUBTASK_VIEW = ['key', 'title', 'typeId', 'typeName', 'cls', 'estimateH', 
 const SCOPE_TOTALS = ['itemCount', 'allocated', 'carryOverCount', 'carryOverDevHours', 'carryOverQaHours', 'divergentCount', 'noEstimateCount', 'unclassifiedCount', 'unclassifiedHours', 'unclassifiedTypes'];
 const SCOPE_VIEW = ['planId', 'planVersion', 'status', 'syncedAt', 'items', 'totals', 'thermometer', 'canEditPlan'];
 const THERMOMETER = ['allocatedHours', 'capacityHours', 'pct', 'zone', 'state', 'reservePct', 'reserveLimitHours'];
-const PLAN_VIEW = ['id', 'squadId', 'version', 'status', 'sprint', 'goal', 'jiraGoal', 'reserve', 'syncedAt', 'capacity', 'absences', 'holidays', 'items', 'scope', 'assignments', 'thermometer', 'permissions', 'goalSavedInJira', 'updatedAt'];
+const PLAN_VIEW = ['id', 'squadId', 'version', 'status', 'sprint', 'goal', 'jiraGoal', 'reserve', 'syncedAt', 'capacity', 'absences', 'holidays', 'items', 'scope', 'assignments', 'thermometer', 'permissions', 'goalSavedInJira', 'updatedAt', 'warnings'];
 
 const sorted = (o: object) => Object.keys(o).sort();
 

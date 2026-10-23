@@ -7,12 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import planJson from './fixtures/plan-view.json';
 import scopeJson from './fixtures/scope-view.json';
 import distJson from './fixtures/distribution-view.json';
+import reviewJson from './fixtures/review-view.json';
 import { CeremonyApiError } from '../../ceremony-api';
 
 const h = vi.hoisted(() => ({ authFetch: vi.fn() }));
 vi.mock('../../auth-client', () => ({ authFetch: h.authFetch, getAuthToken: () => 'tok' }));
 
-import { parseDistributionView, parseScopeView, sprintPlanApi } from '../api';
+import { parseDistributionView, parseScopeView, retryAfterSec, sprintPlanApi } from '../api';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const sorted = (o: object) => Object.keys(o).sort();
@@ -87,5 +88,63 @@ describe('contrato: absences, planVersion e jiraGoal', () => {
   it('PlanView traz jiraGoal (texto ou null)', () => {
     expect('jiraGoal' in planJson).toBe(true);
     expect(typeof planJson.jiraGoal === 'string' || planJson.jiraGoal === null).toBe(true);
+  });
+});
+
+// Chaves exatas dos records Java (SprintPlanDtos/DistributionDtos/ReviewDtos). Se o backend mudar um record, as
+// fixtures e esta lista mudam juntas: o teste quebra quando só um dos lados muda.
+const keysOf = (o: unknown) => sorted(o as object);
+describe('contrato: chaves exatas dos records do backend', () => {
+  it('PlanView (inclui jiraGoal e warnings)', () => {
+    expect(keysOf(planJson)).toEqual(sorted({
+      id: 0, squadId: 0, version: 0, status: 0, sprint: 0, goal: 0, reserve: 0, syncedAt: 0, capacity: 0, absences: 0,
+      holidays: 0, items: 0, scope: 0, assignments: 0, thermometer: 0, permissions: 0, goalSavedInJira: 0, updatedAt: 0,
+      warnings: 0, jiraGoal: 0,
+    }));
+    expect(keysOf(planJson.sprint)).toEqual(['endDate', 'jiraSprintId', 'name', 'sprintKey', 'startDate']);
+  });
+
+  it('ScopeView (planVersion sempre presente)', () => {
+    expect(keysOf(scopeJson)).toEqual(sorted({
+      planId: 0, status: 0, syncedAt: 0, items: 0, totals: 0, thermometer: 0, canEditPlan: 0, planVersion: 0,
+    }));
+  });
+
+  it('DistributionView e DistPerson (absences)', () => {
+    expect(keysOf(distJson)).toEqual(sorted({
+      planId: 0, status: 0, syncedAt: 0, canEditPlan: 0, myAccountId: 0, sprint: 0, tasks: 0, people: 0, warnings: 0,
+    }));
+    expect(keysOf(distJson.people[0])).toEqual(sorted({
+      accountId: 0, name: 0, role: 0, capacityHours: 0, allocatedHours: 0, freeHours: 0, pct: 0, zone: 0, state: 0, absences: 0,
+    }));
+  });
+
+  it('ReviewView (jiraSprintUrl) e jiraPreview.sprintGoal {from,to,kind}', () => {
+    expect(keysOf(reviewJson)).toEqual(sorted({
+      planId: 0, status: 0, syncedAt: 0, canEditPlan: 0, sprint: 0, goal: 0, goalSavedInJira: 0, people: 0, tasks: 0,
+      pendings: 0, blockingCount: 0, warningCount: 0, canSend: 0, writeRulesDefined: 0, jiraPreview: 0, jiraSprintUrl: 0,
+    }));
+    expect(keysOf(reviewJson.jiraPreview)).toEqual(['changes', 'counts', 'rulesNote', 'sprintGoal']);
+    const sg = reviewJson.jiraPreview.sprintGoal as object | null;
+    if (sg) {
+      expect(keysOf(sg)).toEqual(['from', 'kind', 'to']);
+      expect(['SET', 'CHANGE', 'UNCHANGED']).toContain((sg as { kind: string }).kind);
+    }
+  });
+});
+
+describe('contrato: 429 do rate limit e criação com jiraGoal', () => {
+  it('ensureOk repassa "Tente de novo em N s" do corpo {"error"} e do cabeçalho Retry-After', async () => {
+    h.authFetch.mockResolvedValueOnce(json({ error: 'Muitas requisições. Tente de novo em 7 s.' }, 429));
+    const e1 = await sprintPlanApi.nextSprint('SQ').catch((e) => e);
+    expect(retryAfterSec(e1)).toBe(7);
+    h.authFetch.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '9' } }));
+    expect(retryAfterSec(await sprintPlanApi.nextSprint('SQ').catch((e) => e))).toBe(9);
+  });
+
+  it('POST de criação leva jiraGoal no corpo', async () => {
+    h.authFetch.mockResolvedValueOnce(json(planJson));
+    await sprintPlanApi.create('SQ', { jiraSprintId: '7', sprintName: 'S', startDate: '2026-11-04', endDate: '2026-11-17', goal: 'g', jiraGoal: 'Meta' });
+    expect(JSON.parse(h.authFetch.mock.calls[0][1].body)).toMatchObject({ jiraGoal: 'Meta' });
   });
 });

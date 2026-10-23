@@ -211,7 +211,10 @@ export interface NextSprintView {
   state: string | null;
 }
 
-export interface CreatePlanRequest { jiraSprintId?: string | null; sprintName: string; startDate: string; endDate: string; goal?: string | null }
+export interface CreatePlanRequest { jiraSprintId?: string | null; sprintName: string; startDate: string; endDate: string; goal?: string | null;
+  /** Meta da sprint como está no Jira (vinda do next-sprint); o servidor só guarda quando há jiraSprintId. */
+  jiraGoal?: string | null;
+}
 
 export interface PatchPlanRequest {
   version: number;
