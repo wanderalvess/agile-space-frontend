@@ -1,5 +1,6 @@
 {
   "planId": "plan-1",
+  "planVersion": 4,
   "status": "ESCOPO",
   "syncedAt": "2026-10-20T12:00:00Z",
   "items": [

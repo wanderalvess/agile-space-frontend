@@ -10,7 +10,7 @@ import type { ScopeView } from '../../../lib/sprint-planner/api';
 const h = vi.hoisted(() => ({
   toast: vi.fn(),
   api: {
-    get: vi.fn(), patch: vi.fn(), changeStatus: vi.fn(), addItems: vi.fn(), removeItem: vi.fn(),
+    get: vi.fn(), patch: vi.fn(), changeStatus: vi.fn(), addItems: vi.fn(), removeItem: vi.fn(), reorderItems: vi.fn(), copyFromPrevious: vi.fn(),
     updatePerson: vi.fn(), addAbsence: vi.fn(), deleteAbsence: vi.fn(), replaceHolidays: vi.fn(),
   },
   backlog: { get: vi.fn(), sync: vi.fn() },
@@ -58,6 +58,7 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
     id: 'p1', squadId: 'SQ', version: 3, status: 'ESCOPO',
     sprint: { jiraSprintId: null, name: 'Sprint 2026.10/2', startDate: '2026-10-21', endDate: '2026-11-03', sprintKey: 'plan:p1' },
     goal: 'Entregar o checkout',
+    jiraGoal: null,
     reserve: { mode: 'HORAS', pct: 12, focusPct: null, types: [] },
     syncedAt: null,
     capacity: { byClass: { DEV: 90, QA: 75 }, workingDays: 9, people: [] },
@@ -140,11 +141,12 @@ describe('Escopo: selecionar e recalcular', () => {
     expect(h.api.addItems).toHaveBeenCalledWith('SQ', 'p1', ['SQ-1']);
 
     // O POST devolve o ScopeView (201), não o PlanView.
-    const sv = scopeViewOf([itemOf(task(), 'i1', 1)], { DEV: thermo(91, 90), QA: thermo(64, 75) });
+    const sv = scopeViewOf([itemOf(task(), 'i1', 1)], { DEV: thermo(91, 90), QA: thermo(64, 75) }, { planVersion: 9 });
     resolve(sv);
     await waitFor(() => expect(props.onScope).toHaveBeenCalledWith(sv));
-    await waitFor(() => expect(props.onReload).toHaveBeenCalled()); // a versão do plano mudou: recarrega
+    expect(props.onReload).not.toHaveBeenCalled(); // o ScopeView traz planVersion: sem GET extra
     const fromServer = applyScope(p, sv);
+    expect(fromServer.version).toBe(9);
     rerender(<ScopeStep {...props} plan={fromServer} />);
     await waitFor(() => expect(screen.queryByText('Calculando')).toBeNull());
     expect(screen.getByTestId('escopo-resumo-DEV').textContent).toBe('DEV 91/90 h · 101% · coberto pela reserva (12%)');
@@ -343,5 +345,76 @@ describe('Avançar para Distribuição', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Avançar para distribuição/ }));
     await waitFor(() => expect(h.api.changeStatus).toHaveBeenCalledWith('SQ', 'p1', 3, 'DISTRIBUICAO'));
     await waitFor(() => expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'O escopo precisa de pelo menos uma tarefa.' })));
+  });
+});
+
+describe('Escopo: reordenar', () => {
+  const two = () => {
+    const t2 = task({ key: 'SQ-2', title: 'Segunda' });
+    return withItem(withItem(planView({ thermometer: { DEV: thermo(21, 90), QA: thermo(8, 75) } }), task(), 'i1'), t2, 'i2');
+  };
+  const order = () => screen.getAllByTestId(/^escopo-SQ-\d$/).map((el) => el.getAttribute('data-testid'));
+
+  it('liderança vê subir/descer; o primeiro não sobe e o último não desce', async () => {
+    renderStep(two());
+    await screen.findByTestId('escopo-SQ-1');
+    expect(order()).toEqual(['escopo-SQ-1', 'escopo-SQ-2']);
+    expect((screen.getByRole('button', { name: 'Subir SQ-1 na lista' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Descer SQ-2 na lista' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('descer troca na hora (otimista), chama o PUT com a nova ordem e aplica o ScopeView com a versão nova', async () => {
+    let resolve!: (v: ScopeView) => void;
+    h.api.reorderItems.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const p = two();
+    const { props } = renderStep(p);
+    fireEvent.click(await screen.findByRole('button', { name: 'Descer SQ-1 na lista' }));
+    expect(order()).toEqual(['escopo-SQ-2', 'escopo-SQ-1']);
+    expect(h.api.reorderItems).toHaveBeenCalledWith('SQ', 'p1', ['i2', 'i1']);
+    const sv = scopeViewOf([itemOf(task({ key: 'SQ-2', title: 'Segunda' }), 'i2', 1), itemOf(task(), 'i1', 2)], p.thermometer, { planVersion: 7 });
+    resolve(sv);
+    await waitFor(() => expect(props.onScope).toHaveBeenCalledWith(sv));
+    expect(props.onReload).not.toHaveBeenCalled();
+  });
+
+  it('erro (403/422) reverte a ordem e mostra a mensagem do servidor', async () => {
+    h.api.reorderItems.mockRejectedValue(new CeremonyApiError('Só a liderança reordena.', 403));
+    const { props } = renderStep(two());
+    fireEvent.click(await screen.findByRole('button', { name: 'Descer SQ-1 na lista' }));
+    await waitFor(() => expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Só a liderança reordena.', variant: 'destructive' })));
+    await waitFor(() => expect(order()).toEqual(['escopo-SQ-1', 'escopo-SQ-2']));
+    expect(props.onReload).not.toHaveBeenCalled();
+  });
+
+  it('422 também recarrega o plano', async () => {
+    h.api.reorderItems.mockRejectedValue(new CeremonyApiError('A lista de itens não bate com o plano.', 422));
+    const { props } = renderStep(two());
+    fireEvent.click(await screen.findByRole('button', { name: 'Descer SQ-1 na lista' }));
+    await waitFor(() => expect(props.onReload).toHaveBeenCalled());
+  });
+
+  it('quem não é liderança não vê os botões de reordenar', async () => {
+    const p = withItem(withItem(planView({}, false), task(), 'i1'), task({ key: 'SQ-2' }), 'i2');
+    renderStep(p);
+    await screen.findByTestId('escopo-SQ-1');
+    expect(screen.queryByRole('button', { name: /Subir SQ-1/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Descer SQ-1/ })).toBeNull();
+  });
+});
+
+describe('Escopo: meta atual no Jira', () => {
+  it('mostra a meta do Jira e o de → para quando a do plano é diferente', async () => {
+    renderStep(planView({ goal: 'Nova meta', jiraGoal: 'Meta antiga' }));
+    expect((await screen.findByTestId('escopo-meta-jira')).textContent).toContain('Meta atual no Jira: Meta antiga');
+    expect(screen.getByTestId('escopo-meta-de-para').textContent).toContain('de “Meta antiga” para “Nova meta”');
+  });
+
+  it('meta igual: sem de → para; sem meta no Jira: "nenhuma"', async () => {
+    const { unmount } = renderStep(planView({ goal: 'Igual', jiraGoal: 'Igual' }));
+    await screen.findByTestId('escopo-meta-jira');
+    expect(screen.queryByTestId('escopo-meta-de-para')).toBeNull();
+    unmount();
+    renderStep(planView({ goal: 'X', jiraGoal: null }));
+    expect((await screen.findByTestId('escopo-meta-jira')).textContent).toContain('nenhuma');
   });
 });

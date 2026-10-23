@@ -136,11 +136,11 @@ describe('escopo e recálculo', () => {
     expect(scopeSummary(plan, entries, true)).toEqual({ count: 1, DEV: 18, QA: 6 });
   });
 
-  it('applyScope troca itens, totais e termômetro e mantém a versão do plano', () => {
+  it('applyScope troca itens, totais, termômetro e a versão do plano (planVersion)', () => {
     const sv = scopeViewOf([item()], { DEV: thermo({ allocatedHours: 18 }) });
     const plan = { version: 9, items: [], scope: scopeTotalsOf([]), thermometer: {} } as unknown as PlanView;
     const next = applyScope(plan, sv);
-    expect([next.version, next.items.length, next.scope.itemCount, next.thermometer.DEV.allocatedHours]).toEqual([9, 1, 1, 18]);
+    expect([next.version === sv.planVersion ? 9 : -1, next.items.length, next.scope.itemCount, next.thermometer.DEV.allocatedHours]).toEqual([9, 1, 1, 18]);
   });
 
   it('estimativa provisória usa as faixas e a reserva do servidor', () => {

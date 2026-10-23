@@ -99,7 +99,8 @@
       "freeHours": 0.0,
       "pct": null,
       "zone": "SEM_CAPACIDADE",
-      "state": "SEM_CAPACIDADE"
+      "state": "SEM_CAPACIDADE",
+      "absences": []
     }
   ],
   "warnings": [

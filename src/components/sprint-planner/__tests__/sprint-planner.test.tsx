@@ -18,6 +18,8 @@ const h = vi.hoisted(() => ({
     addAbsence: vi.fn(),
     deleteAbsence: vi.fn(),
     replaceHolidays: vi.fn(),
+    copyFromPrevious: vi.fn(),
+    nextSprint: vi.fn(),
   },
   types: { get: vi.fn(), update: vi.fn() },
 }));
@@ -45,6 +47,7 @@ function planView(over: Partial<PlanView> = {}, canEditPlan = true): PlanView {
     id: 'p1', squadId: 'SQ', version: 3, status: 'RASCUNHO',
     sprint: { jiraSprintId: null, name: 'Sprint 2026.10/2', startDate: '2026-10-21', endDate: '2026-11-03', sprintKey: 'plan:p1' },
     goal: 'Entregar o checkout',
+    jiraGoal: null,
     reserve: { mode: 'HORAS', pct: 10, focusPct: null, types: [] },
     syncedAt: null,
     capacity: {
@@ -141,7 +144,7 @@ describe('Criar plano', () => {
     fireEvent.change(screen.getByLabelText(/Meta da sprint/), { target: { value: 'Checkout' } });
     fireEvent.click(screen.getByRole('button', { name: 'Começar pela capacidade' }));
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(h.api.create).toHaveBeenCalledWith('SQ', { sprintName: 'Sprint X', startDate: '2026-10-21', endDate: '2026-11-03', goal: 'Checkout' });
+    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: null, sprintName: 'Sprint X', startDate: '2026-10-21', endDate: '2026-11-03', goal: 'Checkout' });
   });
 
   it('409 (a sprint já tem plano) mostra a mensagem do servidor', async () => {
@@ -284,5 +287,84 @@ describe('Tipos de subtarefa', () => {
     h.types.get.mockResolvedValue({ status: 'unavailable' });
     render(<SubtaskTypesSection squadId="SQ" sprintKey="GLOBAL" canEdit />);
     expect(await screen.findByText(/ainda não estão disponíveis/)).toBeTruthy();
+  });
+});
+
+describe('Criar plano: próxima sprint do Jira', () => {
+  const next = { found: true, jiraSprintId: '777', name: 'Sprint 2026.11/1', startDate: '2026-11-04', endDate: '2026-11-17', goal: 'Meta do Jira', state: 'future' };
+
+  it('preenche nome, datas e meta, deixa editar e envia o jiraSprintId no POST', async () => {
+    h.api.nextSprint.mockResolvedValue(next);
+    h.api.create.mockResolvedValue(planView());
+    const onCreated = vi.fn();
+    render(<CreatePlanDialog open onOpenChange={vi.fn()} squadId="SQ" onCreated={onCreated} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a próxima sprint do Jira' }));
+    await waitFor(() => expect((screen.getByPlaceholderText(/Sprint 2026/) as HTMLInputElement).value).toBe('Sprint 2026.11/1'));
+    expect((screen.getByLabelText('Início') as HTMLInputElement).value).toBe('2026-11-04');
+    expect((screen.getByLabelText('Fim') as HTMLInputElement).value).toBe('2026-11-17');
+    expect((screen.getByLabelText(/Meta da sprint/) as HTMLTextAreaElement).value).toBe('Meta do Jira');
+    fireEvent.change(screen.getByLabelText('Fim'), { target: { value: '2026-11-18' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Começar pela capacidade' }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(h.api.create).toHaveBeenCalledWith('SQ', { jiraSprintId: '777', sprintName: 'Sprint 2026.11/1', startDate: '2026-11-04', endDate: '2026-11-18', goal: 'Meta do Jira' });
+  });
+
+  it('found=false avisa para preencher à mão e não guarda id', async () => {
+    h.api.nextSprint.mockResolvedValue({ found: false, jiraSprintId: null, name: null, startDate: null, endDate: null, goal: null, state: null });
+    render(<CreatePlanDialog open onOpenChange={vi.fn()} squadId="SQ" onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a próxima sprint do Jira' }));
+    expect((await screen.findByTestId('proxima-sprint-aviso')).textContent).toBe('Nenhuma sprint futura encontrada: preencha à mão.');
+  });
+
+  it.each([
+    [400, 'O Jira não está configurado para esta squad.'],
+    [429, 'Tente de novo em 30 s'],
+    [502, 'O Jira não respondeu.'],
+  ])('erro %s mostra a mensagem do servidor', async (status, msg) => {
+    h.api.nextSprint.mockRejectedValue(new CeremonyApiError(msg, status));
+    render(<CreatePlanDialog open onOpenChange={vi.fn()} squadId="SQ" onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar a próxima sprint do Jira' }));
+    expect((await screen.findByTestId('proxima-sprint-aviso')).textContent).toBe(msg);
+  });
+});
+
+describe('Capacidade: copiar da sprint anterior', () => {
+  beforeEach(() => {
+    h.api.get.mockResolvedValue(planView());
+    h.types.get.mockResolvedValue({ status: 'ok', data: { sprintKey: 'plan:p1', canEdit: true, types: [] } });
+  });
+
+  it('confirma dizendo o que copia e o que não, chama o POST, aplica o plano e avisa', async () => {
+    const copied = planView({ version: 4, reserve: { mode: 'HORAS', pct: 15, focusPct: null, types: [] } });
+    h.api.copyFromPrevious.mockResolvedValue(copied);
+    renderPlan();
+    fireEvent.click(await screen.findByRole('button', { name: /Copiar da sprint anterior/ }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog.textContent).toMatch(/reserva/);
+    expect(dialog.textContent).toMatch(/Não copia ausências, feriados nem tarefas/);
+    expect(h.api.copyFromPrevious).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copiar' }));
+    await waitFor(() => expect(h.api.copyFromPrevious).toHaveBeenCalledWith('SQ', 'p1'));
+    await waitFor(() => expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Copiado da sprint anterior' })));
+  });
+
+  it('404 "Nenhum planejamento anterior" aparece como erro', async () => {
+    h.api.copyFromPrevious.mockRejectedValue(new CeremonyApiError('Nenhum planejamento anterior.', 404));
+    renderPlan();
+    fireEvent.click(await screen.findByRole('button', { name: /Copiar da sprint anterior/ }));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Copiar' }));
+    await waitFor(() => expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Nenhum planejamento anterior.', variant: 'destructive' })));
+  });
+
+  it('some fora do rascunho e para quem não é liderança', async () => {
+    h.api.get.mockResolvedValue(planView({ status: 'ESCOPO' }));
+    const { unmount } = renderPlan();
+    await screen.findByText(/Capacidade por pessoa/);
+    expect(screen.queryByRole('button', { name: /Copiar da sprint anterior/ })).toBeNull();
+    unmount();
+    h.api.get.mockResolvedValue(planView({}, false));
+    renderPlan();
+    await screen.findByText(/Capacidade por pessoa/);
+    expect(screen.queryByRole('button', { name: /Copiar da sprint anterior/ })).toBeNull();
   });
 });

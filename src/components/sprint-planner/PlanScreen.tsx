@@ -129,6 +129,15 @@ export function PlanScreen({
       await reload(true);
     }, 'Não foi possível remover a ausência');
 
+  /** Copia reserva, foco do time e inclusão/foco por pessoa da sprint anterior. Devolve true se copiou. */
+  const onCopyFromPrevious = async () => {
+    const updated = await run(() => sprintPlanApi.copyFromPrevious(squadId, planId), 'Não foi possível copiar da sprint anterior');
+    if (!updated) return false;
+    setLoad({ state: 'ok', plan: updated });
+    toast({ title: 'Copiado da sprint anterior', description: 'Reserva, foco do time e inclusão por pessoa foram copiados. Ausências, feriados e itens ficam como estão.' });
+    return true;
+  };
+
   const onReplaceHolidays = (list: Holiday[]) =>
     void run(async () => {
       await sprintPlanApi.replaceHolidays(squadId, planId, list);
@@ -221,6 +230,7 @@ export function PlanScreen({
             onAddAbsence={onAddAbsence}
             onRemoveAbsence={onRemoveAbsence}
             onReplaceHolidays={onReplaceHolidays}
+            onCopyFromPrevious={onCopyFromPrevious}
           />
         ) : step === 'escopo' ? (
           <ScopeStep

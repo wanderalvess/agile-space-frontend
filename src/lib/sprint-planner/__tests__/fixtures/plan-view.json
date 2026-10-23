@@ -11,6 +11,7 @@
     "sprintKey": "plan:plan-1"
   },
   "goal": "Entregar o checkout",
+  "jiraGoal": "Checkout enxuto",
   "reserve": {
     "mode": "HORAS",
     "pct": 12,
