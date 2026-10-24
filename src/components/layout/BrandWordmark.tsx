@@ -10,7 +10,7 @@ export function BrandWordmark({ className, showTagline = true }: { className?: s
       <span className="text-[15px] font-bold">
         Portal Tech <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground">V&amp;D</span>
       </span>
-      {showTagline && <span className="text-[11px] font-normal text-muted-foreground">Varejo e Distribuição</span>}
+      {showTagline && <span className="text-xs font-normal text-muted-foreground">Varejo e Distribuição</span>}
     </span>
   );
 }

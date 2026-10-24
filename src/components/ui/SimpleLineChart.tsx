@@ -31,13 +31,13 @@ export function SimpleLineChart({ title, data, defaultColor, height = 230, isLig
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: theme.tick, fontSize: 11, fontWeight: 600 }}
+            tick={{ fill: theme.tick, fontSize: 12, fontWeight: 600 }}
             dy={8}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fill: theme.tick, fontSize: 11 }}
+            tick={{ fill: theme.tick, fontSize: 12 }}
             tickFormatter={formatCompactNumber}
           />
           <Tooltip

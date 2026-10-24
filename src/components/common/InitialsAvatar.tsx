@@ -60,7 +60,7 @@ export function InitialsAvatar({ name, email, src, className, title, onPhotoErro
       aria-hidden={title ? undefined : true}
       title={title}
       className={cn(
-        'relative inline-flex h-8 w-8 shrink-0 select-none items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold leading-none',
+        'relative inline-flex h-8 w-8 shrink-0 select-none items-center justify-center overflow-hidden rounded-full text-xs font-semibold leading-none',
         !photo && TONE_CLASSES[avatarToneIndex(name, email)],
         className
       )}

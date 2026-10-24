@@ -32,34 +32,34 @@ const THEME_STYLES = {
     hoverBg: 'hover:bg-primary/5',
     border: 'border-primary/20',
     btnBg: 'bg-primary',
-    btnHover: 'hover:bg-orange-600',
+    btnHover: 'hover:bg-primary/90',
     shadow: 'shadow-primary/20',
   },
   amber: {
     bgId: 'bg-amber-500/10',
     textId: 'text-amber-600',
-    hoverBg: 'hover:bg-amber-50',
+    hoverBg: 'hover:bg-amber-500/10',
     border: 'border-amber-500/20',
-    btnBg: 'bg-amber-500',
-    btnHover: 'hover:bg-amber-600',
+    btnBg: 'bg-amber-600',
+    btnHover: 'hover:bg-amber-700',
     shadow: 'shadow-amber-200',
   },
   emerald: {
     bgId: 'bg-emerald-500/10',
     textId: 'text-emerald-600',
-    hoverBg: 'hover:bg-emerald-50',
+    hoverBg: 'hover:bg-emerald-500/10',
     border: 'border-emerald-500/20',
-    btnBg: 'bg-emerald-500',
-    btnHover: 'hover:bg-emerald-600',
+    btnBg: 'bg-emerald-600',
+    btnHover: 'hover:bg-emerald-700',
     shadow: 'shadow-emerald-200',
   },
   rose: {
     bgId: 'bg-rose-500/10',
     textId: 'text-rose-600',
-    hoverBg: 'hover:bg-rose-50',
+    hoverBg: 'hover:bg-rose-500/10',
     border: 'border-rose-500/20',
-    btnBg: 'bg-rose-500',
-    btnHover: 'hover:bg-rose-600',
+    btnBg: 'bg-rose-600',
+    btnHover: 'hover:bg-rose-700',
     shadow: 'shadow-rose-200',
   }
 };
@@ -106,7 +106,7 @@ export function EliteExportDialog({
                 <FileText className={cn("h-5 w-5", styles.textId)} />
              </div>
              <div>
-                <DialogTitle className="text-xl font-black uppercase tracking-tight">{title}</DialogTitle>
+                <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>
                 <DialogDescription className="text-xs font-medium text-muted-foreground">
                   {description}
                 </DialogDescription>
@@ -114,14 +114,14 @@ export function EliteExportDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-muted/5 font-code text-[11px] leading-relaxed select-all">
+        <div className="flex-1 overflow-y-auto p-6 bg-muted/5 font-code text-xs leading-relaxed select-all">
           <pre className="whitespace-pre-wrap break-words bg-background/50 p-4 rounded-xl border border-border/50 shadow-inner">
             {markdownContent}
           </pre>
         </div>
 
         <DialogFooter className="p-6 pt-2 border-t border-border/50 bg-muted/20 gap-3">
-          <Button variant="ghost" onClick={onClose} className="h-10 px-6 text-xs font-black uppercase">
+          <Button variant="ghost" onClick={onClose} className="h-10 px-6 text-sm font-semibold">
             Fechar
           </Button>
 
@@ -129,7 +129,7 @@ export function EliteExportDialog({
             <Button 
               variant="outline"
               onClick={onDownloadCSV} 
-              className={cn("h-10 gap-2 text-[10px] font-black uppercase tracking-tight transition-all", styles.hoverBg, styles.border, styles.textId)}
+              className={cn("h-10 gap-2 text-sm font-semibold transition-all", styles.hoverBg, styles.border, styles.textId)}
             >
               <DownloadCloud className="h-4 w-4" />
               CSV (Excel)
@@ -143,7 +143,7 @@ export function EliteExportDialog({
                 onClose();
                 setTimeout(onExportImage, 300);
               }} 
-              className={cn("h-10 gap-2 text-[10px] font-black uppercase tracking-tight transition-all", styles.hoverBg, styles.border, styles.textId)}
+              className={cn("h-10 gap-2 text-sm font-semibold transition-all", styles.hoverBg, styles.border, styles.textId)}
             >
               <ImageIcon className="h-4 w-4" />
               Salvar Imagem
@@ -152,7 +152,7 @@ export function EliteExportDialog({
 
           <Button 
             onClick={handleCopy} 
-            className={cn("flex-1 h-10 gap-2 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-[1.02]", styles.btnBg, styles.btnHover, styles.shadow)}
+            className={cn("flex-1 h-10 gap-2 text-sm font-semibold text-white transition-colors", styles.btnBg, styles.btnHover, styles.shadow)}
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copiado!" : "Copiar Resumo"}

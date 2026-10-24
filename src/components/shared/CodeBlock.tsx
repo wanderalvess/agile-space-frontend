@@ -34,22 +34,22 @@ export function CodeBlock({ code, label, language, className }: CodeBlockProps) 
   };
 
   return (
-    <div className={cn('rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950', className)}>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+    <div className={cn('rounded-xl border border-border overflow-hidden bg-card', className)}>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted">
+        <span className="text-xs font-semibold text-muted-foreground">
           {displayLabel}
         </span>
         <button
           type="button"
           onClick={handleCopy}
           aria-label={copied ? 'Copiado' : 'Copiar código'}
-          className="-my-1 -mr-2 flex min-h-6 items-center gap-1.5 rounded-md px-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+          className="-my-1 -mr-2 flex min-h-6 items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" />}
           {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-xs leading-relaxed font-code text-slate-200 whitespace-pre">
+      <pre className="p-4 overflow-x-auto text-xs leading-relaxed font-code text-foreground whitespace-pre">
         {code}
       </pre>
     </div>

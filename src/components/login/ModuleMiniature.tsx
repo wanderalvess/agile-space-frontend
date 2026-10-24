@@ -117,7 +117,7 @@ function ShowcaseMini() {
         </span>
       </div>
       <span
-        className={cn('inline-flex h-6 items-center rounded-full bg-emerald-500/15 px-2.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400', ENTER)}
+        className={cn('inline-flex h-6 items-center rounded-full bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400', ENTER)}
         style={{ animationDelay: '0.5s' }}
       >
         Aprovado

@@ -38,10 +38,10 @@ export function MemberCard({
   return (
     <div
       className={cn(
-        'flex items-center justify-between p-2.5 rounded-[1.2rem] transition-all group relative overflow-hidden w-full',
+        'flex items-center justify-between p-2.5 rounded-xl transition-all group relative overflow-hidden w-full',
         isYou
-          ? 'bg-indigo-50/50 dark:bg-indigo-950/20 shadow-sm ring-1 ring-indigo-500/20 dark:ring-indigo-500/30'
-          : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent hover:border-slate-100 dark:hover:border-slate-800/60',
+          ? 'bg-primary/10 ring-1 ring-primary/30'
+          : 'hover:bg-muted border border-transparent hover:border-border',
         status === 'offline' && 'opacity-50 grayscale',
         className
       )}
@@ -52,26 +52,26 @@ export function MemberCard({
           <InitialsAvatar
             name={nickname}
             src={avatarUrl}
-            className={cn('h-8 w-8 text-[11px] shadow-sm', isYou && 'ring-2 ring-primary/40')}
+            className={cn('h-8 w-8 text-xs shadow-sm', isYou && 'ring-2 ring-primary/40')}
           />
           {status === 'online' ? (
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-600 border-2 border-white dark:border-slate-900 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-card" />
           ) : (
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-slate-400 border-2 border-white dark:border-slate-900" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-muted-foreground border-2 border-card" />
           )}
         </div>
         
         <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={cn(
-              "font-bold text-[11px] truncate inline-block leading-none tracking-tight shrink min-w-0 max-w-[120px]",
-              isYou ? "text-indigo-900 dark:text-indigo-200" : "text-slate-800 dark:text-slate-200"
+              "font-semibold text-xs truncate inline-block leading-none shrink min-w-0 max-w-[120px]",
+              isYou ? "text-primary" : "text-foreground"
             )}>
               {nickname}
             </span>
-            {isYou && <span className="text-[8px] font-medium text-indigo-400/80 uppercase tracking-widest shrink-0">(Eu)</span>}
+            {isYou && <span className="text-xs font-medium text-muted-foreground shrink-0">(Eu)</span>}
           </div>
-          <Badge variant="secondary" className="w-fit max-w-[100px] h-[16px] px-1.5 text-[7px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-none tracking-widest shadow-none mt-0.5 truncate inline-block">
+          <Badge variant="secondary" className="w-fit max-w-[100px] h-5 px-1.5 text-xs font-semibold bg-muted text-muted-foreground border-none shadow-none mt-0.5 truncate inline-block">
             {role}
           </Badge>
         </div>
@@ -88,7 +88,7 @@ export function MemberCard({
                   <Crown className="h-3.5 w-3.5 text-amber-600 fill-amber-500/10" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="bg-slate-900 text-white border-none rounded-lg p-2 text-[10px] font-black uppercase tracking-widest"><p>Facilitador da Sala</p></TooltipContent>
+              <TooltipContent className="text-xs font-semibold"><p>Facilitador da Sala</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}

@@ -44,17 +44,17 @@ export function BackendHealthGatekeeper({ children }: { children: React.ReactNod
       {children}
 
       {isOffline && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-500">
-          <div className="max-w-md w-full mx-4 p-8 bg-white dark:bg-slate-950 rounded-[2rem] shadow-2xl border border-rose-100 dark:border-rose-900/50 flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-950/50 rounded-3xl flex items-center justify-center mb-6 border-2 border-rose-100 dark:border-rose-900 shadow-inner">
-              <ServerCrash className="h-10 w-10 text-rose-500" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="max-w-md w-full mx-4 p-8 bg-card text-card-foreground rounded-2xl shadow-lg border border-destructive/30 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-destructive/10 rounded-2xl flex items-center justify-center mb-6 border border-destructive/30">
+              <ServerCrash className="h-8 w-8 text-destructive" />
             </div>
             
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 mb-2">
-              Backend <span className="text-rose-500">Desconectado</span>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+              Backend <span className="text-destructive">Desconectado</span>
             </h2>
             
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
               {process.env.NODE_ENV === 'production'
                 ? 'Não conseguimos falar com o servidor do Portal Tech V&D. Sua sessão continua guardada: assim que ele voltar, você segue de onde parou.'
                 : 'O servidor do Portal Tech V&D (Spring Boot) não está respondendo na porta 8002. Inicie o backend para continuar navegando.'}
@@ -63,7 +63,7 @@ export function BackendHealthGatekeeper({ children }: { children: React.ReactNod
             <Button
               onClick={checkHealth}
               disabled={isChecking}
-              className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 font-black uppercase text-[11px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3"
+              className="w-full h-11 gap-2 font-semibold"
             >
               {isChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {isChecking ? 'Tentando Reconectar...' : 'Tentar Novamente'}

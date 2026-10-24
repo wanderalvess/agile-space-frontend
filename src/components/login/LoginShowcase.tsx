@@ -78,7 +78,7 @@ export function LoginShowcase({ className }: { className?: string }) {
             <Icon aria-hidden="true" strokeWidth={1.5} className={cn('h-4 w-4', TINT_TEXT)} />
             {current.name}
           </span>
-          <span className="text-[11px] text-muted-foreground">Exemplo</span>
+          <span className="text-xs text-muted-foreground">Exemplo</span>
         </div>
 
         <ModuleMiniature key={current.key} module={current.key} />
@@ -113,7 +113,7 @@ export function LoginShowcase({ className }: { className?: string }) {
         </div>
       </div>
 
-      <div className="relative flex justify-between text-[11px] tabular-nums text-muted-foreground">
+      <div className="relative flex justify-between text-xs tabular-nums text-muted-foreground">
         <span>v{packageInfo.version}</span>
         <span>© {year}</span>
       </div>
