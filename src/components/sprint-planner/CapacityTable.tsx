@@ -69,9 +69,16 @@ function useCells({ row, mode, canEdit, onUpdate }: RowProps) {
     <select
       aria-label={`Papel de ${row.name}`}
       className={cn(FIELD, 'h-9 w-[84px] px-2')}
-      value={row.papel === 'QA' ? 'QA' : 'DEV'}
+      // Sem papel definido, o seletor não pode mostrar "DEV": a pessoa ficaria fora da capacidade de DEV e de QA
+      // enquanto a tela diz o contrário. Mostra "Definir" até a liderança escolher.
+      value={row.papel === 'QA' || row.papel === 'DEV' ? row.papel : ''}
       onChange={(e) => onUpdate(row.accountId, { papel: e.target.value as 'DEV' | 'QA' })}
     >
+      {row.papel !== 'QA' && row.papel !== 'DEV' && (
+        <option value="" disabled>
+          Definir
+        </option>
+      )}
       <option value="DEV">DEV</option>
       <option value="QA">QA</option>
     </select>
