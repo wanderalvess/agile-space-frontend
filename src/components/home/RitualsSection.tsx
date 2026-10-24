@@ -155,7 +155,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                 </Link>
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-5 pt-3.5">
-                <h3 className="px-1.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sessões anteriores</h3>
+                <h3 className="px-1.5 pb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessões anteriores</h3>
                 {loading && !failed ? (
                   <div aria-hidden="true" className="flex flex-col gap-1.5">
                     {[0, 1, 2].map((i) => (
@@ -183,7 +183,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                             <span className="flex items-center gap-2">
                               <span className="truncate text-sm font-semibold">{s.title}</span>
                               {showSquad && (
-                                <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-[10px] font-bold text-muted-foreground">
+                                <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-xs font-bold text-muted-foreground">
                                   {s.squadName}
                                 </span>
                               )}

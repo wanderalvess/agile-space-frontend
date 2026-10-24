@@ -52,7 +52,7 @@ export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="min-w-0 truncate text-sm font-bold max-sm:basis-full">{s.title}</span>
                     {showSquad && (
-                      <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-[10px] font-bold text-muted-foreground">
+                      <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-xs font-bold text-muted-foreground">
                         {s.squadName}
                       </span>
                     )}
