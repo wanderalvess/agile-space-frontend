@@ -145,7 +145,7 @@ export function JiraCredentialsForm({
         <ol className="flex flex-col gap-2.5">
           {TOKEN_STEPS.map((text, i) => (
             <li key={text} className="flex gap-2.5">
-              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
                 {i + 1}
               </span>
               <span className="text-[13px] leading-relaxed text-muted-foreground">{text}</span>

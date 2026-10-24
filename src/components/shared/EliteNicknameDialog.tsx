@@ -42,26 +42,26 @@ const THEME_STYLES = {
   primary: {
     bgRound: 'bg-primary/10',
     iconColor: 'text-primary',
-    btnHover: 'shadow-primary/20 hover:bg-orange-600',
+    btnHover: 'shadow-primary/20 hover:bg-primary/90',
     btnBg: 'bg-primary'
   },
   amber: {
     bgRound: 'bg-amber-500/10',
     iconColor: 'text-amber-600',
-    btnHover: 'shadow-amber-500/20 hover:bg-amber-600',
-    btnBg: 'bg-amber-500'
+    btnHover: 'shadow-amber-500/20 hover:bg-amber-700',
+    btnBg: 'bg-amber-600'
   },
   emerald: {
     bgRound: 'bg-emerald-500/10',
     iconColor: 'text-emerald-600',
-    btnHover: 'shadow-emerald-500/20 hover:bg-emerald-600',
-    btnBg: 'bg-emerald-500'
+    btnHover: 'shadow-emerald-500/20 hover:bg-emerald-700',
+    btnBg: 'bg-emerald-600'
   },
   rose: {
     bgRound: 'bg-rose-500/10',
     iconColor: 'text-rose-600',
-    btnHover: 'shadow-rose-500/20 hover:bg-rose-600',
-    btnBg: 'bg-rose-500'
+    btnHover: 'shadow-rose-500/20 hover:bg-rose-700',
+    btnBg: 'bg-rose-600'
   }
 };
 
@@ -110,7 +110,7 @@ export function EliteNicknameDialog({
               <div className={cn("mx-auto p-3 rounded-full w-fit mb-4", styles.bgRound)}>
                 <User className={cn("h-8 w-8", styles.iconColor)} />
               </div>
-              <DialogTitle className="text-center text-2xl font-black uppercase tracking-tight">
+              <DialogTitle className="text-center text-2xl font-bold tracking-tight">
                 {title || (isInitialSetup ? 'Bem-vindo ao Setup!' : 'Editar Perfil')}
               </DialogTitle>
               <DialogDescription className="text-center">
@@ -122,7 +122,7 @@ export function EliteNicknameDialog({
 
             <Card className="p-6 space-y-4 border-border/50 shadow-sm rounded-xl bg-card">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Nome Completo</Label>
+                <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground">Nome Completo</Label>
                 <Input
                   id="name"
                   value={nickname}
@@ -135,7 +135,7 @@ export function EliteNicknameDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Seu Papel na Squad</Label>
+                <Label htmlFor="role" className="text-xs font-semibold text-muted-foreground">Seu Papel na Squad</Label>
                 <Select value={role} onValueChange={(val: TeamRole) => setRole(val)}>
                   <SelectTrigger id="role" className="h-11 font-bold bg-background">
                     <SelectValue placeholder="Selecione seu papel..." />
@@ -158,7 +158,7 @@ export function EliteNicknameDialog({
             </Card>
 
             <DialogFooter>
-              <Button type="submit" size="lg" className={cn("w-full h-12 font-black text-white uppercase tracking-widest rounded-xl shadow-lg transition-all text-xs", styles.btnHover, styles.btnBg)} disabled={!nickname.trim() || !role}>
+              <Button type="submit" size="lg" className={cn("w-full h-12 font-semibold text-white rounded-xl transition-colors text-sm", styles.btnHover, styles.btnBg)} disabled={!nickname.trim() || !role}>
                 {isInitialSetup ? (
                   <>
                     <LogIn className="mr-2 h-5 w-5" />

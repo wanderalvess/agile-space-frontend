@@ -105,7 +105,7 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={cn(
-                            'px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider',
+                            'px-2 py-0.5 rounded-md text-xs font-semibold',
                             endpoint.method === 'POST'
                               ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25'
                               : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25'
@@ -119,11 +119,11 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </div>
                       <p className="text-xs text-muted-foreground">{endpoint.summary}</p>
                       {endpoint.params && (
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           <span className="font-semibold text-foreground">Params:</span> {endpoint.params}
                         </p>
                       )}
-                      <p className="text-[11px] font-semibold text-primary">
+                      <p className="text-xs font-semibold text-primary">
                         Escopo: {endpoint.scope}
                       </p>
                     </li>
@@ -146,7 +146,7 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </code>
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider',
+                          'px-2 py-0.5 rounded-md text-xs font-semibold',
                           tool.write
                             ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
                             : 'bg-muted text-muted-foreground border border-border'
@@ -156,10 +156,10 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">{tool.summary}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground">Params:</span> {tool.params}
                     </p>
-                    <p className="text-[11px] font-semibold text-primary">
+                    <p className="text-xs font-semibold text-primary">
                       Escopo: {tool.scope}
                     </p>
                   </li>
