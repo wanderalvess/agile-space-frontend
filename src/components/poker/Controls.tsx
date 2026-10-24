@@ -315,7 +315,7 @@ export function Controls({
       <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="flex min-w-0 flex-1 items-center gap-x-4">
           <h2 className="m-0 shrink-0 text-[15px] font-semibold" title={`Digite o valor${specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido`}>Seu baralho</h2>
-          {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] italic text-muted-foreground md:block">{activePhrase}</p>}
+          {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] text-muted-foreground md:block">{activePhrase}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
           {confidenceEnabled && onSetConfidence && (

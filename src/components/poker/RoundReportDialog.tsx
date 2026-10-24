@@ -96,7 +96,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
       <div className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="flex flex-col items-center justify-center rounded-xl bg-primary p-4 text-primary-foreground">
-            <span className="text-[11px] font-semibold opacity-80">Total</span>
+            <span className="text-xs font-semibold opacity-80">Total</span>
             <span className="text-2xl font-bold tabular-nums">{round.stats.avg}{round.deckType === 'hours' ? 'h' : ''}</span>
           </div>
           {round.deckType === 'hours' ? (
@@ -106,7 +106,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
               if (!value || value === '0') return null;
               return (
                 <div key={category} className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                  <span className={cn('text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>{formatRoleForCopy(category)}</span>
+                  <span className={cn('text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>{formatRoleForCopy(category)}</span>
                   <span className="text-2xl font-bold tabular-nums">{value}h</span>
                 </div>
               );
@@ -114,11 +114,11 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
           ) : (
             <>
               <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                <span className="text-[11px] font-semibold text-muted-foreground">Menor</span>
+                <span className="text-xs font-semibold text-muted-foreground">Menor</span>
                 <span className="text-xl font-bold tabular-nums">{round.stats.min}</span>
               </div>
               <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                <span className="text-[11px] font-semibold text-muted-foreground">Maior</span>
+                <span className="text-xs font-semibold text-muted-foreground">Maior</span>
                 <span className="text-xl font-bold tabular-nums">{round.stats.max}</span>
               </div>
             </>
@@ -135,7 +135,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
                 <li key={vote.participantId} className="flex items-center justify-between gap-3 rounded-[10px] border border-border bg-muted/30 px-3 py-2">
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-[13px] font-semibold">{p?.nickname || 'Participante'}</span>
-                    <span className={cn('truncate text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
+                    <span className={cn('truncate text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
                       {p ? (category ? formatRoleForCopy(category) : (p.globalRole || p.role)) : ''}
                     </span>
                   </span>

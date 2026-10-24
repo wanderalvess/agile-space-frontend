@@ -223,7 +223,7 @@ export function FinishSessionDialog({ open, onOpenChange, issues, rounds, onConf
         {stats.map((s) => (
           <div key={s.label} className="flex flex-col gap-0.5 rounded-[10px] border border-border bg-muted/40 p-2.5">
             <span className={cn('text-xl font-bold tabular-nums', s.cls)}>{s.n}</span>
-            <span className="text-[11px] text-muted-foreground">{s.label}</span>
+            <span className="text-xs text-muted-foreground">{s.label}</span>
           </div>
         ))}
       </div>

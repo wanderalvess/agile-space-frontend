@@ -172,7 +172,7 @@ export function QueueBulkModal({ open, onOpenChange, issues, onImport }: QueueBu
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex flex-wrap items-center gap-2">
-                        {item.key && <span className="text-[11px] font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{item.key}</span>}
+                        {item.key && <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{item.key}</span>}
                         <span className="min-w-0 truncate text-[13px] font-semibold">{item.title}</span>
                         {item.duplicate && (
                           <StatusChip tone="warn"><Copy className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Duplicada</StatusChip>

@@ -39,7 +39,7 @@ export function TopicTiming({ rounds, issues, sessionStartedAt }: TopicTimingPro
       <div className="flex flex-col gap-2">
         {rows.map((r, idx) => (
           <div key={idx} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3.5rem] items-center gap-3">
-            <span className="truncate text-[11px] text-muted-foreground" title={r.title}>
+            <span className="truncate text-xs text-muted-foreground" title={r.title}>
               {r.title}
               {r.skipped && <span className="ml-1 font-semibold text-amber-700 dark:text-amber-300">(pulado)</span>}
             </span>

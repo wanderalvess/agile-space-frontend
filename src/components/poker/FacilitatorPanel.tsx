@@ -231,7 +231,7 @@ export function FacilitatorPanel({
           )}
           <div className="flex flex-wrap gap-1" aria-label="Cartas da escala">
             {getDeckCards(deck, maxHours).map((v) => (
-              <span key={v} className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border border-border bg-card px-1 text-[11px] font-semibold tabular-nums text-muted-foreground">{v}</span>
+              <span key={v} className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border border-border bg-card px-1 text-xs font-semibold tabular-nums text-muted-foreground">{v}</span>
             ))}
           </div>
         </div>
@@ -280,7 +280,7 @@ export function FacilitatorPanel({
                   )}
                 >
                   {t.label}
-                  {n > 0 && <span className="text-[11px] tabular-nums opacity-70">{n}</span>}
+                  {n > 0 && <span className="text-xs tabular-nums opacity-70">{n}</span>}
                 </button>
               );
             })}

@@ -291,7 +291,7 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
               <div className="flex flex-col gap-4 overflow-x-hidden p-4">
                 {activeIssue && (
                   <div className="room-rise rounded-xl border border-border bg-muted/40 p-3">
-                    <span className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                    <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                       <FileText className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Contexto da tarefa
                     </span>
                     <h3 className="m-0 truncate text-[13px] font-semibold">{activeIssue.title}</h3>
@@ -317,13 +317,13 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                         <div className="flex w-full flex-col gap-2 rounded-xl border border-border bg-muted/40 p-2.5">
                           {msg.extractedEndpoints && msg.extractedEndpoints.length > 0 && (
                             <div>
-                              <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">Endpoints identificados</span>
+                              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Endpoints identificados</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedEndpoints.map((ep, idx) => (
                                   <button
                                     key={idx}
                                     onClick={() => copyToClipboard(ep, 'Endpoint')}
-                                    className="group flex max-w-full items-center gap-1.5 break-all rounded-md border border-border bg-card px-2 py-1 font-code text-[11px] font-semibold transition-colors duration-fast hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="group flex max-w-full items-center gap-1.5 break-all rounded-md border border-border bg-card px-2 py-1 font-code text-xs font-semibold transition-colors duration-fast hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     title="Clique para copiar"
                                   >
                                     <span>{ep}</span>
@@ -335,10 +335,10 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                           )}
                           {msg.extractedTables && msg.extractedTables.length > 0 && (
                             <div>
-                              <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">Tabelas relacionadas</span>
+                              <span className="mb-1 block text-xs font-semibold text-muted-foreground">Tabelas relacionadas</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedTables.map((tbl, idx) => (
-                                  <span key={idx} className="rounded-md bg-muted px-1.5 py-0.5 font-code text-[11px] font-semibold">{tbl}</span>
+                                  <span key={idx} className="rounded-md bg-muted px-1.5 py-0.5 font-code text-xs font-semibold">{tbl}</span>
                                 ))}
                               </div>
                             </div>
@@ -355,7 +355,7 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                                 onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
                                 className="group w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card p-2.5 text-left transition-colors duration-fast hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               >
-                                <span className="mb-0.5 flex items-center justify-between text-[11px] font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+                                <span className="mb-0.5 flex items-center justify-between text-xs font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
                                   <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Wiki local · {doc.category || 'Geral'}</span>
                                   <ChevronRight className="h-3 w-3 transition-transform duration-fast group-hover:translate-x-0.5" strokeWidth={1.5} aria-hidden="true" />
                                 </span>
@@ -371,7 +371,7 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
 
                       {msg.tdnResults && msg.tdnResults.length > 0 && (
                         <div className="flex w-full flex-col gap-2">
-                          <span className="flex items-center gap-1.5 px-1 text-[11px] font-semibold text-muted-foreground">
+                          <span className="flex items-center gap-1.5 px-1 text-xs font-semibold text-muted-foreground">
                             <Globe className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> TDN (Confluence)
                           </span>
                           {msg.tdnResults.map((tdn) => (
