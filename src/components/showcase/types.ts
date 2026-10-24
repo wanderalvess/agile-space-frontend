@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
 import { TONES } from '@/components/room-kit/tokens';
+import type { FieldOrigin } from '@/services/jiraProvenance';
 
 export type Decision = 'open' | 'approved' | 'needs_adjustment' | 'rejected';
 export type PreparationStatus = 'todo' | 'doing' | 'review' | 'done';
@@ -75,6 +76,9 @@ export interface ShowcaseTask {
   metrics?: ImpactMetric[];
   // Só leitura: vem do backend (arquivos enviados no card). Entra e sai pelos endpoints de arquivo.
   attachments?: TaskFile[];
+  // De onde veio o texto de Problema, Solução e Critérios quando o card nasceu da importação do Jira, e o que o Jira tinha
+  // ("Restaurar do Jira"). Ausente em card manual e em card anterior à V92. importedBy/importedAt são do servidor.
+  origins?: FieldOrigin[];
   assignee: string; 
   url: string;
   evidence: Evidence; 
