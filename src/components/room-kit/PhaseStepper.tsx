@@ -74,7 +74,7 @@ export function PhaseStepper({
               <span
                 aria-hidden="true"
                 className={cn(
-                  'flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px] tabular-nums',
+                  'flex h-[18px] w-[18px] items-center justify-center rounded-full text-xs tabular-nums',
                   active ? 'bg-primary text-primary-foreground' : 'border border-border'
                 )}
               >

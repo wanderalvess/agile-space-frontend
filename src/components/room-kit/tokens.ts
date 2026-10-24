@@ -79,6 +79,7 @@ export const TONES: Record<Tone, ToneStyle> = {
 
 /** Botão principal cheio com brilho do tema. */
 export const PRIMARY_BUTTON = 'bg-primary text-primary-foreground hover:bg-primary/90 room-glow';
+/* Intencional: text-white nos botões cheios abaixo, sempre sobre fundo saturado 600/700 (contraste AA nos 7 temas). */
 /** Botão de perigo (vermelho só em excluir e encerrar). */
 export const DANGER_BUTTON = 'bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-500';
 /** Botões cheios de sucesso e de atenção (texto claro sobre fundo 700, acima de 4,5:1). */
