@@ -94,7 +94,7 @@ export function ChatComposer({
         </button>
       </div>
       {typingLabel && <p role="status" className="m-0 px-1 text-xs text-muted-foreground motion-safe:animate-pulse">{typingLabel}</p>}
-      <p className="m-0 px-1 text-[11px] text-muted-foreground">
+      <p className="m-0 px-1 text-xs text-muted-foreground">
         {isCodeMode ? 'Ctrl+Enter envia · Enter quebra linha' : 'Enter envia · Shift+Enter quebra linha · ``` para código'}
       </p>
     </form>

@@ -34,7 +34,7 @@ function InlineText({ value, isOwn }: { value: string; isOwn: boolean }) {
           return (
             <code key={i} className={cn(
               'px-1 py-0.5 rounded font-mono text-xs',
-              isOwn ? 'bg-black/15' : 'bg-muted'
+              isOwn ? 'bg-primary-foreground/20' : 'bg-muted'
             )}>
               {part.slice(1, -1)}
             </code>

@@ -51,7 +51,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
           <ProfileAvatar className="h-8 w-8 shrink-0 rounded-full" />
           <span className={cn('hidden flex-col items-start leading-tight sm:flex', compact && 'lg:max-[1359px]:hidden')}>
             <span className="text-[13px] font-semibold">{first}</span>
-            {roleLabel && <span className="max-w-[120px] truncate text-[11px] text-muted-foreground">{roleLabel}</span>}
+            {roleLabel && <span className="max-w-[120px] truncate text-xs text-muted-foreground">{roleLabel}</span>}
           </span>
         </button>
       </DropdownMenuTrigger>

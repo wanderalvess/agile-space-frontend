@@ -54,7 +54,7 @@ export function SidePanel({
           {Icon && <Icon aria-hidden="true" className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />}
           <h2 className="text-[15px] font-semibold leading-none text-foreground">{title}</h2>
           {count !== undefined && count !== null && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
               {count}
             </span>
           )}

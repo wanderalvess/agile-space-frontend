@@ -63,7 +63,7 @@ export function TabBar<T extends string>({
             )}
           >
             {t.label}
-            {t.count !== undefined && t.count > 0 && <span className="text-[11px] tabular-nums text-muted-foreground">{t.count}</span>}
+            {t.count !== undefined && t.count > 0 && <span className="text-xs tabular-nums text-muted-foreground">{t.count}</span>}
           </button>
         );
       })}

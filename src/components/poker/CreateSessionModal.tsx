@@ -353,7 +353,7 @@ export function CreateSessionModal({
                     <span className="text-[15px] font-bold">{opt.name}</span>
                     <span className="text-xs text-muted-foreground">{opt.desc}</span>
                   </span>
-                  <span className="text-[11px] leading-relaxed text-muted-foreground tabular-nums">
+                  <span className="text-xs leading-relaxed text-muted-foreground tabular-nums">
                     {getDeckCards(opt.key, opt.key === 'hours' ? maxHours : undefined).map((v) => (v === '☕' ? 'café' : v)).join(' · ')}
                   </span>
                 </button>
@@ -448,12 +448,12 @@ export function CreateSessionModal({
             <div className="room-rise grid gap-3 sm:grid-cols-2">
               {SETUP_GROUPS.map((group) => (
                 <div key={group.label} className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-3">
-                  <span className="mb-1 text-[11px] font-bold text-muted-foreground">{group.label}</span>
+                  <span className="mb-1 text-xs font-bold text-muted-foreground">{group.label}</span>
                   {group.items.map((cfg) => (
                     <div key={cfg.key} className="flex items-center justify-between gap-2.5 py-1.5">
                       <label htmlFor={`ns-${cfg.key}`} className="flex min-w-0 cursor-pointer flex-col">
                         <span className="text-[13px] font-semibold">{cfg.title}</span>
-                        <span className="text-[11px] text-muted-foreground">{cfg.desc}</span>
+                        <span className="text-xs text-muted-foreground">{cfg.desc}</span>
                       </label>
                       <Switch id={`ns-${cfg.key}`} checked={!!setupSettings[cfg.key]} onCheckedChange={(v) => setSetupSettings((s) => ({ ...s, [cfg.key]: v }))} className="shrink-0" />
                     </div>

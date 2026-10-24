@@ -131,7 +131,7 @@ function KeysTab() {
     <div className="flex flex-col gap-5">
       {KEY_GROUPS.map((g) => (
         <section key={g.label} className="flex flex-col gap-2">
-          <h3 className="text-[11px] font-bold text-muted-foreground">{g.label}</h3>
+          <h3 className="text-xs font-bold text-muted-foreground">{g.label}</h3>
           {g.items.map((k) => (
             <div key={k.desc} className="flex items-center gap-3 border-b border-border py-2">
               <span className="flex min-w-[150px] gap-1">

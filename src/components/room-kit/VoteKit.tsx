@@ -86,7 +86,7 @@ export function VoteCard({
     return (
       <span
         aria-label={label ?? observerLabel}
-        className={cn(base, 'flex-col gap-1 border border-dashed border-border text-[10px] font-medium text-muted-foreground', className)}
+        className={cn(base, 'flex-col gap-1 border border-dashed border-border text-xs font-medium text-muted-foreground', className)}
       >
         <Crown aria-hidden="true" className="h-4 w-4 text-amber-500" strokeWidth={1.5} />
         {observerLabel}
@@ -126,7 +126,7 @@ export function VoteCard({
       style={{ animationDelay: `${delay}ms` }}
       aria-label={label}
     >
-      {showCorner && !isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-[10px] font-semibold leading-none opacity-70">{value}</span>}
+      {showCorner && !isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-xs font-semibold leading-none opacity-70">{value}</span>}
       {confidence && (
         <span
           title={`Confiança ${CONFIDENCE_LABEL[confidence].toLowerCase()}`}
@@ -138,9 +138,9 @@ export function VoteCard({
       {isCoffee ? (
         <Coffee className="h-[38%] w-[38%]" strokeWidth={1.75} aria-label="Pausa" />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter', GLYPH[size][(value?.length ?? 0) > 2 ? 1 : 0])}>
+        <span className={cn('font-bold leading-none tracking-tighter', GLYPH[size][(value?.length ?? 0) > 2 ? 1 : 0])}>
           {value}
-          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold not-italic opacity-80">{unit}</span>}
+          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold opacity-80">{unit}</span>}
         </span>
       )}
     </span>
@@ -323,15 +323,15 @@ export function DeckCard({
     >
       {showPips && (
         <>
-          <span aria-hidden="true" className="pointer-events-none absolute left-1.5 top-1 hidden text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute left-1.5 top-1 hidden text-xs font-bold leading-none opacity-60 sm:block">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-xs font-bold leading-none opacity-60 sm:block">{value}</span>
         </>
       )}
       {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-70 [.theme-leitura_&]:hidden" />}
       {isCoffee ? (
         <Coffee className="h-6 w-6 sm:h-8 sm:w-8" strokeWidth={1.75} />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>{value}</span>
+        <span className={cn('font-bold leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>{value}</span>
       )}
     </button>
   );

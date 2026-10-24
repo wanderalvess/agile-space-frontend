@@ -108,7 +108,7 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
 
 const STEP_CARD = 'relative flex h-full flex-col gap-3.5 rounded-[14px] border p-5 transition-colors duration-slow';
 const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
-const KEY = 'rounded border border-current/30 px-1.5 py-px text-[11px] tabular-nums opacity-70';
+const KEY = 'rounded border border-current/30 px-1.5 py-px text-xs tabular-nums opacity-70';
 
 interface RoomWelcomeProps {
   deck: DeckType;
@@ -192,7 +192,7 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
                       <PersonAvatar name={p.nickname} size="md" />
                     </span>
                   ))}
-                  {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-[11px] font-bold text-muted-foreground">+{participants.length - 5}</span>}
+                  {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 5}</span>}
                 </div>
                 <span className="text-[13px] leading-snug text-muted-foreground">
                   {participants.length > 1 ? `${participants.length} na sala · ${onlineCount} online` : 'Só você por aqui'}
@@ -278,7 +278,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
                   <PersonAvatar name={p.nickname} size="lg" />
                 </span>
               ))}
-              {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-[11px] font-bold text-muted-foreground">+{participants.length - 6}</span>}
+              {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 6}</span>}
             </div>
             <span className="text-[13px] text-muted-foreground">{participants.length} {participants.length === 1 ? 'pessoa na sala' : 'pessoas na sala'}</span>
           </div>
@@ -291,7 +291,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
         )}
         <div className="flex flex-wrap justify-center gap-1.5" aria-label="Cartas do baralho">
           {getDeckCards(deck, maxHours).map((face) => (
-            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
               {face === '☕' ? 'café' : face}
             </span>
           ))}

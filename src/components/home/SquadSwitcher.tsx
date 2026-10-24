@@ -77,13 +77,13 @@ export function SquadSwitcher({ squads, scope, isMulti, switchingTo, onPick, all
           {allowAll && (
             <DropdownMenuRadioItem value={ALL} className="cursor-pointer rounded-lg py-2 text-[13px]">
               <span className="flex-1">Todas as squads</span>
-              <span className="text-[11px] text-muted-foreground">{squads.length}</span>
+              <span className="text-xs text-muted-foreground">{squads.length}</span>
             </DropdownMenuRadioItem>
           )}
           {squads.map((s) => (
             <DropdownMenuRadioItem key={s.id} value={s.id} className="cursor-pointer rounded-lg py-2 text-[13px]">
               <span className="min-w-0 flex-1 truncate">{s.name}</span>
-              {s.roleName && <span className="ml-2 shrink-0 text-[11px] text-muted-foreground">{s.roleName}</span>}
+              {s.roleName && <span className="ml-2 shrink-0 text-xs text-muted-foreground">{s.roleName}</span>}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

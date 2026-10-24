@@ -161,7 +161,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
           >
             <Eye className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
             Revelar votos
-            <span className="rounded bg-black/15 px-1.5 py-px text-xs tabular-nums dark:bg-white/20">{p.votedCount}/{p.voterTotal}</span>
+            <span className="rounded bg-primary-foreground/20 px-1.5 py-px text-xs tabular-nums">{p.votedCount}/{p.voterTotal}</span>
           </button>
         ) : undefined
       }

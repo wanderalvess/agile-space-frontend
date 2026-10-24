@@ -112,7 +112,7 @@ export const IconButton = React.forwardRef<
     {!!badge && badge > 0 && (
       <span
         aria-hidden="true"
-        className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
+        className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-xs font-semibold text-primary-foreground"
       >
         {badge > 99 ? '99+' : badge}
       </span>

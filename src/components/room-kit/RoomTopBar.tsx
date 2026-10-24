@@ -116,7 +116,7 @@ function StatusPill({ status, label: custom }: { status: RoomTopBarStatus; label
   return (
     <span
       className={cn(
-        'inline-flex h-[18px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-1.5 text-[11px] font-semibold',
+        'inline-flex h-[18px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-1.5 text-xs font-semibold',
         live ? cn(TONES.success.chip, 'max-sm:px-1') : cn(TONES.neutral.chip, 'max-sm:hidden')
       )}
     >
@@ -136,7 +136,7 @@ function PhaseSummary({ steps, current }: { steps: readonly PhaseStep[]; current
   const index = Math.max(0, steps.findIndex((s) => s.id === current));
   return (
     <span className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-border bg-muted/50 px-2.5 text-[13px] font-semibold sm:hidden">
-      <span aria-hidden="true" className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[11px] tabular-nums text-primary-foreground">
+      <span aria-hidden="true" className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-xs tabular-nums text-primary-foreground">
         {index + 1}/{steps.length}
       </span>
       <span>
@@ -236,7 +236,7 @@ function PresenceStack({ people, open, onClick, unknown }: { people: readonly To
           // Quem vem antes fica por cima: o ponto de online nunca some atrás do vizinho.
           <span key={p.id} className={cn('relative inline-flex', i > 0 && '-ml-1.5')} style={{ zIndex: stack.visible.length - i }}>
             {/* O vizinho da frente cobre a borda esquerda (6 px + anel): o recuo de 4 px leva as iniciais para a parte que aparece. */}
-            <PersonAvatar name={p.name} size="sm" className={cn('h-7 w-7 text-[11px] ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
+            <PersonAvatar name={p.name} size="sm" className={cn('h-7 w-7 text-xs ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
             {!unknown && p.online && (
               <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
             )}
@@ -244,7 +244,7 @@ function PresenceStack({ people, open, onClick, unknown }: { people: readonly To
         ))}
       </span>
       {stack.extra > 0 && (
-        <span aria-hidden="true" className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+        <span aria-hidden="true" className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
           +{stack.extra}
         </span>
       )}
@@ -335,14 +335,14 @@ export function RoomTopBar({
           <IconTile icon={toolIcon} size="md" className="max-sm:hidden" />
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-              <span className="shrink-0 text-[11px] font-medium leading-[18px] text-muted-foreground">{toolName}</span>
+              <span className="shrink-0 text-xs font-medium leading-[18px] text-muted-foreground">{toolName}</span>
               {status && <StatusPill status={status} label={statusLabel} />}
               {chips.map((c) => (
                 <StatusChip
                   key={c.id}
                   tone={c.tone ?? 'neutral'}
                   className={cn(
-                    'h-[18px] px-1.5 text-[11px]',
+                    'h-[18px] px-1.5 text-xs',
                     c.secondary ? 'min-w-[4rem] max-w-[10rem] shrink max-2xl:hidden 3xl:max-w-[14rem]' : 'shrink-0 max-md:hidden max-[1339px]:xl:hidden'
                   )}
                 >
@@ -416,7 +416,7 @@ export function RoomTopBar({
                   <DropdownMenuItem key={a.id} onClick={a.onClick} className={cn('gap-2', TIER_MENU_ITEM[a.tier ?? 'core'])}>
                     <a.icon className="h-4 w-4" strokeWidth={1.5} /> <span className="flex-1">{a.label}</span>
                     {!!a.badge && a.badge > 0 && (
-                      <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">{a.badge > 99 ? '99+' : a.badge}</span>
+                      <span className="rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">{a.badge > 99 ? '99+' : a.badge}</span>
                     )}
                   </DropdownMenuItem>
                 ))}

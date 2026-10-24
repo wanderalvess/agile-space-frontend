@@ -56,7 +56,7 @@ function Thread({ view, myId, tick, now, refresh, onBack }: { view: Extract<View
               <span className={cn('whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 text-[13px] leading-snug', mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}>
                 {m.body}
               </span>
-              <span className="px-1 text-[10px] text-muted-foreground">{formatRelative(m.createdAt, now)}</span>
+              <span className="px-1 text-xs text-muted-foreground">{formatRelative(m.createdAt, now)}</span>
             </li>
           );
         })}
@@ -174,7 +174,7 @@ export function MessagesPanel({ conversations, available, myId, tick, now, refre
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-[13px] font-semibold">{c.other.name}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">{formatRelative(c.updatedAt, now)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatRelative(c.updatedAt, now)}</span>
                   </span>
                   <span className="truncate text-xs text-muted-foreground">{c.lastMessage?.body ?? ''}</span>
                 </span>

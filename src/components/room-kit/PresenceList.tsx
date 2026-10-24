@@ -18,7 +18,7 @@ export function PersonAvatar({
   highlight?: boolean;
   className?: string;
 }) {
-  const box = size === 'sm' ? 'h-6 w-6 text-[10px]' : size === 'lg' ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-[11px]';
+  const box = size === 'sm' ? 'h-6 w-6 text-xs' : size === 'lg' ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-xs';
   return (
     <InitialsAvatar
       name={name}

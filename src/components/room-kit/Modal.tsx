@@ -28,6 +28,7 @@ export const MODAL_SURFACE =
   'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 ' +
   'motion-reduce:duration-instant';
 
+/* Intencional: bg-black é o véu (scrim) do modal; tem de escurecer em qualquer tema. */
 export const MODAL_OVERLAY = 'bg-black/55 backdrop-blur-sm motion-reduce:duration-instant';
 
 export interface ModalProps {

@@ -84,7 +84,7 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
       <div className="flex flex-col gap-2">
         {rows.map((r, idx) => (
           <div key={r.roomId} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4rem_5rem] items-center gap-3">
-            <span className={cn('truncate text-[11px]', r.isCurrent ? 'font-bold text-foreground' : 'text-muted-foreground')} title={r.title}>
+            <span className={cn('truncate text-xs', r.isCurrent ? 'font-bold text-foreground' : 'text-muted-foreground')} title={r.title}>
               {r.title}{r.isCurrent && <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"> (atual)</span>}
             </span>
             <div className="h-[22px] overflow-hidden rounded-md bg-muted/60">
@@ -94,7 +94,7 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
               />
             </div>
             <span className="text-right text-xs font-bold tabular-nums">{r.totalPoints}</span>
-            <span className="flex items-center justify-end gap-1 text-[11px] tabular-nums text-muted-foreground">
+            <span className="flex items-center justify-end gap-1 text-xs tabular-nums text-muted-foreground">
               <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {r.durationStr}
             </span>
           </div>

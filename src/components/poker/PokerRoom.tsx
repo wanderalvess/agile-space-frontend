@@ -718,7 +718,7 @@ const PokerRoomComponent = ({
           />
         )}
         <Button variant="outline" size="sm" onClick={() => setIsTheaterMode(false)} className="h-9 gap-2 rounded-lg">
-          <X className="h-4 w-4" strokeWidth={1.5} /> Sair da apresentação <kbd className="hidden rounded border border-border px-1 text-[11px] md:inline">Esc</kbd>
+          <X className="h-4 w-4" strokeWidth={1.5} /> Sair da apresentação <kbd className="hidden rounded border border-border px-1 text-xs md:inline">Esc</kbd>
         </Button>
       </div>
     </header>

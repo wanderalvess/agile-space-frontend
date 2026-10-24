@@ -199,7 +199,7 @@ export function TopicQueue({
             title={primaryHint}
             className={cn('flex min-w-0 flex-col items-start gap-1 rounded-md text-left', FOCUS_RING)}
           >
-            <span className="flex w-full min-w-0 items-center gap-1.5 text-[11px]">
+            <span className="flex w-full min-w-0 items-center gap-1.5 text-xs">
               {isValidJiraKey(issue.key) && <span className="font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{issue.key}</span>}
               {issue.jiraType && <span className="truncate text-muted-foreground">{issue.jiraType}</span>}
             </span>
@@ -346,7 +346,7 @@ export function TopicQueue({
               className={cn(FIELD, 'h-9 pl-9 pr-14 text-xs')}
             />
             {query && (
-              <button type="button" onClick={() => setQuery('')} className={cn('absolute right-2.5 top-1/2 -translate-y-1/2 rounded text-[11px] font-semibold text-muted-foreground hover:text-foreground', FOCUS_RING)}>
+              <button type="button" onClick={() => setQuery('')} className={cn('absolute right-2.5 top-1/2 -translate-y-1/2 rounded text-xs font-semibold text-muted-foreground hover:text-foreground', FOCUS_RING)}>
                 Limpar
               </button>
             )}
@@ -382,7 +382,7 @@ export function TopicQueue({
                 )}
               >
                 <span className="text-sm font-bold tabular-nums leading-none">{counts[f.id]}</span>
-                <span className={cn('mt-1 max-w-full truncate text-[11px] leading-none', on && 'font-semibold')}>{f.label}</span>
+                <span className={cn('mt-1 max-w-full truncate text-xs leading-none', on && 'font-semibold')}>{f.label}</span>
               </button>
             );
           })}
