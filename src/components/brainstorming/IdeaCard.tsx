@@ -211,7 +211,7 @@ export function IdeaCard({
         )}
         {actionsExtra}
         {edited && (
-          <span title={edited.title} className="ml-auto truncate text-xs italic text-muted-foreground">{edited.label}</span>
+          <span title={edited.title} className="ml-auto truncate text-xs text-muted-foreground">{edited.label}</span>
         )}
       </footer>
     </article>

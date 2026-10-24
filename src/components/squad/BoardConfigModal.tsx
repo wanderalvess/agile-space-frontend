@@ -598,7 +598,7 @@ export function BoardConfigModal({
                                     <Button
                                       size="sm"
                                       onClick={() => saveEdit(filter.id)}
-                                      className="h-6 w-6 p-0 rounded-md bg-emerald-600 text-white"
+                                      className="h-6 w-6 p-0 rounded-md bg-emerald-700 text-white"
                                       title="Salvar"
                                     >
                                       <Check className="h-3 w-3" />
@@ -985,7 +985,7 @@ export function BoardConfigModal({
                                         <Button
                                           size="sm"
                                           onClick={() => saveEditSwimlane(swimlane.id)}
-                                          className="h-6 w-6 p-0 rounded-md bg-emerald-600 text-white"
+                                          className="h-6 w-6 p-0 rounded-md bg-emerald-700 text-white"
                                           title="Salvar"
                                         >
                                           <Check className="h-3 w-3" />

@@ -221,7 +221,7 @@ function StickyNoteCard({
               onClick={() => onUpdate(note.id, { color: c.class })}
               className="inline-flex h-6 w-6 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:h-8 max-sm:w-8"
             >
-              <span className={cn('h-3 w-3 rounded-full border border-black/15 transition-transform hover:scale-125 dark:border-white/25', c.dot, color.name === c.name && 'ring-2 ring-current ring-offset-1 ring-offset-transparent')} />
+              <span className={cn('h-3 w-3 rounded-full border border-foreground/20 transition-transform hover:scale-125', c.dot, color.name === c.name && 'ring-2 ring-current ring-offset-1 ring-offset-transparent')} />
             </button>
           ))}
         </div>
