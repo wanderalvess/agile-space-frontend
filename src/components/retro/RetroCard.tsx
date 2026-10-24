@@ -371,7 +371,7 @@ export function RetroCard({
           <div className="flex flex-wrap items-center gap-2">
             {card.assignee && (
               <span className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2', metaSize)}>
-                <InitialsAvatar name={card.assignee} className="h-5 w-5 text-[11px]" />
+                <InitialsAvatar name={card.assignee} className="h-6 w-6 text-xs" />
                 {card.assignee}
               </span>
             )}
