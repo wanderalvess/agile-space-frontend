@@ -75,7 +75,7 @@ const COLORS = [
   { name: 'Verde', value: 'text-emerald-500 bg-emerald-50', tile: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300', swatch: 'bg-emerald-500' },
   { name: 'Roxo', value: 'text-purple-500 bg-purple-50', tile: 'bg-purple-500/15 text-purple-700 dark:text-purple-300', swatch: 'bg-purple-500' },
   { name: 'Laranja', value: 'text-orange-500 bg-orange-50', tile: 'bg-orange-500/15 text-orange-700 dark:text-orange-300', swatch: 'bg-orange-500' },
-  { name: 'Cinza', value: 'text-slate-900 bg-slate-100', tile: 'bg-muted text-foreground', swatch: 'bg-slate-500' },
+  { name: 'Cinza', value: 'text-slate-900 bg-slate-100', tile: 'bg-muted text-foreground', swatch: 'bg-muted-foreground' },
 ];
 
 function colorFor(stored: string) {

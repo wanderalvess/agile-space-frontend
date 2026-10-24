@@ -19,14 +19,14 @@ interface Soundscape {
 }
 
 const SOUNDSCAPES: Soundscape[] = [
-  { id: 'rain', name: 'Chuva', icon: CloudRain, color: 'bg-blue-500/10 text-blue-500', activeColor: 'bg-blue-600 text-white', url: 'https://actions.google.com/sounds/v1/weather/light_rain.ogg' },
-  { id: 'thunder', name: 'Trovões', icon: Zap, color: 'bg-violet-500/10 text-violet-500', activeColor: 'bg-violet-600 text-white', url: 'https://actions.google.com/sounds/v1/weather/thunderstorm.ogg' },
-  { id: 'waves', name: 'Ondas', icon: Waves, color: 'bg-cyan-500/10 text-cyan-500', activeColor: 'bg-cyan-600 text-white', url: 'https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg' },
-  { id: 'forest', name: 'Floresta', icon: Leaf, color: 'bg-emerald-500/10 text-emerald-500', activeColor: 'bg-emerald-600 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/spring_day_forest.ogg' },
-  { id: 'cafe', name: 'Café', icon: Coffee, color: 'bg-amber-800/10 text-amber-500', activeColor: 'bg-amber-800 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg' },
-  { id: 'fire', name: 'Lareira', icon: Flame, color: 'bg-orange-500/10 text-orange-500', activeColor: 'bg-orange-600 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/daytime_forrest_bonfire.ogg' },
-  { id: 'noise', name: 'Ruído', icon: Activity, color: 'bg-slate-500/10 text-slate-400', activeColor: 'bg-slate-500 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/white_noise.ogg' },
-  { id: 'lofi', name: 'Lofi', icon: Music, color: 'bg-fuchsia-500/10 text-fuchsia-400', activeColor: 'bg-fuchsia-500 text-white', url: 'https://www.chosic.com/wp-content/uploads/2021/04/Warm-Lights.mp3' },
+  { id: 'rain', name: 'Chuva', icon: CloudRain, color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300', activeColor: 'bg-blue-700 text-white', url: 'https://actions.google.com/sounds/v1/weather/light_rain.ogg' },
+  { id: 'thunder', name: 'Trovões', icon: Zap, color: 'bg-violet-500/10 text-violet-700 dark:text-violet-300', activeColor: 'bg-violet-700 text-white', url: 'https://actions.google.com/sounds/v1/weather/thunderstorm.ogg' },
+  { id: 'waves', name: 'Ondas', icon: Waves, color: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300', activeColor: 'bg-cyan-700 text-white', url: 'https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg' },
+  { id: 'forest', name: 'Floresta', icon: Leaf, color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', activeColor: 'bg-emerald-700 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/spring_day_forest.ogg' },
+  { id: 'cafe', name: 'Café', icon: Coffee, color: 'bg-amber-800/10 text-amber-800 dark:text-amber-300', activeColor: 'bg-amber-800 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg' },
+  { id: 'fire', name: 'Lareira', icon: Flame, color: 'bg-orange-500/10 text-orange-700 dark:text-orange-300', activeColor: 'bg-orange-700 text-white', url: 'https://actions.google.com/sounds/v1/ambiences/daytime_forrest_bonfire.ogg' },
+  { id: 'noise', name: 'Ruído', icon: Activity, color: 'bg-muted text-muted-foreground', activeColor: 'bg-foreground text-background', url: 'https://actions.google.com/sounds/v1/ambiences/white_noise.ogg' },
+  { id: 'lofi', name: 'Lofi', icon: Music, color: 'bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300', activeColor: 'bg-fuchsia-700 text-white', url: 'https://www.chosic.com/wp-content/uploads/2021/04/Warm-Lights.mp3' },
 ];
 
 export function Calmaria() {

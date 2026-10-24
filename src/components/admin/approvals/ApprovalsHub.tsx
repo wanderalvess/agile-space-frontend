@@ -266,7 +266,7 @@ export function ApprovalsHub() {
                   <span id="resets-title" className="flex flex-wrap items-center gap-2 text-base font-bold text-foreground">
                     Solicitações de Redefinição de Senha
                     {resetSplit.pending.length > 0 && (
-                      <span className="inline-flex h-[22px] items-center rounded-full bg-amber-700 px-2 text-[11px] font-bold text-white">
+                      <span className="inline-flex h-[22px] items-center rounded-full bg-amber-700 px-2 text-xs font-bold text-white">
                         {resetSplit.pending.length} PENDENTE{resetSplit.pending.length > 1 ? 'S' : ''}
                       </span>
                     )}

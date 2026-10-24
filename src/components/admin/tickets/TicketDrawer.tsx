@@ -161,7 +161,7 @@ function Body({
             </ModalButton>
           </div>
         )}
-        {replies.phase === 'ready' && replies.items.length === 0 && <span className="text-[13px] italic text-muted-foreground">Nenhuma resposta ainda</span>}
+        {replies.phase === 'ready' && replies.items.length === 0 && <span className="text-[13px] text-muted-foreground">Nenhuma resposta ainda</span>}
         {replies.phase === 'ready' &&
           replies.items.map((r) => {
             const admin = replyIsAdmin(r);

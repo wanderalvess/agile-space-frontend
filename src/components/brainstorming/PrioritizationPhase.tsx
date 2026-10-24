@@ -153,7 +153,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
                     >
                       <div className="flex items-start gap-2">
                         <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
-                        <p className={cn('m-0 min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-snug text-foreground', hidden && 'italic text-muted-foreground')}>
+                        <p className={cn('m-0 min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-snug text-foreground', hidden && 'text-muted-foreground')}>
                           {hidden && <Lock className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" strokeWidth={1.5} aria-hidden="true" />}
                           {ideaText(idea)}
                         </p>
