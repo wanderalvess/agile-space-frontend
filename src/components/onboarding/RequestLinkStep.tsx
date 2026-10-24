@@ -91,7 +91,7 @@ export function RequestLinkStep({ target, defaultEmail, onBack, onSent }: Props)
           <span aria-hidden="true" className={cn('flex h-[52px] w-[52px] items-center justify-center rounded-2xl', TONES.success.tile)}>
             <Check className="h-[26px] w-[26px]" strokeWidth={1.5} />
           </span>
-          <StepHeading title="Pedido enviado" subtitle={`Quem lidera a ${projectKey} vai confirmar o seu vínculo. Você acompanha o andamento em “Meus pedidos”.`} />
+          <StepHeading title="Pedido enviado" subtitle={`Quem lidera a ${projectKey} vai confirmar o seu vínculo. Você acompanha o andamento em “Meus pedidos”, logo abaixo.`} />
         </div>
         <BackButton onClick={onBack}>Voltar</BackButton>
       </StepCard>
