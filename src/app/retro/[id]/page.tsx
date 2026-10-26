@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, RetroParticipant, RetroReactionType, HealthCheckAnswer } from '@/lib/types';
+import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, RetroParticipant, RetroReactionType, HealthCheckAnswer, GlobalRole } from '@/lib/types';
 import { RetroRoom } from '@/components/retro/RetroRoom';
 import { RetroHealthCheckGate } from '@/components/retro/RetroHealthCheckGate';
 import type { RetroImportEntry } from '@/components/retro/RetroActionImportDialog';
@@ -423,7 +423,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         boardId,
         nickname: userProfile.name,
         role: mapGlobalToTeamRole(userProfile.role),
-        globalRole: userProfile.role,
+        globalRole: (userProfile.cargo || userProfile.role) as GlobalRole,
         isCreator: userProfile.id === boardData.creatorId,
       };
 
@@ -450,23 +450,23 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     if (!isAuthenticated || !userProfile || !boardId || !currentUser) return;
 
-    if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === userProfile.role) return;
+    if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === (userProfile.cargo || userProfile.role)) return;
 
     const needsNameUpdate = currentUser.nickname !== userProfile.name;
-    const needsRoleUpdate = currentUser.globalRole !== userProfile.role;
+    const needsRoleUpdate = currentUser.globalRole !== (userProfile.cargo || userProfile.role);
 
     if (needsNameUpdate || needsRoleUpdate) {
       const updates = { ...currentUser };
       if (needsNameUpdate) updates.nickname = userProfile.name;
       if (needsRoleUpdate) {
-        updates.globalRole = userProfile.role;
+        updates.globalRole = (userProfile.cargo || userProfile.role) as GlobalRole;
         updates.role = mapGlobalToTeamRole(userProfile.role);
       }
       retroApi.addOrUpdateParticipant(boardId, updates)
-        .then(() => { lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role }; })
+        .then(() => { lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || userProfile.role }; })
         .catch((err) => console.error(err));
     } else {
-      lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role };
+      lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || userProfile.role };
     }
   }, [isAuthenticated, userProfile, boardId, currentUser]);
 

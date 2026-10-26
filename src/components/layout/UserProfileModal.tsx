@@ -19,6 +19,7 @@ import { LinksSection } from '@/components/profile/LinksSection';
 import { ProfileSection, type ProfileErrors } from '@/components/profile/ProfileSection';
 import { VisitorPanel } from '@/components/profile/VisitorPanel';
 import { useMyLinks } from '@/components/profile/useMyLinks';
+import { resolveCargo } from '@/lib/cargo';
 import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
 
 type TabId = 'profile' | 'links' | 'jira' | 'security';
@@ -205,7 +206,8 @@ export function UserProfileModal() {
   ];
   const tab: TabId = items.some((t) => t.id === activeTab) ? activeTab : 'profile';
 
-  const roleOfPerson = activeLink?.role || (userProfile?.role && userProfile.role !== 'user' && userProfile.role !== 'admin' ? userProfile.role : '');
+  // Mesmo cargo da administração, do Poker e da Retro (lib/cargo.ts); sem ele, o papel do vínculo ativo.
+  const roleOfPerson = userProfile?.cargo || resolveCargo(undefined, activeLink?.role);
 
   return (
     <Modal

@@ -7,6 +7,7 @@ import { userApi } from '@/app/users/api';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/auth-client';
 import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { resolveCargo } from '@/lib/cargo';
 import type { MyMemberships } from '@/lib/memberships-api';
 import { deriveMustOnboard, findMembership, isLegacyOnly, leadershipOfActiveSquad, resolveActiveSquadId } from '@/lib/memberships';
 
@@ -100,6 +101,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       ...baseProfile,
       squadId: activeSquadId || baseProfile.squadId,
       role: (isAdminProfile ? 'admin' : activeMembershipRole || baseProfile.role) as GlobalRole,
+      cargo: resolveCargo(baseProfile.jobTitle, activeMembershipRole),
     };
   }, [baseProfile, activeSquadId, activeMembershipRole]);
 
@@ -138,6 +140,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       email: session.email,
       role: (isSystemAdmin ? 'admin' : session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
       // Sem cache local aqui: a squad vem só da sessão (e dos vínculos, no memo `userProfile`).
+      jobTitle: (session.jobTitle || undefined) as GlobalRole | undefined,
       squadId: session.activeProjectId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',

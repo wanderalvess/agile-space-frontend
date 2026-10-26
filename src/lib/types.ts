@@ -124,6 +124,8 @@ export interface UserProfile {
   /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
    *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
   jobTitle?: GlobalRole;
+  /** Cargo para exibir (ver lib/cargo.ts): `jobTitle`, senão o papel na squad ativa. Vazio se não houver. */
+  cargo?: string;
   /** Squad ativa, DERIVADA dos vínculos (sessão validada). Só leitura: o cliente não grava mais `squadId` do usuário. */
   squadId: string;
   isGuest: boolean;
