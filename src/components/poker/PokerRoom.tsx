@@ -35,7 +35,7 @@ import { PokerTable } from './PokerTable';
 import { DecisionPanel } from './DecisionPanel';
 import { TaskActionsBar } from './TaskActionsBar';
 import { PokerSessionReport } from './PokerSessionReport';
-import { Modal, ModalButton, pokerPhase, ResponsivePanel, RoomTimer, StatusChip } from '@/components/room-kit';
+import { Modal, ModalButton, ResponsivePanel, RoomTimer, StatusChip } from '@/components/room-kit';
 
 const WELCOME_DECK_LABELS: Record<string, string> = {
   fibonacci: 'Fibonacci',
@@ -658,7 +658,6 @@ const PokerRoomComponent = ({
     />
   );
 
-  const phase = pokerPhase({ hasActiveIssue: !!activeIssueId && !isSessionFinished, sessionStarted: !!sessionStartedAt, revealed: votesRevealed });
   const deckLabel = WELCOME_DECK_LABELS[deck] || deck;
   const showRevealButton = !!activeIssueId && !isSessionFinished && !votesRevealed;
   const timerVisible = !!timer && (timer.initialDuration > 0 || timer.status !== 'stopped');
@@ -766,7 +765,7 @@ const PokerRoomComponent = ({
             roomTitle={roomTitle || 'Scrum Poker'}
             roomTeam={roomTeam}
             deckLabel={deckLabel}
-            phase={isSessionFinished ? null : phase}
+            taskActions={taskActions}
             status={sessionStatus}
             people={presencePeople}
             queueCount={pendingQueueCount}
@@ -885,8 +884,6 @@ const PokerRoomComponent = ({
                 maxRounds={settings?.roundNudge ? maxRounds : undefined}
                 revealed={votesRevealed}
               />
-
-              {taskActions}
 
               {banners.length > 0 && <div className="flex flex-col gap-2.5">{banners}</div>}
 

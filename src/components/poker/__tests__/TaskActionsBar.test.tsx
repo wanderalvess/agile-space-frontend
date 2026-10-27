@@ -85,11 +85,10 @@ describe('TaskActionsBar: ações do facilitador à vista', () => {
     }
   });
 
-  it('"Encerrar sessão" fica em grupo próprio, à direita', () => {
+  it('"Encerrar sessão" fica em grupo próprio, separado de pular e cancelar', () => {
     mk();
     const finish = screen.getByRole('button', { name: 'Encerrar sessão' });
     const group = finish.parentElement as HTMLElement;
-    expect(group.className).toContain('ml-auto');
     expect(group.contains(screen.getByRole('button', { name: 'Tirar da mesa' }))).toBe(false);
   });
 });

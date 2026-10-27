@@ -18,18 +18,18 @@ interface TaskActionsBarProps {
 }
 
 /**
- * Ações do facilitador sobre a tarefa da mesa, sempre à vista e com texto:
- * pular/tirar da mesa e cancelar no refinamento à esquerda; "Encerrar sessão"
- * à direita, em grupo próprio e com tom de atenção, para não ser clicado sem querer.
- * Nenhuma é o botão primário da fase (esse é o "Revelar votos" da barra do topo).
+ * Ações do facilitador sobre a tarefa da mesa, sempre à vista e com texto, na barra do topo
+ * (ao lado do "Revelar votos"): pular/tirar da mesa e cancelar no refinamento juntos;
+ * "Encerrar sessão" em grupo próprio e com tom de atenção, para não ser clicado sem querer.
+ * Nenhuma é o botão primário da fase.
  */
 export function TaskActionsBar(p: TaskActionsBarProps) {
   if (!p.canTakeOffTable && !p.canCancel && !p.canFinish) return null;
   const hasLeft = p.canTakeOffTable || p.canCancel;
-  const btn = 'gap-2 whitespace-nowrap max-sm:h-11';
+  const btn = 'h-9 gap-2 whitespace-nowrap px-3 text-sm max-sm:h-11';
 
   return (
-    <section aria-label="Ações do facilitador" className={cn('flex flex-wrap items-center gap-2', p.className)}>
+    <section aria-label="Ações do facilitador" className={cn('flex flex-wrap items-center gap-2 max-sm:basis-full', p.className)}>
       {hasLeft && (
         <div className="flex flex-wrap items-center gap-2">
           {p.canTakeOffTable && (
@@ -51,7 +51,7 @@ export function TaskActionsBar(p: TaskActionsBarProps) {
         </div>
       )}
       {p.canFinish && (
-        <div className={cn('flex items-center', hasLeft && 'ml-auto')}>
+        <div className="flex items-center">
           <ModalButton
             onClick={p.onFinish}
             title="Gera o relatório; o que sobrar entra como não abordado"

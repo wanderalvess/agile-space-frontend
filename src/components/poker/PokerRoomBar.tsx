@@ -20,7 +20,6 @@ import {
 import type { TimerState } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
-  POKER_PHASES,
   RoomTimer,
   RoomTopBar,
   type RoomTopBarAction,
@@ -35,8 +34,6 @@ export interface PokerRoomBarProps {
   /** "Squad · Sprint". */
   roomTeam?: string;
   deckLabel: string;
-  /** Fase da rodada; null com a cerimônia concluída (não há rodada em andamento). */
-  phase: 'discuss' | 'vote' | 'reveal' | 'decide' | null;
   /** Ao vivo (sessão iniciada), aguardando ou encerrada. */
   status: RoomTopBarStatus;
   isFacilitator: boolean;
@@ -77,6 +74,8 @@ export interface PokerRoomBarProps {
   onDeleteRoom?: () => void;
   onOpenFeedback?: () => void;
   // Ação principal
+  /** Pular/tirar da mesa, cancelar e encerrar a sessão (só facilitador, com tarefa na mesa). */
+  taskActions?: React.ReactNode;
   canReveal: boolean;
   showReveal: boolean;
   votedCount: number;
@@ -131,7 +130,6 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
       title={p.roomTitle}
       status={p.status}
       chips={chips}
-      phases={p.phase ? { steps: POKER_PHASES, current: p.phase, label: 'Fases da rodada' } : undefined}
       timer={
         showTimer && p.timer ? (
           <RoomTimer
@@ -165,6 +163,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
           </button>
         ) : undefined
       }
+      secondaryActions={p.taskActions}
       presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants }}
       actions={actions}
       menuItems={menuItems}

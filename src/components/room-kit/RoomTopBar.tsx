@@ -44,7 +44,7 @@ export interface RoomTopBarAction {
   pressed?: boolean;
   /** Contagem no canto do botão (fila, mensagens não lidas). */
   badge?: number;
-  /** Texto curto visível ao lado do ícone a partir de 1280 px (ações importantes que ninguém achava só em ícone). */
+  /** Texto curto visível ao lado do ícone a partir de 2200 px (ações importantes que ninguém achava só em ícone). */
   text?: string;
   /**
    * `core`: botão visível a partir de 640 px; `mid`: a partir de 1536 px; `wide`: a partir de 1920 px.
@@ -94,6 +94,8 @@ export interface RoomTopBarProps {
   timer?: React.ReactNode;
   /** Ação principal da sala (ex.: "Revelar votos"), ao lado do cronômetro. */
   primaryAction?: React.ReactNode;
+  /** Ações da sala logo depois da principal (ex.: pular, cancelar e encerrar do Poker). Quebram de linha se faltar largura. */
+  secondaryActions?: React.ReactNode;
   /** Presença: pilha de avatares que abre a lista de participantes. */
   presence?: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void; /** Sem dado de quem está conectado: só conta quem entrou na sala. */ unknown?: boolean };
   actions?: RoomTopBarAction[];
@@ -302,6 +304,7 @@ export function RoomTopBar({
   phases,
   timer,
   primaryAction,
+  secondaryActions,
   presence,
   actions = [],
   menuItems = [],
@@ -310,7 +313,7 @@ export function RoomTopBar({
   className,
 }: RoomTopBarProps) {
   const pending = pendingTiers(actions);
-  const hasCenter = !!phases || !!timer || !!primaryAction;
+  const hasCenter = !!phases || !!timer || !!primaryAction || !!secondaryActions;
   const feedbackInMenu = !!onOpenFeedback;
 
   return (
@@ -320,7 +323,7 @@ export function RoomTopBar({
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4 xl:h-14 xl:flex-nowrap xl:py-0 xl:px-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4 xl:min-h-14 xl:px-6">
         {/* Identidade */}
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[15rem]">
           <Link
@@ -360,7 +363,13 @@ export function RoomTopBar({
 
         {/* Centro: fases, cronômetro e ação principal. Em < lg desce para a segunda linha. */}
         {hasCenter && (
-          <div className="order-3 flex basis-full flex-wrap items-center gap-2 xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center">
+          <div
+            className={cn(
+              'order-3 flex basis-full flex-wrap items-center gap-2',
+              // Com ações extras o centro é largo: a linha única só cabe a partir de 1800 px.
+              secondaryActions ? 'min-[1800px]:order-2 min-[1800px]:basis-auto min-[1800px]:flex-nowrap min-[1800px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
+            )}
+          >
             {phases && (
               <>
                 <PhaseStepper
@@ -377,11 +386,12 @@ export function RoomTopBar({
             {primaryAction && (
               <div className="ml-auto flex items-center max-sm:basis-full max-sm:[&>*]:w-full max-sm:[&>*]:justify-center xl:ml-0">{primaryAction}</div>
             )}
+            {secondaryActions}
           </div>
         )}
 
         {/* Direita: presença, ações, tema e conta */}
-        <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 xl:order-3 xl:ml-0">
+        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', secondaryActions ? 'min-[1800px]:order-3 min-[1800px]:ml-0' : 'xl:order-3 xl:ml-0')}>
           {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} unknown={presence.unknown} />}
 
           {actions.map((a) => (
