@@ -132,6 +132,8 @@ export interface UserProfile {
   email?: string;
   /** Semente do avatar ilustrado antigo. Não é mais exibida nem editada; o backend ainda guarda o valor. */
   avatarSeed?: string;
+  /** Foto enviada pela pessoa (caminho `/api/users/{id}/photo?v=...`), vinda da sessão. */
+  photoUrl?: string | null;
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
   jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira

@@ -27,6 +27,8 @@ export interface AuthResponse {
   authProvider: string;
   jiraAccountId?: string;
   avatarSeed?: string;
+  /** Foto enviada pela pessoa: caminho `/api/users/{id}/photo?v=...` (leitura exige Bearer). `null`/ausente = sem foto enviada. */
+  photoUrl?: string | null;
   activeProjectId?: string;
   activeProjectName?: string;
   activeProjectRole?: string;

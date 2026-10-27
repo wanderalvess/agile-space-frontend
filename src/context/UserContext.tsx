@@ -144,6 +144,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       squadId: session.activeProjectId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
+      photoUrl: session.photoUrl ?? null,
       dailyHours: cachedForUser?.dailyHours,
     };
 
