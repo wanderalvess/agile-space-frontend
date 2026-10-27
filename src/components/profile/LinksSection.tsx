@@ -32,6 +32,8 @@ export interface LinksSectionProps {
   legacyOnly?: boolean;
   /** Fecha o modal antes de seguir para outra página. */
   onNavigate: () => void;
+  /** Dentro de uma linha da ficha: o título "Suas squads" já é o rótulo da linha. */
+  embedded?: boolean;
 }
 
 /**
@@ -39,7 +41,7 @@ export interface LinksSectionProps {
  * para ganhar um vínculo novo (pedir vínculo, usar convite). O vínculo nasce por Jira, convite ou pedido
  * aprovado; aqui ninguém escolhe projeto, squad ou papel à mão.
  */
-export function LinksSection({ links, canSwitch, switchingTo, onActivate, email, mustOnboard, legacyOnly = false, onNavigate }: LinksSectionProps) {
+export function LinksSection({ links, canSwitch, switchingTo, onActivate, email, mustOnboard, legacyOnly = false, onNavigate, embedded = false }: LinksSectionProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { requests, reload } = useMyLinkRequests();
@@ -121,7 +123,7 @@ export function LinksSection({ links, canSwitch, switchingTo, onActivate, email,
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-0 flex-1 basis-full flex-col sm:basis-40">
-          <h3 className="text-[15px] font-semibold leading-tight text-foreground">Suas squads</h3>
+          {!embedded && <h3 className="text-[15px] font-semibold leading-tight text-foreground">Suas squads</h3>}
           <span className="text-xs text-muted-foreground">{countLabel(links.length)}</span>
         </div>
         <ModalButton onClick={() => setMode('request')} className="gap-2 max-sm:h-11 max-sm:flex-1">
