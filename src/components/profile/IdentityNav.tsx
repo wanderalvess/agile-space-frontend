@@ -68,15 +68,18 @@ export function IdentityNav<T extends string>({
             role="tab"
             id={`${idPrefix}-tab-${item.id}`}
             aria-selected={on}
+            data-state={on ? 'active' : 'inactive'}
             aria-controls={`${idPrefix}-panel-${item.id}`}
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(item.id)}
             className={cn(
               'flex h-10 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-[10px] px-3 text-sm max-sm:gap-1.5 max-sm:px-2.5 transition-colors duration-fast max-sm:h-11 md:w-full',
               FOCUS_RING,
+              // Só a aba selecionada ganha fundo de marca. O hover das outras é discreto e só vale com mouse
+              // de verdade: no toque o :hover fica preso na última aba tocada e parecia uma segunda seleção.
               on
                 ? 'bg-primary/10 font-semibold text-foreground dark:bg-primary/15'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                : 'text-muted-foreground [@media(hover:hover)]:hover:bg-muted/60 [@media(hover:hover)]:hover:text-foreground',
             )}
           >
             <Icon aria-hidden="true" className={cn('h-[18px] w-[18px] shrink-0 max-sm:hidden', on && BRAND_TEXT)} strokeWidth={1.5} />
