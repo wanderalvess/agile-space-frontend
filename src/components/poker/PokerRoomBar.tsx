@@ -104,11 +104,11 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
     { id: 'chat', label: 'Chat da sala', icon: MessagesSquare, pressed: p.isTeamChatOpen, badge: p.isTeamChatOpen ? 0 : p.teamChatUnread, onClick: p.onToggleTeamChat },
     { id: 'share', label: 'Compartilhar sala', icon: Link2, onClick: p.onShare },
     ...(p.isFacilitator
-      ? [{ id: 'settings', label: 'Configurações da cerimônia', icon: SlidersHorizontal, tier: 'mid' as const, onClick: p.onOpenSettings }]
+      ? [{ id: 'settings', label: 'Configurações da cerimônia', text: 'Configurações', icon: SlidersHorizontal, onClick: p.onOpenSettings }]
       : []),
     { id: 'knowledge', label: 'Base de conhecimento', icon: Sparkles, pressed: p.isKnowledgeOpen, tier: 'wide', onClick: p.onToggleKnowledge },
     ...(p.isFacilitator
-      ? [{ id: 'theater', label: 'Modo apresentação', icon: Monitor, tier: 'mid' as const, onClick: p.onTheater }]
+      ? [{ id: 'theater', label: 'Modo apresentação', text: 'Apresentar', icon: Monitor, onClick: p.onTheater }]
       : []),
     { id: 'guide', label: 'Guia do poker', icon: HelpCircle, tier: 'wide', onClick: p.onOpenGuide },
   ];

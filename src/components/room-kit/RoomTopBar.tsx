@@ -44,6 +44,8 @@ export interface RoomTopBarAction {
   pressed?: boolean;
   /** Contagem no canto do botão (fila, mensagens não lidas). */
   badge?: number;
+  /** Texto curto visível ao lado do ícone a partir de 1280 px (ações importantes que ninguém achava só em ícone). */
+  text?: string;
   /**
    * `core`: botão visível a partir de 640 px; `mid`: a partir de 1536 px; `wide`: a partir de 1920 px.
    * Fora da faixa o botão vai para o menu "Mais" (com o mesmo texto e ícone).
@@ -389,6 +391,7 @@ export function RoomTopBar({
               icon={a.icon}
               pressed={a.pressed}
               badge={a.badge}
+              text={a.text}
               onClick={a.onClick}
               className={TIER_BUTTON[a.tier ?? 'core']}
             />

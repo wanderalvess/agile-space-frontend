@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Check, ExternalLink, FileText, Pencil, StickyNote, X } from 'lucide-react';
 import { cn, formatExternalUrl } from '@/lib/utils';
-import { FIELD, IconButton, ModalButton, StatusChip } from '@/components/room-kit';
+import { FIELD, ModalButton, StatusChip } from '@/components/room-kit';
 
 interface TopicDisplayProps {
   topic?: string;
@@ -148,23 +148,34 @@ export function TopicDisplay({
         )}
       </div>
 
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex flex-wrap items-center gap-2">
         {isFacilitator && !showFinished && (
-          <IconButton
-            label="Editar tarefa"
-            icon={Pencil}
+          <ModalButton
+            aria-label="Editar tarefa"
+            title="Editar a tarefa na mesa"
             onClick={() => { setEditingTopic(topic || ''); setIsEditing(true); }}
-            className="h-[38px] w-[38px] rounded-[10px]"
-          />
+            className="gap-2 whitespace-nowrap max-sm:h-11"
+          >
+            <Pencil className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Editar
+          </ModalButton>
         )}
         {onShowNotes && !showFinished && topic && (
           <span className="relative">
-            <IconButton label={hasNotes ? 'Notas de refinamento (com notas)' : 'Notas de refinamento'} icon={StickyNote} onClick={onShowNotes} className="h-[38px] w-[38px] rounded-[10px]" />
+            <ModalButton
+              aria-label={hasNotes ? 'Notas de refinamento (com notas)' : 'Notas de refinamento'}
+              title="Notas de refinamento desta tarefa"
+              onClick={onShowNotes}
+              className="gap-2 whitespace-nowrap max-sm:h-11"
+            >
+              <StickyNote className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Notas
+            </ModalButton>
             {hasNotes && <span aria-hidden="true" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-card" />}
           </span>
         )}
         {(jiraLink || hasDetail) && onShowDetail && !showFinished && (
-          <IconButton label="Ver detalhes da tarefa" icon={FileText} onClick={onShowDetail} className="h-[38px] w-[38px] rounded-[10px]" />
+          <ModalButton aria-label="Ver detalhes da tarefa" title="Ver detalhes da tarefa" onClick={onShowDetail} className="gap-2 whitespace-nowrap max-sm:h-11">
+            <FileText className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Detalhes
+          </ModalButton>
         )}
         {menu}
       </div>
