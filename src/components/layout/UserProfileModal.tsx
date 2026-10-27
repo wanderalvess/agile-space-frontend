@@ -81,7 +81,8 @@ export function UserProfileModal() {
 
   // Só o nome é da pessoa: papel e squad seguem os do vínculo (o contexto reenvia os valores atuais).
   const saveName = async (next: string) => {
-    await updateProfile({ name: next });
+    // A ficha salva na hora e continua aberta: sem isso o contexto fechava o modal ao gravar o nome.
+    await updateProfile({ name: next }, { keepOpen: true });
   };
 
   // Mesmo cargo da administração, do Poker e da Retro (lib/cargo.ts); sem ele, o papel do vínculo ativo.

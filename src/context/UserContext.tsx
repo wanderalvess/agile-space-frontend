@@ -15,7 +15,8 @@ interface UserContextType {
   userProfile: UserProfile | null;
   setGuestProfile: (name: string, role: GlobalRole, email?: string) => void;
   /** Atualiza o perfil da pessoa (nome, avatar). A squad ativa NÃO se grava aqui: vem dos vínculos e muda pelo `switchProject`. */
-  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>) => void;
+  /** `keepOpen`: grava sem fechar o modal de identidade (a ficha salva campo a campo, na hora). */
+  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => void;
   logout: () => void;
   isInitializing: boolean;
   isIdentityRequested: boolean;
@@ -212,7 +213,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => {
     if (!userProfile) return;
 
     // id/email são a identidade autenticada (JWT) — não editáveis via este formulário. `squadId` (e o antigo `team`)
@@ -224,8 +225,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
     const newProfile = { ...userProfile, ...safeUpdates };
     setUserProfile((prev) => (prev ? { ...prev, ...safeUpdates } : prev));
-    setIsIdentityRequested(false);
-    setIsEditProfileOpen(false);
+    if (!options?.keepOpen) {
+      setIsIdentityRequested(false);
+      setIsEditProfileOpen(false);
+    }
     setIsPublicExploration(true);
     writeCachedProfile(newProfile.id, newProfile);
 

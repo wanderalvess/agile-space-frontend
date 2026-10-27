@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React, { useEffect } from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Membership, MyMemberships } from '../../lib/memberships-api';
 
@@ -251,6 +251,24 @@ describe('UserProvider - updateProfile não grava squadId nem team', () => {
     expect(cached.profile.name).toBe('Ana S.');
     expect(cached.profile).not.toHaveProperty('squadId');
     expect(cached.profile).not.toHaveProperty('team');
+  });
+
+  it('updateProfile fecha o modal de identidade; com keepOpen (a ficha salva na hora) ele continua aberto', async () => {
+    mount();
+    await waitFor(() => expect(latest.userProfile).not.toBeNull());
+
+    act(() => latest.setIsEditProfileOpen(true));
+    await waitFor(() => expect(latest.isEditProfileOpen).toBe(true));
+    await act(async () => {
+      await latest.updateProfile({ name: 'Ana S.' }, { keepOpen: true });
+    });
+    expect(latest.isEditProfileOpen).toBe(true);
+    expect(latest.userProfile?.name).toBe('Ana S.');
+
+    await act(async () => {
+      await latest.updateProfile({ name: 'Ana T.' });
+    });
+    expect(latest.isEditProfileOpen).toBe(false);
   });
 
   it('setGuestProfile também não envia a squad', async () => {

@@ -179,7 +179,7 @@ describe('UserProfileModal: nome no lugar', () => {
     const input = screen.getByRole('textbox', { name: 'Nome' });
     fireEvent.change(input, { target: { value: 'Ana Maria' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => expect(h.updateProfile).toHaveBeenCalledWith({ name: 'Ana Maria' }));
+    await waitFor(() => expect(h.updateProfile).toHaveBeenCalledWith({ name: 'Ana Maria' }, { keepOpen: true }));
     await screen.findByText('Nome salvo');
     expect(h.setIsEditProfileOpen).not.toHaveBeenCalled();
   });
@@ -326,7 +326,7 @@ describe('UserProfileModal: linha Jira', () => {
     fireEvent.click(rowButton(/Gerenciar, Jira/));
     fireEvent.click(screen.getByRole('button', { name: 'Sincronizar com o Jira' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Usar o nome do Jira' }));
-    await waitFor(() => expect(h.updateProfile).toHaveBeenCalledWith({ name: 'Ana Ribeiro Silva' }));
+    await waitFor(() => expect(h.updateProfile).toHaveBeenCalledWith({ name: 'Ana Ribeiro Silva' }, { keepOpen: true }));
   });
 });
 
