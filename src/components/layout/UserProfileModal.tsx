@@ -1,168 +1,72 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Check, Link2, Loader2, Plug, ShieldCheck, UserRound } from 'lucide-react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Check, X } from 'lucide-react';
+import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
+import { MODAL_OVERLAY, MODAL_SURFACE, FOCUS_RING } from '@/components/room-kit';
 import { useUserContext } from '@/context/UserContext';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
-import { userApi } from '@/app/users/api';
-import { bestJiraAvatar, writeStoredProfilePhoto } from '@/lib/profile-photo';
-import { Modal, ModalButton } from '@/components/room-kit';
-import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
-import { IdentityHeader } from '@/components/profile/IdentityHeader';
-import { IdentityNav, type IdentityNavItem } from '@/components/profile/IdentityNav';
-import { JiraPanel, type JiraAccount } from '@/components/profile/JiraPanel';
-import { LinksSection } from '@/components/profile/LinksSection';
-import { ProfileSection, type ProfileErrors } from '@/components/profile/ProfileSection';
-import { VisitorPanel } from '@/components/profile/VisitorPanel';
-import { useMyLinks } from '@/components/profile/useMyLinks';
+import { cn } from '@/lib/utils';
 import { resolveCargo } from '@/lib/cargo';
 import { isUserLeadershipOrAdmin } from '@/lib/dashboard-roles';
+import { NAME_EDITOR_ATTR } from '@/components/profile/EditableName';
+import { IdentityHero } from '@/components/profile/IdentityHero';
+import { RowAppearance } from '@/components/profile/RowAppearance';
+import { RowCargo } from '@/components/profile/RowCargo';
+import { RowJira } from '@/components/profile/RowJira';
+import { RowPassword } from '@/components/profile/RowPassword';
+import { RowSquads } from '@/components/profile/RowSquads';
+import { VisitorPanel } from '@/components/profile/VisitorPanel';
+import { useJiraConnection } from '@/components/profile/useJiraConnection';
+import { useMyLinks } from '@/components/profile/useMyLinks';
 import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
 
-type TabId = 'profile' | 'links' | 'jira' | 'security';
+type RowId = 'cargo' | 'squads' | 'jira' | 'senha' | 'aparencia';
 
 /**
- * "Minha identidade": quem a pessoa é (nome, foto), as squads a que ela está vinculada (somente leitura),
- * a conexão com o Jira e a troca de senha. Projeto, squad e papel não se escolhem aqui: o vínculo nasce
- * por Jira, convite ou pedido aprovado (ver "Meus vínculos").
+ * "Minha identidade": uma ficha única. Avatar (menu da foto), nome editável no lugar e e-mail no topo; abaixo,
+ * as linhas Cargo, Squads, Jira, Senha e Aparência, que expandem ali mesmo (uma aberta por vez). Tudo salva na hora,
+ * sem abas nem botões Salvar/Cancelar. Projeto, squad e papel não se escolhem aqui: o vínculo nasce por Jira,
+ * convite ou pedido aprovado.
  */
 export function UserProfileModal() {
-  const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
   const { userProfile, updateProfile, isEditProfileOpen, setIsEditProfileOpen, mustOnboard, legacyOnly, isIdentityRequested, setIsIdentityRequested, isPublicExploration } =
     useUserContext();
 
-  const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState<TabId>('profile');
-  const [isSyncingJira, setIsSyncingJira] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<ProfileErrors>({});
-  const [name, setName] = useState('');
-
-  // Jira PAT Token & Domain
-  const [jiraDomain, setJiraDomain] = useState('');
-  const [jiraToken, setJiraToken] = useState('');
-  const [rememberJira, setRememberJira] = useState(true);
-  // O PAT guardado não volta para o campo: a tela mostra "salvo" e só pede o valor de novo ao trocar.
-  const [replacingToken, setReplacingToken] = useState(false);
-  const hasSavedToken = !!jiraSettingsStore?.token && !replacingToken;
-  const [jiraAccountDetails, setJiraAccountDetails] = useState<JiraAccount | null>(null);
-
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [openRow, setOpenRow] = useState<RowId | null>(null);
+  const [heroBusy, setHeroBusy] = useState(false);
 
   const isOpen = isEditProfileOpen || (isIdentityRequested && !isPublicExploration);
   // Sem sessão não há perfil para editar: o caminho é entrar.
   const isVisitor = !userProfile || userProfile.isGuest;
   const canChangePassword = !isVisitor;
   const email = userProfile?.email || '';
-  const isAdmin = userProfile?.role === 'admin';
+  const name = userProfile?.name || '';
+  const userStoreId = userProfile?.id || userProfile?.email;
 
   const restoreFocus = useRestoreFocus(isOpen);
   const { links, active: activeLink, activate, switchingTo, canSwitch } = useMyLinks();
+  const jira = useJiraConnection({ isOpen, userStoreId });
 
   // Foto do Jira: da importação do time, da última sincronização ou da sincronização feita agora, no modal.
   const { photo, reportBroken, available: photoAvailable, photoOff, setPhotoOff, hasUploaded } = useProfilePhoto({
-    jiraAvatarUrls: jiraAccountDetails?.avatarUrls,
-    jiraAccountId: jiraAccountDetails?.accountId,
+    jiraAvatarUrls: jira.account?.avatarUrls,
+    jiraAccountId: jira.account?.accountId,
   });
-  const connected = !!jiraSettingsStore?.token || !!jiraAccountDetails;
 
-  // Carrega configurações de Jira salvas — fonte única é useJiraSettings (mesma
-  // usada em ConnectivitySettings/JiraImportDialog), sem slots de localStorage próprios.
+  // Ao fechar, a próxima abertura volta com tudo recolhido.
   useEffect(() => {
-    if (isOpen && jiraSettingsStore) {
-      setJiraDomain(jiraSettingsStore.domain || '');
-      setJiraToken('');
-      setReplacingToken(false);
-    }
-  }, [isOpen, jiraSettingsStore]);
-
-  // O nome em edição parte do nome da conta ao abrir (e acompanha o nome salvo).
-  useEffect(() => {
-    if (isOpen) setName(userProfile?.name || '');
-  }, [isOpen, userProfile?.name]);
-
-  // Ao abrir: volta para a seção Perfil, limpa erros e põe o foco no nome (só com mouse/teclado;
-  // no celular o teclado não deve abrir sozinho). Ao fechar: esquece a conta sincronizada.
-  useEffect(() => {
-    if (!isOpen) {
-      setJiraAccountDetails(null);
-      return;
-    }
-    setActiveTab('profile');
-    setErrors({});
-    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches) {
-      const t = window.setTimeout(() => nameRef.current?.focus(), 80);
-      return () => window.clearTimeout(t);
-    }
+    if (!isOpen) setOpenRow(null);
   }, [isOpen]);
 
-  const userStoreId = userProfile?.id || userProfile?.email;
+  /** Operações em andamento (foto, nome, sincronização do Jira) seguram o fechamento da janela. */
+  const preventClose = heroBusy || jira.syncing;
 
-  const handleSyncFromJira = async (customToken?: string, customDomain?: string) => {
-    const tokenToUse = (customToken || jiraToken || jiraSettingsStore?.token || '').trim();
-    const domainToUse = (customDomain || jiraDomain || jiraSettingsStore?.domain || '').trim();
-
-    if (!tokenToUse) {
-      toast({ title: 'Token do Jira necessário', variant: 'destructive' });
-      setActiveTab('jira');
-      return;
-    }
-
-    if (!domainToUse) {
-      toast({ title: 'Domínio do Jira necessário', variant: 'destructive' });
-      setActiveTab('jira');
-      return;
-    }
-
-    setIsSyncingJira(true);
-    try {
-      const jiraUser: JiraAccount | null = await userApi.getMyself(domainToUse, tokenToUse);
-      if (jiraUser) {
-        if (jiraUser.displayName) setName(jiraUser.displayName);
-
-        if (rememberJira) {
-          // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
-          // usuário + backend, mesmo slot usado em ConnectivitySettings/JiraImportDialog.
-          saveJiraSettings({ domain: domainToUse, token: tokenToUse });
-          setJiraToken('');
-          setReplacingToken(false);
-        }
-        setJiraDomain(domainToUse);
-        setJiraAccountDetails(jiraUser);
-        // A foto fica guardada para os cabeçalhos mostrarem a mesma imagem.
-        writeStoredProfilePhoto(userStoreId, bestJiraAvatar(jiraUser.avatarUrls) ?? null);
-        setErrors((e) => ({ ...e, name: undefined }));
-
-        toast({
-          title: 'Jira sincronizado',
-          description: `Identidade carregada: ${jiraUser.displayName || jiraUser.name}.`,
-        });
-      }
-    } catch (err) {
-      toast({
-        title: 'Erro ao conectar ao Jira',
-        description: (err instanceof Error && err.message) || 'Verifique o token e o domínio.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSyncingJira(false);
-    }
-  };
-
-  const handleRemoveToken = async () => {
-    await removeJiraSettings();
-    setJiraToken('');
-    setJiraAccountDetails(null);
-    // Sem token, a foto sincronizada some e voltam as iniciais (se o time não tiver foto).
-    writeStoredProfilePhoto(userStoreId, null);
-    toast({ title: 'Token do Jira removido', description: 'Ele saiu deste navegador e da sua conta.' });
-  };
+  const toggle = (id: RowId) => setOpenRow((cur) => (cur === id ? null : id));
 
   const closeModal = () => {
     setIsEditProfileOpen(false);
@@ -175,179 +79,112 @@ export function UserProfileModal() {
     router.push(`/login?returnUrl=${encodeURIComponent(here)}`);
   };
 
-  const dirty = !!userProfile && name.trim() !== (userProfile.name || '');
-  const canSave = !saving && dirty;
-
-  const handleSave = async () => {
-    if (!name.trim()) {
-      setErrors({ name: 'Informe seu nome.' });
-      setActiveTab('profile');
-      toast({ title: 'Nome obrigatório', variant: 'destructive' });
-      window.setTimeout(() => nameRef.current?.focus(), 0);
-      return;
-    }
-    setErrors({});
-
-    setSaving(true);
-    try {
-      // Só o nome é da pessoa: papel e squad seguem os do vínculo (o contexto reenvia os valores atuais).
-      await updateProfile({ name: name.trim() });
-      toast({ title: 'Perfil atualizado' });
-      closeModal();
-    } finally {
-      setSaving(false);
-    }
+  // Só o nome é da pessoa: papel e squad seguem os do vínculo (o contexto reenvia os valores atuais).
+  const saveName = async (next: string) => {
+    await updateProfile({ name: next });
   };
-
-  const items: IdentityNavItem<TabId>[] = [
-    { id: 'profile', label: 'Perfil', icon: UserRound },
-    { id: 'links', label: 'Meus vínculos', icon: Link2, count: links.length },
-    { id: 'jira', label: 'Jira', icon: Plug, dot: connected },
-    ...(canChangePassword ? [{ id: 'security' as const, label: 'Segurança', icon: ShieldCheck }] : []),
-  ];
-  const tab: TabId = items.some((t) => t.id === activeTab) ? activeTab : 'profile';
 
   // Mesmo cargo da administração, do Poker e da Retro (lib/cargo.ts); sem ele, o papel do vínculo ativo.
   const roleOfPerson = userProfile?.cargo || resolveCargo(undefined, activeLink?.role);
 
   return (
-    <Modal
+    <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) closeModal();
+        if (!open && !preventClose) closeModal();
       }}
-      size="lg"
-      icon={UserRound}
-      title="Minha identidade"
-      preventClose={saving}
-      bodyClassName="p-0"
-      closeClassName="max-sm:h-11 max-sm:w-11"
-      onCloseAutoFocus={restoreFocus}
-      className="sm:h-[min(88vh,720px)] sm:max-w-[960px] max-sm:left-0 max-sm:top-0 max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0"
-      headerExtra={
-        isVisitor ? undefined : (
-          <IdentityHeader
-            name={name}
-            email={email}
-            photo={photo}
-            onPhotoError={reportBroken}
-            jiraConnected={connected}
-            isAdmin={isAdmin}
-            role={roleOfPerson}
-            activeSquad={activeLink}
-          />
-        )
-      }
-      footerStart={
-        isVisitor || tab !== 'profile' ? undefined : (
-          <span role="status" className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-            {dirty ? (
-              <>
-                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
-                Alterações não salvas
-              </>
+    >
+      <DialogPortal>
+        <DialogOverlay className={MODAL_OVERLAY} />
+        <DialogPrimitive.Content
+          className={cn(
+            MODAL_SURFACE,
+            'sm:max-h-[min(92vh,760px)] sm:max-w-[560px]',
+            'max-sm:left-0 max-sm:top-0 max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0',
+          )}
+          onOpenAutoFocus={(e) => {
+            // Foco na própria janela (não no primeiro botão): o anel só aparece quando a pessoa usa Tab.
+            e.preventDefault();
+            (e.currentTarget as HTMLElement).focus();
+          }}
+          onCloseAutoFocus={restoreFocus}
+          // Esc dentro do campo do nome só cancela a edição.
+          onEscapeKeyDown={(e) => {
+            if (e.target instanceof Element && e.target.closest(`[${NAME_EDITOR_ATTR}]`)) e.preventDefault();
+          }}
+        >
+          <header className="flex h-14 shrink-0 items-center pl-6 pr-2 max-sm:pl-4">
+            <DialogPrimitive.Title className="min-w-0 flex-1 truncate text-sm font-semibold text-muted-foreground">Minha identidade</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">Seu nome, foto, cargo, squads, Jira, senha e aparência.</DialogPrimitive.Description>
+            <DialogPrimitive.Close
+              aria-label="Fechar"
+              className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-accent-foreground',
+                FOCUS_RING,
+              )}
+            >
+              <X aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+            </DialogPrimitive.Close>
+          </header>
+
+          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
+            {isVisitor ? (
+              <VisitorPanel onLogin={goLogin} />
             ) : (
               <>
-                <Check aria-hidden="true" className="h-4 w-4 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
-                Tudo salvo
+                <IdentityHero
+                  userId={userProfile?.id}
+                  name={name}
+                  email={email}
+                  photo={photo}
+                  onPhotoError={reportBroken}
+                  hasUploaded={hasUploaded}
+                  photoAvailable={photoAvailable}
+                  photoOff={photoOff}
+                  onPhotoOff={setPhotoOff}
+                  onSaveName={saveName}
+                  onBusyChange={setHeroBusy}
+                />
+                <div>
+                  <RowCargo
+                    open={openRow === 'cargo'}
+                    onToggle={() => toggle('cargo')}
+                    cargo={roleOfPerson}
+                    email={email}
+                    name={name}
+                    squad={activeLink?.id}
+                    leadership={!!activeLink?.leadership || isUserLeadershipOrAdmin(roleOfPerson)}
+                    onNavigate={closeModal}
+                  />
+                  <RowSquads
+                    open={openRow === 'squads'}
+                    onToggle={() => toggle('squads')}
+                    links={links}
+                    active={activeLink}
+                    canSwitch={canSwitch}
+                    switchingTo={switchingTo}
+                    onActivate={(link) => void activate(link)}
+                    email={email}
+                    mustOnboard={mustOnboard}
+                    legacyOnly={legacyOnly}
+                    onNavigate={closeModal}
+                  />
+                  <RowJira open={openRow === 'jira'} onToggle={() => toggle('jira')} jira={jira} currentName={name} onUseJiraName={(n) => void saveName(n)} />
+                  {canChangePassword && <RowPassword open={openRow === 'senha'} onToggle={() => toggle('senha')} />}
+                  <RowAppearance open={openRow === 'aparencia'} onToggle={() => toggle('aparencia')} />
+                </div>
               </>
             )}
-          </span>
-        )
-      }
-      footer={
-        isVisitor || tab !== 'profile' ? (
-          <ModalButton onClick={closeModal} className="max-sm:h-11">
-            Fechar
-          </ModalButton>
-        ) : (
-          <>
-            <ModalButton onClick={closeModal} disabled={saving} className="max-sm:h-11">
-              Cancelar
-            </ModalButton>
-            <ModalButton variant="primary" onClick={handleSave} disabled={!canSave} className="min-w-24 gap-2 max-sm:h-11">
-              {saving && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />}
-              Salvar
-            </ModalButton>
-          </>
-        )
-      }
-    >
-      {isVisitor ? (
-        <VisitorPanel onLogin={goLogin} />
-      ) : (
-        <div className="flex min-h-full flex-col md:flex-row">
-          <aside aria-label="Seções da identidade" className="shrink-0 border-b border-border bg-card max-md:sticky max-md:top-0 max-md:z-10 md:w-56 md:border-b-0 md:border-r">
-            <IdentityNav items={items} value={tab} onChange={setActiveTab} label="Seções da identidade" idPrefix="identity" />
-          </aside>
-
-          <div
-            role="tabpanel"
-            id={`identity-panel-${tab}`}
-            aria-labelledby={`identity-tab-${tab}`}
-            className={cn('min-w-0 flex-1 bg-background p-5 max-sm:p-4 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200')}
-          >
-            {tab === 'profile' && (
-              <ProfileSection
-                name={name}
-                onName={(v) => {
-                  setName(v);
-                  if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-                }}
-                nameInput={nameRef}
-                email={email}
-                errors={errors}
-                userId={userProfile?.id}
-                cargo={roleOfPerson}
-                leadership={!!activeLink?.leadership || isUserLeadershipOrAdmin(roleOfPerson)}
-                squad={activeLink?.id}
-                photo={photo}
-                hasUploaded={hasUploaded}
-                onPhotoError={reportBroken}
-                photoAvailable={photoAvailable}
-                photoOff={photoOff}
-                onPhotoOff={setPhotoOff}
-                onGoJira={() => setActiveTab('jira')}
-                onNavigate={closeModal}
-              />
-            )}
-            {tab === 'links' && (
-              <LinksSection
-                links={links}
-                canSwitch={canSwitch}
-                switchingTo={switchingTo}
-                onActivate={(link) => void activate(link)}
-                email={email}
-                mustOnboard={mustOnboard}
-                legacyOnly={legacyOnly}
-                onNavigate={closeModal}
-              />
-            )}
-            {tab === 'jira' && (
-              <JiraPanel
-                connected={connected}
-                domain={jiraDomain}
-                onDomain={setJiraDomain}
-                token={jiraToken}
-                onToken={setJiraToken}
-                hasSavedToken={hasSavedToken}
-                onReplaceToken={() => setReplacingToken(true)}
-                onRemoveToken={handleRemoveToken}
-                remember={rememberJira}
-                onRemember={setRememberJira}
-                syncing={isSyncingJira}
-                onSync={() => handleSyncFromJira(jiraToken, jiraDomain)}
-                account={jiraAccountDetails}
-              />
-            )}
-            {tab === 'security' && canChangePassword && (
-              <div className="[&>form]:gap-4 [&>form]:rounded-2xl [&>form]:bg-card [&>form]:p-4 sm:[&>form]:p-5">
-                <ChangePasswordSection />
-              </div>
-            )}
           </div>
-        </div>
-      )}
-    </Modal>
+
+          {!isVisitor && (
+            <footer role="status" className="flex h-14 shrink-0 items-center gap-2 border-t border-border px-6 text-[13px] text-muted-foreground max-sm:px-4">
+              <Check aria-hidden="true" className="h-4 w-4 text-emerald-700 dark:text-emerald-400" strokeWidth={1.5} />
+              As alterações são salvas na hora.
+            </footer>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
   );
 }
