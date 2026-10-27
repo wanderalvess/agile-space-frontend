@@ -50,7 +50,6 @@ export function RowSquads({ open, onToggle, links, active, canSwitch, switchingT
         legacyOnly={legacyOnly}
         onNavigate={onNavigate}
       />
-      <p className="text-[13px] text-muted-foreground">A squad e o papel vêm do Jira, de um convite ou de um pedido aprovado por quem lidera.</p>
     </IdentityRow>
   );
 }
