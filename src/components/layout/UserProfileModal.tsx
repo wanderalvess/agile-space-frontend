@@ -20,6 +20,7 @@ import { ProfileSection, type ProfileErrors } from '@/components/profile/Profile
 import { VisitorPanel } from '@/components/profile/VisitorPanel';
 import { useMyLinks } from '@/components/profile/useMyLinks';
 import { resolveCargo } from '@/lib/cargo';
+import { isUserLeadershipOrAdmin } from '@/lib/dashboard-roles';
 import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
 
 type TabId = 'profile' | 'links' | 'jira' | 'security';
@@ -65,7 +66,7 @@ export function UserProfileModal() {
   const { links, active: activeLink, activate, switchingTo, canSwitch } = useMyLinks();
 
   // Foto do Jira: da importação do time, da última sincronização ou da sincronização feita agora, no modal.
-  const { photo, reportBroken, available: photoAvailable, photoOff, setPhotoOff } = useProfilePhoto({
+  const { photo, reportBroken, available: photoAvailable, photoOff, setPhotoOff, hasUploaded } = useProfilePhoto({
     jiraAvatarUrls: jiraAccountDetails?.avatarUrls,
     jiraAccountId: jiraAccountDetails?.accountId,
   });
@@ -238,7 +239,7 @@ export function UserProfileModal() {
         )
       }
       footerStart={
-        isVisitor ? undefined : (
+        isVisitor || tab !== 'profile' ? undefined : (
           <span role="status" className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
             {dirty ? (
               <>
@@ -255,7 +256,7 @@ export function UserProfileModal() {
         )
       }
       footer={
-        isVisitor ? (
+        isVisitor || tab !== 'profile' ? (
           <ModalButton onClick={closeModal} className="max-sm:h-11">
             Fechar
           </ModalButton>
@@ -296,7 +297,12 @@ export function UserProfileModal() {
                 nameInput={nameRef}
                 email={email}
                 errors={errors}
+                userId={userProfile?.id}
+                cargo={roleOfPerson}
+                leadership={!!activeLink?.leadership || isUserLeadershipOrAdmin(roleOfPerson)}
+                squad={activeLink?.id}
                 photo={photo}
+                hasUploaded={hasUploaded}
                 onPhotoError={reportBroken}
                 photoAvailable={photoAvailable}
                 photoOff={photoOff}
