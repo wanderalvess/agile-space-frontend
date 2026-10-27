@@ -33,7 +33,7 @@ import { SwitchIssueDialog, OffTableDialog, CancelIssueDialog, FinishSessionDial
 import { PokerRoomBar } from './PokerRoomBar';
 import { PokerTable } from './PokerTable';
 import { DecisionPanel } from './DecisionPanel';
-import { TaskActionsMenu } from './TaskActionsMenu';
+import { TaskActionsBar } from './TaskActionsBar';
 import { PokerSessionReport } from './PokerSessionReport';
 import { Modal, ModalButton, pokerPhase, ResponsivePanel, RoomTimer, StatusChip } from '@/components/room-kit';
 
@@ -666,8 +666,8 @@ const PokerRoomComponent = ({
   const presencePeople = participants.map(p => ({ id: p.id, name: p.nickname, online: onlineIds.has(p.id) }));
   const pendingQueueCount = issuesQueue.filter(i => i.status !== 'completed' && !i.skipped && !i.cancelled && !i.parked).length;
 
-  const taskMenu = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
-    <TaskActionsMenu
+  const taskActions = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
+    <TaskActionsBar
       canTakeOffTable={!votesRevealed}
       canPark={canParkTask}
       onTakeOffTable={() => openOffTableDialog('skip')}
@@ -881,11 +881,12 @@ const PokerRoomComponent = ({
                 onShowDetail={() => setIsDetailOpen(true)}
                 onShowNotes={settings?.refinementNotes && activeIssueId ? () => setIsNotesOpen(true) : undefined}
                 hasNotes={hasNotes}
-                menu={taskMenu}
                 round={activeIssueId ? currentRoundNumber : undefined}
                 maxRounds={settings?.roundNudge ? maxRounds : undefined}
                 revealed={votesRevealed}
               />
+
+              {taskActions}
 
               {banners.length > 0 && <div className="flex flex-col gap-2.5">{banners}</div>}
 
