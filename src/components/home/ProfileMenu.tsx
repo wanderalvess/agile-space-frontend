@@ -16,8 +16,8 @@ import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING } from './home-ui';
 
-/** Menu da conta (com `compact`, de 1024 a 1359 px só o avatar, para caber no AppHeader): Meu perfil, Meu espaço, Manual de uso, Configurações, Administração (só admin) e Sair. */
-export function ProfileMenu({ compact = false }: { compact?: boolean }) {
+/** Menu da conta (com `compact`, de 1024 a 1359 px só o avatar, para caber no AppHeader; com `compact="wide"`, só o avatar até 1799 px, para caber nas barras de sala com ações extras): Meu perfil, Meu espaço, Manual de uso, Configurações, Administração (só admin) e Sair. */
+export function ProfileMenu({ compact = false }: { compact?: boolean | 'wide' }) {
   const { userProfile, logout, setIsEditProfileOpen, requestIdentity } = useUserContext();
   const { session } = useAuth();
 
@@ -49,7 +49,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
           )}
         >
           <ProfileAvatar className="h-8 w-8 shrink-0 rounded-full" />
-          <span className={cn('hidden flex-col items-start leading-tight sm:flex', compact && 'lg:max-[1359px]:hidden')}>
+          <span className={cn('hidden flex-col items-start leading-tight sm:flex', compact === true && 'lg:max-[1359px]:hidden', compact === 'wide' && 'max-[1799px]:!hidden')}>
             <span className="text-[13px] font-semibold">{first}</span>
             {roleLabel && <span className="max-w-[120px] truncate text-xs text-muted-foreground">{roleLabel}</span>}
           </span>

@@ -325,7 +325,7 @@ export function RoomTopBar({
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4 xl:min-h-14 xl:px-6">
         {/* Identidade */}
-        <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[15rem]">
+        <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[12rem]">
           <Link
             href={homeHref}
             aria-label={homeLabel}
@@ -366,8 +366,8 @@ export function RoomTopBar({
           <div
             className={cn(
               'order-3 flex basis-full flex-wrap items-center gap-2',
-              // Com ações extras o centro é largo: a linha única só cabe a partir de 1800 px.
-              secondaryActions ? 'min-[1800px]:order-2 min-[1800px]:basis-auto min-[1800px]:flex-nowrap min-[1800px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
+              // Com ações extras o centro é largo: a linha única só cabe a partir de 1480 px.
+              secondaryActions ? 'min-[1480px]:order-2 min-[1480px]:basis-auto min-[1480px]:flex-nowrap min-[1480px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
             )}
           >
             {phases && (
@@ -391,7 +391,7 @@ export function RoomTopBar({
         )}
 
         {/* Direita: presença, ações, tema e conta */}
-        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', secondaryActions ? 'min-[1800px]:order-3 min-[1800px]:ml-0' : 'xl:order-3 xl:ml-0')}>
+        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', secondaryActions ? 'min-[1480px]:order-3 min-[1480px]:ml-0' : 'xl:order-3 xl:ml-0')}>
           {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} unknown={presence.unknown} />}
 
           {actions.map((a) => (
@@ -452,7 +452,7 @@ export function RoomTopBar({
           <span aria-hidden="true" className="mx-1 h-6 w-px bg-border max-sm:hidden" />
 
           <ThemeToggle className="h-9 w-9 rounded-lg max-3xl:hidden" />
-          <div className="max-sm:[&_button]:h-11">{userMenu ?? <ProfileMenu />}</div>
+          <div className="max-sm:[&_button]:h-11">{userMenu ?? <ProfileMenu compact={secondaryActions ? 'wide' : false} />}</div>
         </div>
       </div>
     </header>

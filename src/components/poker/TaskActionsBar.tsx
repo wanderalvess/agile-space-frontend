@@ -35,17 +35,17 @@ export function TaskActionsBar(p: TaskActionsBarProps) {
           {p.canTakeOffTable && (
             <ModalButton
               onClick={p.onTakeOffTable}
-              title={p.canPark ? 'Pular de vez ou adiar para o fim da fila' : 'Sai da estimativa desta sessão'}
+              title={p.canPark ? 'Tirar da mesa: pular de vez ou adiar para o fim da fila' : 'Pular tarefa: sai da estimativa desta sessão'}
               className={btn}
             >
               <SkipForward className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              {p.canPark ? 'Tirar da mesa' : 'Pular tarefa'}
+              Pular
             </ModalButton>
           )}
           {p.canCancel && (
-            <ModalButton onClick={p.onCancel} title="Descartada no refinamento, sai da estimativa desta sessão" className={btn}>
+            <ModalButton onClick={p.onCancel} title="Cancelar tarefa: descartada no refinamento, sai da estimativa desta sessão" className={btn}>
               <Ban className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              Cancelar tarefa
+              Cancelar
             </ModalButton>
           )}
         </div>

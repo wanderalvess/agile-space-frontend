@@ -23,29 +23,28 @@ const mk = (over: Partial<React.ComponentProps<typeof TaskActionsBar>> = {}) => 
 describe('TaskActionsBar: ações do facilitador à vista', () => {
   it('antes de revelar mostra as três ações com texto, sem menu escondido', () => {
     mk();
-    expect(screen.getByRole('button', { name: 'Tirar da mesa' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Cancelar tarefa' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Pular' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Encerrar sessão' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /mais ações/i })).toBeNull();
   });
 
-  it('sem adiar a ação vira "Pular tarefa"', () => {
+  it('sem adiar o botão continua "Pular", com a dica de pular a tarefa', () => {
     mk({ canPark: false });
-    expect(screen.getByRole('button', { name: 'Pular tarefa' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Tirar da mesa' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pular' }).getAttribute('title')).toContain('Pular tarefa');
   });
 
   it('depois de revelar só resta "Encerrar sessão"', () => {
     mk({ canTakeOffTable: false, canCancel: false });
     expect(screen.getByRole('button', { name: 'Encerrar sessão' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Tirar da mesa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cancelar tarefa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Pular' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
   });
 
-  it('cancelar desligado esconde só "Cancelar tarefa"', () => {
+  it('cancelar desligado esconde só "Cancelar"', () => {
     mk({ canCancel: false });
-    expect(screen.queryByRole('button', { name: 'Cancelar tarefa' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Tirar da mesa' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pular' })).toBeTruthy();
   });
 
   it('sem nenhuma ação possível não renderiza nada', () => {
@@ -55,8 +54,8 @@ describe('TaskActionsBar: ações do facilitador à vista', () => {
 
   it('cada clique chama o callback certo (abre o diálogo correspondente)', () => {
     const p = mk();
-    fireEvent.click(screen.getByRole('button', { name: 'Tirar da mesa' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar tarefa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pular' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Encerrar sessão' }));
     expect(p.onTakeOffTable).toHaveBeenCalledTimes(1);
     expect(p.onCancel).toHaveBeenCalledTimes(1);
@@ -66,7 +65,7 @@ describe('TaskActionsBar: ações do facilitador à vista', () => {
   it('ordem de tab: pular, cancelar e por último encerrar; todos botões reais e focáveis', () => {
     mk();
     const buttons = screen.getAllByRole('button');
-    expect(buttons.map(b => b.textContent?.trim())).toEqual(['Tirar da mesa', 'Cancelar tarefa', 'Encerrar sessão']);
+    expect(buttons.map(b => b.textContent?.trim())).toEqual(['Pular', 'Cancelar', 'Encerrar sessão']);
     for (const b of buttons) {
       expect(b.tagName).toBe('BUTTON');
       expect(b.getAttribute('tabindex')).not.toBe('-1');
@@ -78,7 +77,7 @@ describe('TaskActionsBar: ações do facilitador à vista', () => {
     mk();
     const region = screen.getByRole('region', { name: 'Ações do facilitador' });
     expect(region.className).toContain('flex-wrap');
-    for (const name of ['Tirar da mesa', 'Cancelar tarefa', 'Encerrar sessão']) {
+    for (const name of ['Pular', 'Cancelar', 'Encerrar sessão']) {
       const b = screen.getByRole('button', { name });
       expect(b.textContent?.trim()).toBe(name);
       expect(b.className).toContain('max-sm:h-11');
@@ -89,6 +88,6 @@ describe('TaskActionsBar: ações do facilitador à vista', () => {
     mk();
     const finish = screen.getByRole('button', { name: 'Encerrar sessão' });
     const group = finish.parentElement as HTMLElement;
-    expect(group.contains(screen.getByRole('button', { name: 'Tirar da mesa' }))).toBe(false);
+    expect(group.contains(screen.getByRole('button', { name: 'Pular' }))).toBe(false);
   });
 });
