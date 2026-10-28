@@ -102,7 +102,7 @@ export function AuthorPage({ authorId }: { authorId: string }) {
       </nav>
 
       <section className={cn(PAGE_CARD, 'flex flex-wrap items-center gap-5 p-6')}>
-        <InitialsAvatar name={isSelf ? session.name : author?.authorName} className="h-[72px] w-[72px] text-2xl" />
+        <InitialsAvatar name={isSelf ? session.name : author?.authorName} userId={authorId} className="h-[72px] w-[72px] text-2xl" />
         <div className="flex min-w-[240px] flex-col gap-1">
           <h1 className="text-[28px] font-bold leading-tight tracking-tight text-foreground">{name}</h1>
           <span className="text-sm text-muted-foreground">{author?.authorRole || 'Sem cargo informado'}</span>

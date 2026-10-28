@@ -326,7 +326,7 @@ function LeadRow({ user, squadId, busy, onForce }: { user: LeadUser; squadId?: s
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5">
       <span className={cn('flex min-w-0 flex-1 basis-56 items-center gap-3', !user.active && 'opacity-60')}>
-        <InitialsAvatar name={user.name} email={user.email} className="h-8 w-8 text-xs" />
+        <InitialsAvatar name={user.name} email={user.email} userId={user.userId} className="h-8 w-8 text-xs" />
         <span className="flex min-w-0 flex-col">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-bold text-foreground">{label}</span>

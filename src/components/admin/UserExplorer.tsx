@@ -205,7 +205,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
         return (
           <div className={cn('flex min-w-0 items-center gap-3', !isActiveUser(u) && 'opacity-60')}>
             <span className="relative shrink-0">
-              <InitialsAvatar name={u.name} email={u.email} className="h-9 w-9 text-xs" />
+              <InitialsAvatar name={u.name} email={u.email} userId={u.id} className="h-9 w-9 text-xs" />
               {isAdminUser(u) && (
                 <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <Zap className="h-2.5 w-2.5" strokeWidth={2} aria-label="Administrador" />

@@ -75,6 +75,7 @@ export function TeamSection({
               <InitialsAvatar
                 key={m.key}
                 name={m.displayName}
+                userId={m.userId}
                 title={m.displayName}
                 src={m.avatarUrl || avatarFor({ email: m.email, name: m.displayName, accountId: m.jiraAccountId })}
                 className="-ml-2 h-8 w-8 border-2 border-card first:ml-0"

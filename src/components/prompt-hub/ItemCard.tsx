@@ -149,7 +149,7 @@ export function ItemCard({
       </div>
 
       <div className="mt-auto flex items-center gap-3 text-[13px] text-muted-foreground">
-        <InitialsAvatar name={item.authorName} className="h-6 w-6 text-xs" />
+        <InitialsAvatar name={item.authorName} userId={item.authorId} className="h-6 w-6 text-xs" />
         {handlers.onSelectAuthor && item.authorId ? (
           <button
             type="button"

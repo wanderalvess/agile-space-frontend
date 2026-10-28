@@ -298,7 +298,7 @@ export function PeopleLeadView({ data }: RoleViewProps) {
               {shown.map((m) => (
                 <li key={m.jiraAccountId || m.dbId} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[13px] last:border-b-0 last:pb-0">
                   <span className="flex min-w-0 items-center gap-2">
-                    <InitialsAvatar name={m.displayName} email={m.email} className="h-7 w-7 text-xs" />
+                    <InitialsAvatar name={m.displayName} email={m.email} userId={m.claimedByUid} className="h-7 w-7 text-xs" />
                     <span className="truncate font-semibold text-foreground">{m.displayName || m.jiraAccountId}</span>
                   </span>
                   <StatusChip className="shrink-0">{m.role || 'Membro'}</StatusChip>

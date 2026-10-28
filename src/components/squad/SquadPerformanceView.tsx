@@ -205,6 +205,7 @@ export function SquadPerformanceView() {
 
       return Array.from(assigneesMap.values()).map(item => ({
         jiraAccountId: item.name,
+        claimedByUid: undefined as string | undefined,
         displayName: item.name,
         role: 'Membro',
         capacityHoursPerDay: 0,
@@ -228,6 +229,7 @@ export function SquadPerformanceView() {
 
       return {
         jiraAccountId: m.jiraAccountId,
+        claimedByUid: m.claimedByUid,
         displayName: m.displayName || 'Membro',
         role: m.role || 'Desenvolvedor',
         capacityHoursPerDay: m.capacityHoursPerDay || 0,
@@ -532,7 +534,7 @@ export function SquadPerformanceView() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2.5">
-                      <InitialsAvatar name={m.displayName} className="h-8 w-8 text-xs" />
+                      <InitialsAvatar name={m.displayName} userId={m.claimedByUid} className="h-8 w-8 text-xs" />
                       <div>
                         <h4 className="text-xs font-bold text-foreground truncate max-w-[140px]">
                           {m.displayName}
