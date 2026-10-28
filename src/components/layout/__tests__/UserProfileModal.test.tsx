@@ -210,13 +210,13 @@ describe('UserProfileModal: linha Cargo', () => {
     h.createTicket.mockResolvedValue({ id: 't1' });
     render(<UserProfileModal />);
     fireEvent.click(rowButton(/Pedir ajuste, Cargo/));
-    fireEvent.change(screen.getByLabelText('Cargo desejado'), { target: { value: 'QA' } });
+    fireEvent.change(screen.getByLabelText('Cargo desejado'), { target: { value: 'Analista de QA' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido' }));
     await screen.findByText('Pedido enviado ao Suporte');
     const payload = h.createTicket.mock.calls[0][0];
     expect(payload.subject).toBe('Ajuste de cargo');
     expect(payload.message).toContain('Cargo atual: Developer');
-    expect(payload.message).toContain('Cargo desejado: QA');
+    expect(payload.message).toContain('Cargo desejado: Analista de QA');
     expect(payload.message).toContain('Squad ativa: FLUXOTST');
   });
 

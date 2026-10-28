@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from './cargo';
 import {
   Code,
   Bug,
@@ -22,8 +23,6 @@ export type GlobalRole =
   | 'People Lead'
   | 'Tribe Lead'
   | 'Agile Coach'
-  | 'Developer'
-  | 'QA'
   | 'Designer'
   | 'UX'
   | 'SME'
@@ -47,9 +46,7 @@ export const ROLES: GlobalRole[] = [
   'People Lead',
   'Tribe Lead',
   'Agile Coach',
-  'Developer',
   'Desenvolvedor(a)',
-  'QA',
   'Analista de QA',
   'Designer',
   'UX',
@@ -65,8 +62,8 @@ export const ROLES: GlobalRole[] = [
  * entra por sync real do Jira ou vínculo manual de admin, nunca autodeclarado.
  */
 export const CONTRIBUTOR_ROLES: GlobalRole[] = [
-  'Developer', 'Desenvolvedor(a)',
-  'QA', 'Analista de QA',
+  'Desenvolvedor(a)',
+  'Analista de QA',
   'Designer',
   'UX',
   'SME',
@@ -96,23 +93,24 @@ export function isLegacyLeadRole(roleInput?: string | null): boolean {
 }
 
 export function normalizeRole(roleInput?: string): GlobalRole {
-  if (!roleInput) return 'Developer';
+  if (!roleInput) return 'Desenvolvedor(a)';
   const r = roleInput.trim();
   
-  const exact = ROLES.find(item => item.toLowerCase() === r.toLowerCase());
+  const canonical = canonicalCargo(r);
+  const exact = ROLES.find(item => item.toLowerCase() === canonical.toLowerCase());
   if (exact) return exact;
 
   const lower = r.toLowerCase();
   if (lower === 'admin') return 'Agile Master';
   if (lower === 'lead' || lower === 'tech lead' || lower.includes('tech lead')) return 'Tech Lead';
-  if (lower === 'user' || lower === 'member' || lower === 'developer' || lower === 'dev') return 'Developer';
+  if (lower === 'user' || lower === 'member') return 'Desenvolvedor(a)';
   if (lower.includes('scrum master')) return 'Scrum Master';
   if (lower.includes('scrum') || lower.includes('agile master')) return 'Agile Master';
   if (lower.includes('po') || lower.includes('product owner')) return 'Product Owner';
-  if (lower.includes('qa')) return 'QA';
+  if (lower.includes('qa')) return 'Analista de QA';
   if (lower.includes('design')) return 'Designer';
 
-  return 'Developer';
+  return 'Desenvolvedor(a)';
 }
 
 export const SQUADS: string[] = [];

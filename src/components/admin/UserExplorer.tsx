@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from '@/lib/cargo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, Info, KeyRound, Lock, RefreshCw, ShieldCheck, UserX, Zap } from 'lucide-react';
@@ -266,7 +267,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
         return (
           // Cargo de negócio: só o admin grava; não muda permissão de acesso.
           <Select
-            value={u.jobTitle || ''}
+            value={canonicalCargo(u.jobTitle)}
             onValueChange={(val) => void patchUser(u.id, { jobTitle: val }, 'Cargo atualizado')}
             disabled={updatingId === u.id}
           >
@@ -533,7 +534,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
               {detailUser && hasLegacyLeadLevel(detailUser) && <StatusChip tone="warn" className="h-5">Nível antigo (LEAD)</StatusChip>}
             </dd>
             <dt className="font-bold text-muted-foreground">Cargo</dt>
-            <dd>{detailUser?.jobTitle || 'Sem cargo'}</dd>
+            <dd>{canonicalCargo(detailUser?.jobTitle) || 'Sem cargo'}</dd>
             <dt className="font-bold text-muted-foreground">Conta criada em</dt>
             <dd>{detailUser?.createdAt ? new Date(detailUser.createdAt).toLocaleDateString('pt-BR') : 'Sem registro'}</dd>
             <dt className="font-bold text-muted-foreground">Último acesso</dt>

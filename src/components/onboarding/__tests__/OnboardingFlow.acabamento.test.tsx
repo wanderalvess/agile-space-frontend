@@ -135,7 +135,7 @@ describe('OnboardingFlow - acabamento do passo de papel e do pedido de vínculo'
     await openRoleStep();
     fireEvent.click(screen.getByText('Eu construo'));
     fireEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: 'Pedir vínculo' }));
-    fireEvent.click(await screen.findByRole('radio', { name: 'Developer' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'Desenvolvedor(a)' }));
     // O pedido enviado passa a vir da lista do servidor.
     mocks.links.requests = [{ id: 'r1', projectKey: 'DDWMISSI', status: 'PENDING', createdAt: new Date().toISOString(), email: 'ana@totvs.com.br' }];
     fireEvent.click(screen.getByRole('button', { name: /Enviar pedido/ }));

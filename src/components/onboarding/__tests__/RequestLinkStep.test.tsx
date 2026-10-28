@@ -64,7 +64,7 @@ describe('RequestLinkStep: pessoa que não aparece na lista', () => {
   it('erro do servidor (ex.: 422/409) aparece no aviso e mantém o formulário', async () => {
     mocks.createLinkRequest.mockRejectedValue(new Error('Você já tem essa função na squad'));
     renderStep();
-    fireEvent.click(screen.getByRole('radio', { name: 'QA' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Analista de QA' }));
     submit();
     await waitFor(() => expect(mocks.toast).toHaveBeenCalled());
     expect(mocks.toast.mock.calls[0][0]).toMatchObject({ description: 'Você já tem essa função na squad', variant: 'destructive' });
