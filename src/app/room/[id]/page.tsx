@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { canonicalCargo } from '@/lib/cargo';
 import { useState, useEffect, useMemo, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DeckType, Participant, Role, Room, Vote, VotingRound, Issue, GlobalRole, ConfidenceLevel } from '@/lib/types';
@@ -481,8 +482,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   // 3. IDENTIDADE GLOBAL E REGISTRO AUTOMÁTICO
   const mapGlobalToPokerRole = (role: GlobalRole | undefined): Role => {
-    switch (role) {
-      case 'QA':
+    switch (canonicalCargo(role)) {
       case 'Analista de QA':
         return 'qa';
       case 'Agile Master':
@@ -500,7 +500,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       case 'Designer':
       case 'UX':
       case 'Designer / UI-UX':
-      case 'Developer':
       case 'Desenvolvedor(a)':
       default:
         return 'dev';

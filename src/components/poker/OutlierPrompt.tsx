@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
 import { getParticipantCategory, getEligibleStatsVotes, TECHNICAL_CATEGORIES, resolveTshirtHours, formatRoleForCopy } from '@/lib/poker-utils';
-import { SEM_CARGO } from '@/lib/cargo';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 import { MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLE_STYLES, roleToneOf } from '@/components/room-kit';
@@ -48,7 +48,7 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents, vo
           const num = deck === 'tshirt' ? resolveTshirtHours(v.value, tshirtEquivalents) : Number(v.value);
           const name = p?.nickname || v.participantNickname || 'Participante';
           // O cargo por extenso (o da administração; congelado no voto se a pessoa já saiu).
-          const cargo = (p ? p.globalRole : v.participantGlobalRole)?.trim() || SEM_CARGO;
+          const cargo = canonicalCargo(p ? p.globalRole : v.participantGlobalRole) || SEM_CARGO;
           return cat === category && !isNaN(num) ? { name, cargo, value: num } : null;
         })
         .filter((e): e is Outlier => e !== null);

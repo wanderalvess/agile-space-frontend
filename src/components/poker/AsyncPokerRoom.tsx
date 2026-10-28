@@ -5,7 +5,7 @@ import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useMemo, useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
-import { SEM_CARGO } from '@/lib/cargo';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy, observerHintOf, votingCargosOf } from '@/lib/poker-utils';
 import { summarizeRound } from '@/lib/poker-results';
 import { VoteDistribution } from './VoteDistribution';
@@ -241,7 +241,7 @@ const AsyncPokerRoomComponent = ({
                                 <section className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border p-6 text-center">
                                   <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha como observador</p>
                                   <p className="m-0 text-xs text-muted-foreground">
-                                    {currentUser.globalRole?.trim() ? `O cargo ${currentUser.globalRole.trim()} não vota nesta sala.` : 'Você está sem cargo na administração, por isso entra como observador.'}
+                                    {canonicalCargo(currentUser.globalRole) ? `O cargo ${canonicalCargo(currentUser.globalRole)} não vota nesta sala.` : 'Você está sem cargo na administração, por isso entra como observador.'}
                                   </p>
                                 </section>
                               )
@@ -266,7 +266,7 @@ const AsyncPokerRoomComponent = ({
                                         <VoteCard state="hidden" size="md" label={`${p.nickname} votou`} />
                                       )}
                                       <span className="w-full truncate text-center text-xs font-semibold" title={p.nickname}>{p.nickname}</span>
-                                      <span className="w-full truncate text-center text-xs text-muted-foreground" title={p.globalRole?.trim() || SEM_CARGO}>{p.globalRole?.trim() || SEM_CARGO}</span>
+                                      <span className="w-full truncate text-center text-xs text-muted-foreground" title={canonicalCargo(p.globalRole) || SEM_CARGO}>{canonicalCargo(p.globalRole) || SEM_CARGO}</span>
                                     </li>
                                   );
                                 })}

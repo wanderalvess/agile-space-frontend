@@ -49,7 +49,7 @@ describe('buildDefaultSettingsPatch (Restaurar padrão)', () => {
     expect(patch.divergenceThresholds).toEqual({ warn: 2, high: 5 });
   });
 
-  it('volta "Quem vota" ao padrão (só dev e QA)', () => {
-    expect(buildDefaultSettingsPatch().votingCargos).toEqual(['Developer', 'Desenvolvedor(a)', 'QA', 'Analista de QA']);
+  it('volta "Quem vota" ao padrão (só Desenvolvedor(a) e Analista de QA)', () => {
+    expect(buildDefaultSettingsPatch().votingCargos).toEqual(['Desenvolvedor(a)', 'Analista de QA']);
   });
 });

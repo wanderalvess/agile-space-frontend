@@ -43,7 +43,7 @@ export const POKER_CONTENT: ManualBlock[] = [
   { kind: 'h2', text: 'Quem vota e como a sala decide' },
   {
     kind: 'li',
-    text: '**Quem vota:** por padrão, pessoas com cargo de desenvolvimento e de QA. O cargo é o definido na administração. Quem facilita escolhe, em “Quem vota” (ao criar a sala ou nas configurações), quais cargos votam; os demais, e quem está sem cargo, entram como observadores: veem a mesa, mas não recebem baralho e não entram na contagem. Espectadores nunca votam.',
+    text: '**Quem vota:** por padrão, só quem tem o cargo Desenvolvedor(a) ou Analista de QA. O cargo é o definido na administração. Quem facilita escolhe, em “Quem vota” (ao criar a sala ou nas configurações), quais cargos votam; os demais, e quem está sem cargo, entram como observadores: veem a mesa, mas não recebem baralho e não entram na contagem. Espectadores nunca votam.',
   },
   {
     kind: 'li',

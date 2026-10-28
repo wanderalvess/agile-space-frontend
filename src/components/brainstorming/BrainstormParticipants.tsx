@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from '@/lib/cargo';
 import React, { useMemo } from 'react';
 import { ArrowRightLeft, Hand, UserX } from 'lucide-react';
 import { IconButton, ModalButton, PresenceList, type PresenceItem } from '@/components/room-kit';
@@ -9,7 +10,7 @@ import { participantName, type ClaimState } from './brainstorm-ceremony';
 import { firstName } from './brainstorm-room-logic';
 
 export function participantRoleLabel(p: Pick<Participant, 'globalRole' | 'role'>): string {
-  return (p.globalRole || p.role || 'Participante') as string;
+  return (canonicalCargo(p.globalRole) || p.role || 'Participante') as string;
 }
 
 /**
@@ -28,7 +29,7 @@ export function toPresenceItems(
       id: p.id,
       name: participantName(p),
       roleLabel: host ? `${participantRoleLabel(p)} · facilitador` : participantRoleLabel(p),
-      category: (p.globalRole || p.role) as string,
+      category: (canonicalCargo(p.globalRole) || p.role) as string,
       online: presenceOnlineOf(onlineIds, p.id),
       isYou: p.id === currentUserId,
       isHost: host,

@@ -19,7 +19,7 @@ export const PRIMEIROS_PASSOS_CONTENT: ManualBlock[] = [
   {
     kind: 'step',
     title: 'Pedido de vínculo',
-    text: 'Busque a squad pela chave do projeto, pelo nome ou por uma pessoa e peça o vínculo. Quem lidera a squad (Agile Master, Product Owner ou People Lead) confere e aprova. Quem não aparece na lista escolhe o papel de contribuidor: constrói (Developer), testa (QA), desenha (Designer) ou acompanha (Stakeholder ou Observador).',
+    text: 'Busque a squad pela chave do projeto, pelo nome ou por uma pessoa e peça o vínculo. Quem lidera a squad (Agile Master, Product Owner ou People Lead) confere e aprova. Quem não aparece na lista escolhe o papel de contribuidor: constrói (Desenvolvedor(a)), testa (Analista de QA), desenha (Designer) ou acompanha (Stakeholder ou Observador).',
   },
   {
     kind: 'step',
@@ -41,7 +41,7 @@ export const PRIMEIROS_PASSOS_CONTENT: ManualBlock[] = [
   },
   {
     kind: 'li',
-    text: '**Papéis que você escolhe sozinho:** só os de contribuidor: Developer, QA, Designer e Stakeholder ou Observador. Os papéis de liderança não podem ser escolhidos por conta própria.',
+    text: '**Papéis que você escolhe sozinho:** só os de contribuidor: Desenvolvedor(a), Analista de QA, Designer e Stakeholder ou Observador. Os papéis de liderança não podem ser escolhidos por conta própria.',
   },
   { kind: 'h2', text: 'Dúvidas comuns' },
   {

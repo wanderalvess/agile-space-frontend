@@ -30,7 +30,7 @@ function renderTable(extra: Partial<React.ComponentProps<typeof PokerTable>> = {
 describe('PokerTable: cargo por extenso e observadores', () => {
   it('rotula cada lugar com o cargo da administração, ou "Sem cargo"', () => {
     renderTable();
-    expect(screen.getByText('Developer')).toBeTruthy();
+    expect(screen.getByText('Desenvolvedor(a)')).toBeTruthy();
     expect(screen.getByText('Analista de QA')).toBeTruthy();
     expect(screen.getByText('Tech Lead')).toBeTruthy();
     expect(screen.getByText('Sem cargo')).toBeTruthy();

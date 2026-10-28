@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { canonicalCargo } from '@/lib/cargo';
 import { DEFAULT_VOTING_CARGOS, VOTING_CARGO_OPTIONS, isVotingCargo } from '@/lib/poker-utils';
 
-const sameCargo = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+const sameCargo = (a: string, b: string) => canonicalCargo(a).toLowerCase() === canonicalCargo(b).toLowerCase();
 
-/** A lista de cargos que votam é igual à padrão (só dev e QA)? Ordem e caixa não contam. */
+/** A lista de cargos que votam é igual à padrão (só Desenvolvedor(a) e Analista de QA)? Ordem e caixa não contam. */
 export function isDefaultVotingCargos(value: readonly string[]): boolean {
   return value.length === DEFAULT_VOTING_CARGOS.length
     && DEFAULT_VOTING_CARGOS.every((d) => value.some((v) => sameCargo(v, d)))

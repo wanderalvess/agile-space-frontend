@@ -4,7 +4,7 @@ import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import { Lock } from 'lucide-react';
 import type { DeckType, Participant, Vote } from '@/lib/types';
 import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, observerHintOf } from '@/lib/poker-utils';
-import { SEM_CARGO } from '@/lib/cargo';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 import { LATE_SEAT_MS, introOffset, introTiming, modeOf, newcomersOf, ringFits, seatToneOf, stageMinHeight, tableGeometry, waitingLabel } from '@/lib/poker-table';
 import { cn } from '@/lib/utils';
 import { ProgressRing, VoteCard, VoteSeat, useElementSize } from '@/components/room-kit';
@@ -150,7 +150,7 @@ export function PokerTable({
     const vote = voteByPerson.get(p.id);
     const category = getParticipantCategory(p);
     // O cargo por extenso (o da administração), nunca um rótulo inventado pela categoria.
-    const roleLabel = p.globalRole?.trim() || SEM_CARGO;
+    const roleLabel = canonicalCargo(p.globalRole) || SEM_CARGO;
     const absent = !!onlineIds && !onlineIds.has(p.id);
     const seatProps = {
       seatId: p.id,

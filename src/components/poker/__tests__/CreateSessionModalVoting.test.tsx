@@ -36,7 +36,7 @@ describe('CreateSessionModal: "Quem vota"', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Personalizar' }));
     expect(screen.queryByText('Gestão pode votar')).toBeNull();
     expect(screen.getByText('Quem vota')).toBeTruthy();
-    expect((screen.getByRole('checkbox', { name: 'Developer' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: 'Desenvolvedor(a)' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Analista de QA' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Tech Lead' }) as HTMLInputElement).checked).toBe(false);
   });
@@ -54,13 +54,13 @@ describe('CreateSessionModal: "Quem vota"', () => {
   it('os cargos escolhidos vão para a sala', async () => {
     open();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Tech Lead' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Developer' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Desenvolvedor(a)' }));
     fireEvent.change(screen.getByLabelText('Nome da sala'), { target: { value: 'Refino' } });
     fireEvent.click(screen.getByRole('button', { name: 'Criar sala' }));
     await waitFor(() => expect(saveOrUpdateRoom).toHaveBeenCalledTimes(1));
     const { votingCargos } = saveOrUpdateRoom.mock.calls[0][0].settings;
     expect(votingCargos).toContain('Tech Lead');
-    expect(votingCargos).not.toContain('Developer');
-    expect(votingCargos).toContain('Desenvolvedor(a)');
+    expect(votingCargos).not.toContain('Desenvolvedor(a)');
+    expect(votingCargos).toContain('Analista de QA');
   });
 });

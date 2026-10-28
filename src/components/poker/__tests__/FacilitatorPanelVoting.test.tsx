@@ -17,7 +17,7 @@ describe('FacilitatorPanel: "Quem vota"', () => {
     renderPanel();
     expect(screen.queryByText('Gestão pode votar')).toBeNull();
     expect(screen.getByText('Quem vota')).toBeTruthy();
-    expect((screen.getByRole('checkbox', { name: 'QA' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: 'Analista de QA' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Tech Lead' }) as HTMLInputElement).checked).toBe(false);
   });
 
@@ -46,6 +46,6 @@ describe('FacilitatorPanel: "Quem vota"', () => {
     renderPanel();
     fireEvent.change(screen.getByLabelText('Buscar ajuste'), { target: { value: 'cargo' } });
     expect(screen.getByText('Quem vota')).toBeTruthy();
-    expect(screen.getByRole('checkbox', { name: 'QA' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Analista de QA' })).toBeTruthy();
   });
 });

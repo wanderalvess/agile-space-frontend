@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Crown, UserX } from 'lucide-react';
 import type { Participant, Vote, Role } from '@/lib/types';
 import { canParticipantVote, getParticipantCategory, observerHintOf } from '@/lib/poker-utils';
-import { SEM_CARGO } from '@/lib/cargo';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 import { ConfirmDialog, PresenceList, type PresenceItem, type PresenceStatus } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,7 +31,7 @@ const GROUP_ORDER = [
 ] as const;
 
 /** Texto ao lado do nome: o cargo por extenso (o da administração), ou "Sem cargo". */
-const cargoLabelOf = (globalRole?: string | null): string => globalRole?.trim() || SEM_CARGO;
+const cargoLabelOf = (globalRole?: string | null): string => canonicalCargo(globalRole) || SEM_CARGO;
 
 export function ParticipantList({
   participants,

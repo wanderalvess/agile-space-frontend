@@ -20,13 +20,13 @@ const V = (participantId: string, value: string, extra: Partial<Vote> = {}): Vot
 
 describe('votingCargosOf: a política da sala', () => {
   it('sem configuração, só dev e QA votam', () => {
-    expect(votingCargosOf(undefined)).toEqual(['Developer', 'Desenvolvedor(a)', 'QA', 'Analista de QA']);
+    expect(votingCargosOf(undefined)).toEqual(['Desenvolvedor(a)', 'Analista de QA']);
     expect(votingCargosOf({})).toEqual(DEFAULT_VOTING_CARGOS);
     expect(votingCargosOf({ allowManagementToVote: false })).toEqual(DEFAULT_VOTING_CARGOS);
   });
 
   it('sala nova usa a lista escolhida pelo facilitador', () => {
-    expect(votingCargosOf({ votingCargos: ['Designer', 'QA'] })).toEqual(['Designer', 'QA']);
+    expect(votingCargosOf({ votingCargos: ['Designer', 'Analista de QA'] })).toEqual(['Designer', 'Analista de QA']);
   });
 
   it('sala antiga com "Gestão pode votar" soma os cargos de gestão ao padrão', () => {
@@ -38,7 +38,26 @@ describe('votingCargosOf: a política da sala', () => {
   });
 
   it('votingCargos manda sobre o campo antigo', () => {
-    expect(votingCargosOf({ votingCargos: ['QA'], allowManagementToVote: true })).toEqual(['QA']);
+    expect(votingCargosOf({ votingCargos: ['Analista de QA'], allowManagementToVote: true })).toEqual(['Analista de QA']);
+  });
+
+  it('sala antiga com votingCargos nas grafias de antes continua valendo (cada cargo vira o canônico)', () => {
+    const antiga = { votingCargos: ['Developer', 'QA'] };
+    expect(votingCargosOf(antiga)).toEqual(['Desenvolvedor(a)', 'Analista de QA']);
+    expect(canParticipantVote(P('a', 'dev', 'Developer'), votingCargosOf(antiga))).toBe(true);
+    expect(canParticipantVote(P('b', 'qa', 'Analista de QA'), votingCargosOf(antiga))).toBe(true);
+    expect(canParticipantVote(P('c', 'dev', 'Tech Lead'), votingCargosOf(antiga))).toBe(false);
+  });
+
+  it('as grafias repetidas da mesma sala viram um cargo só', () => {
+    expect(votingCargosOf({ votingCargos: ['Developer', 'Desenvolvedor(a)', 'dev', 'Tech Lead'] })).toEqual(['Desenvolvedor(a)', 'Tech Lead']);
+  });
+
+  it('o padrão tem só dois cargos e as opções não repetem dev nem QA', () => {
+    expect(DEFAULT_VOTING_CARGOS).toEqual(['Desenvolvedor(a)', 'Analista de QA']);
+    expect(VOTING_CARGO_OPTIONS).not.toContain('Developer');
+    expect(VOTING_CARGO_OPTIONS).not.toContain('QA');
+    expect(new Set(VOTING_CARGO_OPTIONS).size).toBe(VOTING_CARGO_OPTIONS.length);
   });
 
   it('lista vazia não deixa a sala sem votantes: vale o padrão', () => {
@@ -85,7 +104,7 @@ describe('canParticipantVote: regra única', () => {
   });
 
   it('retirar um cargo da lista o torna observador', () => {
-    expect(canParticipantVote(P('a', 'dev', 'Developer'), ['QA', 'Analista de QA'])).toBe(false);
+    expect(canParticipantVote(P('a', 'dev', 'Developer'), ['Analista de QA'])).toBe(false);
   });
 
   it('não diferencia maiúsculas e espaços nas pontas', () => {

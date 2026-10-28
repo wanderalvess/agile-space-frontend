@@ -20,7 +20,7 @@ describe('OutlierPrompt: cargo por extenso', () => {
 
   it('mostra o cargo de quem votou mais baixo e mais alto', () => {
     render(<OutlierPrompt votes={[vote('Ana', '2'), vote('Caio', '13')]} participants={people} deck="hours" />);
-    expect(screen.getByText('Votou mais baixo · Developer')).toBeTruthy();
+    expect(screen.getByText('Votou mais baixo · Desenvolvedor(a)')).toBeTruthy();
     expect(screen.getByText('Votou mais alto · Desenvolvedor(a)')).toBeTruthy();
   });
 
@@ -41,7 +41,7 @@ describe('RoundReportDialog: cargo por extenso', () => {
 
   it('lista o cargo da administração ou "Sem cargo", não a categoria', () => {
     render(<RoundReportDialog round={round} onClose={vi.fn()} participants={[person('Ana', 'dev', 'Developer'), person('Sam', 'dev')]} />);
-    expect(screen.getByText('Developer')).toBeTruthy();
+    expect(screen.getByText('Desenvolvedor(a)')).toBeTruthy();
     expect(screen.getAllByText('Sem cargo').length).toBeGreaterThan(0);
     expect(screen.queryByText('DEV')).toBeNull();
     // Quem já saiu da sala mostra o cargo congelado no voto.

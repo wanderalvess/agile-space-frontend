@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Participant, VotingRound } from '@/lib/types';
 import { TECHNICAL_CATEGORIES, getParticipantCategory, formatRoleForCopy, formatEstimateCopy } from '@/lib/poker-utils';
-import { SEM_CARGO } from '@/lib/cargo';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 
 /** Relatório consolidado de uma rodada (estimativa final, papéis ou faixa, votos). Abre pela fila. */
 export function RoundReportDialog({ round, onClose, participants }: { round: VotingRound | null; onClose: () => void; participants: Participant[] }) {
@@ -40,7 +40,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
       const p = participantMap.get(v.participantId);
       if (p) {
         // O cargo por extenso (o da administração); quem ainda não tem cargo aparece como "Sem cargo".
-        text += `${p.nickname} (${p.globalRole?.trim() || SEM_CARGO}): ${v.value}\n`;
+        text += `${p.nickname} (${canonicalCargo(p.globalRole) || SEM_CARGO}): ${v.value}\n`;
       }
     });
 
@@ -136,7 +136,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-[13px] font-semibold">{p?.nickname || 'Participante'}</span>
                     <span className={cn('truncate text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
-                      {p ? (p.globalRole?.trim() || SEM_CARGO) : (vote.participantGlobalRole?.trim() || SEM_CARGO)}
+                      {p ? (canonicalCargo(p.globalRole) || SEM_CARGO) : (canonicalCargo(vote.participantGlobalRole) || SEM_CARGO)}
                     </span>
                   </span>
                   <span className="rounded-md border border-border bg-card px-2 py-0.5 text-sm font-bold tabular-nums">{vote.value}</span>

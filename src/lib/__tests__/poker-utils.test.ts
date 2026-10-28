@@ -91,6 +91,15 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
       expect(getParticipantCategory({ role: 'dev', globalRole: 'UI-UX Specialist' as GlobalRole })).toBe('UX');
     });
 
+    it('reconhece os dois nomes de cada função (o canônico e a grafia antiga) como a mesma categoria', () => {
+      expect(getParticipantCategory({ role: 'organizador', globalRole: 'Desenvolvedor(a)' })).toBe('Developer');
+      expect(getParticipantCategory({ role: 'organizador', globalRole: 'Developer' as GlobalRole })).toBe('Developer');
+      expect(getParticipantCategory({ role: 'organizador', globalRole: ' dev ' as GlobalRole })).toBe('Developer');
+      expect(getParticipantCategory({ role: 'organizador', globalRole: 'Analista de QA' })).toBe('QA');
+      expect(getParticipantCategory({ role: 'organizador', globalRole: 'QA' as GlobalRole })).toBe('QA');
+      expect(getParticipantCategory({ role: 'organizador', globalRole: 'Quality Assurance' as GlobalRole })).toBe('QA');
+    });
+
     it('deve reconhecer papéis de gestão e observação', () => {
       expect(getParticipantCategory({ role: 'organizador', globalRole: 'Scrum Master' })).toBe('Management');
       expect(getParticipantCategory({ role: 'organizador', globalRole: 'Product Owner' })).toBe('Management');

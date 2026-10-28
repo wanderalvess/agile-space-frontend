@@ -70,6 +70,8 @@ describe('painel único por papel: quem vê qual aba', () => {
   const MATRIX: [string, DashboardTabId[], DashboardTabId][] = [
     ['Developer', ['custom', 'member'], 'member'],
     ['QA', ['custom', 'member'], 'member'],
+    ['Desenvolvedor(a)', ['custom', 'member'], 'member'],
+    ['Analista de QA', ['custom', 'member'], 'member'],
     ['Designer', ['custom', 'member'], 'member'],
     ['UX', ['custom', 'member'], 'member'],
     ['Stakeholder / Observador', ['custom', 'member'], 'member'],

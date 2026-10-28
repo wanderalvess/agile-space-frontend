@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, use, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { healthCheckApi } from '../api';
+import { canonicalCargo } from '@/lib/cargo';
 import type { HealthCheckBoard as HealthCheckBoardType, HealthCheckParticipant, HealthCheckVote, HealthCheckVoteValue, TeamRole, GlobalRole } from '@/lib/types';
 import { HealthCheckVotingBoard, type FinishResult } from '@/components/health-check/HealthCheckVotingBoard';
 import { HealthCheckResults } from '@/components/health-check/HealthCheckResults';
@@ -41,7 +42,7 @@ function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
 }
 
 const mapGlobalToTeamRole = (role: GlobalRole | undefined): TeamRole => {
-  switch (role) {
+  switch (canonicalCargo(role)) {
     case 'Agile Master':
     case 'Scrum Master':
     case 'Scrum Master / Agile Coach':
@@ -55,14 +56,12 @@ const mapGlobalToTeamRole = (role: GlobalRole | undefined): TeamRole => {
     case 'People Lead':
     case 'Tribe Lead':
       return 'PL';
-    case 'QA':
     case 'Analista de QA':
       return 'QA';
     case 'Designer':
     case 'UX':
     case 'Designer / UI-UX':
       return 'UX';
-    case 'Developer':
     case 'Desenvolvedor(a)':
       return 'DEV';
     case 'SME':

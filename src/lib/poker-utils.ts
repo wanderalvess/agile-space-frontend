@@ -1,4 +1,5 @@
 import { DECKS, ROLES, Participant, Vote, DeckType, Role, GlobalRole, IssueType, TshirtEquivalent, TSHIRT_UNIT_HOURS, VotingRound, Issue } from './types';
+import { CARGO_DEV, CARGO_QA, canonicalCargo } from './cargo';
 
 /**
  * Configurações que uma sala NOVA já nasce com ligadas. Antes tudo nascia
@@ -298,10 +299,11 @@ export function getParticipantCategory(participant: { role: Role; globalRole?: G
   if (participant.role === 'spectator') return null;
 
   // 1. Fonte Primária: GlobalRole (Perfil Profissional)
-  const gRole = participant.globalRole;
+  const gRole = canonicalCargo(participant.globalRole);
   if (gRole) {
-    if (gRole === 'Developer' || gRole.includes('Desenvolvedor')) return 'Developer';
-    if (gRole === 'QA' || gRole.includes('Analista de QA')) return 'QA';
+    // Exato pelo canônico; o "contém" abaixo só mantém o que já era dito para títulos livres (ex.: "Desenvolvedor Backend").
+    if (gRole === CARGO_DEV || gRole.includes('Desenvolvedor')) return 'Developer';
+    if (gRole === CARGO_QA || gRole.includes('Analista de QA')) return 'QA';
     if (gRole === 'UX' || gRole.includes('UI-UX')) return 'UX';
     if (gRole === 'Designer') return 'Designer';
     
@@ -382,7 +384,7 @@ export function shouldAutoReveal(input: {
  * Cargos que votam por padrão numa sala: só desenvolvimento e QA. Os demais entram como observadores
  * (o facilitador escolhe outros em "Quem vota").
  */
-export const DEFAULT_VOTING_CARGOS: readonly GlobalRole[] = ['Developer', 'Desenvolvedor(a)', 'QA', 'Analista de QA'];
+export const DEFAULT_VOTING_CARGOS: readonly GlobalRole[] = [CARGO_DEV, CARGO_QA];
 
 /**
  * Cargos oferecidos em "Quem vota": a mesma lista de cargos da administração (ROLES), menos
@@ -402,7 +404,7 @@ export type VotingSettings = {
   allowManagementToVote?: boolean;
 };
 
-const normalizeCargo = (c?: string | null) => (c ?? '').trim().toLowerCase();
+const normalizeCargo = (c?: string | null) => canonicalCargo(c).toLowerCase();
 
 /**
  * Política de voto da sala: a lista de cargos que votam. Sala com `votingCargos` usa a lista (vazia é tratada como
@@ -411,7 +413,11 @@ const normalizeCargo = (c?: string | null) => (c ?? '').trim().toLowerCase();
  */
 export function votingCargosOf(settings?: VotingSettings | null): readonly string[] {
   const own = settings?.votingCargos;
-  if (Array.isArray(own) && own.length > 0) return own;
+  if (Array.isArray(own) && own.length > 0) {
+    // Salas antigas guardam as grafias de antes ("Developer", "QA"): cada entrada vira o cargo canônico.
+    const canonical = [...new Set(own.map((c) => canonicalCargo(c)).filter(Boolean))];
+    if (canonical.length > 0) return canonical;
+  }
   return settings?.allowManagementToVote === true
     ? [...DEFAULT_VOTING_CARGOS, ...LEGACY_MANAGEMENT_CARGOS]
     : DEFAULT_VOTING_CARGOS;

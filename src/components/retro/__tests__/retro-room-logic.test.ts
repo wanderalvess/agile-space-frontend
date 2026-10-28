@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RetroCard, RetroColumnDef, RetroParticipant, TimerState } from '@/lib/types';
+import type { GlobalRole, RetroCard, RetroColumnDef, RetroParticipant, TimerState } from '@/lib/types';
 import { RETRO_TEMPLATES } from '../../../lib/types';
 import {
   RETRO_PHASES,
@@ -340,6 +340,9 @@ describe('pessoas', () => {
     expect(mapGlobalToTeamRole('Analista de QA')).toBe('QA');
     expect(mapGlobalToTeamRole('Designer / UI-UX')).toBe('UX');
     expect(mapGlobalToTeamRole('Desenvolvedor(a)')).toBe('DEV');
+    // Grafias antigas (dados já gravados, Jira): mesmo papel que os nomes canônicos.
+    expect(mapGlobalToTeamRole('Developer' as GlobalRole)).toBe('DEV');
+    expect(mapGlobalToTeamRole('QA' as GlobalRole)).toBe('QA');
     expect(mapGlobalToTeamRole('SME')).toBe('SME');
     expect(mapGlobalToTeamRole('Stakeholder / Observador')).toBe('OUTRO');
   });

@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from '@/lib/cargo';
 import { useMemo, useState } from 'react';
 import { Crown, UserX } from 'lucide-react';
 import { ConfirmDialog, PresenceList, type PresenceItem } from '@/components/room-kit';
@@ -37,7 +38,7 @@ export function RetroParticipantList({ participants, onlineIds, currentUserId, i
       participants.map((p) => ({
         id: p.id,
         name: p.nickname,
-        roleLabel: p.globalRole || (p.role ? TEAM_ROLE_DESCRIPTIONS[p.role]?.name : undefined) || 'Participante',
+        roleLabel: canonicalCargo(p.globalRole) || (p.role ? TEAM_ROLE_DESCRIPTIONS[p.role]?.name : undefined) || 'Participante',
         category: presenceCategoryOf(p.role),
         // Sem dado do servidor (`onlineIds` nulo) fica sem ponto: quem está na lista entrou na retro, não necessariamente está aqui.
         online: presenceOnlineOf(onlineIds, p.id),

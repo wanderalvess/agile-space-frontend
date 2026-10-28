@@ -1,3 +1,5 @@
+import { canonicalCargo } from "./cargo";
+
 /** Ids das abas do painel por papel. Os mesmos nomes das antigas rotas /squad/dashboards/<id>. */
 export type DashboardTabId =
   | "custom"
@@ -32,8 +34,6 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
     shortLabel: "Membro",
     href: "/squad/dashboards/member",
     roles: [
-      "Developer",
-      "QA",
       "Designer",
       "UX",
       "SME",
@@ -102,14 +102,14 @@ const LEADERSHIP_AND_ADMIN_ROLES = [
 
 export function isUserLeadershipOrAdmin(role?: string | null): boolean {
   if (!role) return false;
-  const normalized = role.toLowerCase().trim();
+  const normalized = canonicalCargo(role).toLowerCase();
   return LEADERSHIP_AND_ADMIN_ROLES.some((r) => r.toLowerCase() === normalized);
 }
 
 export function getDashboardRouteForRole(role?: string | null): string {
   if (!role) return "/squad/dashboards/member";
 
-  const normalized = role.toLowerCase().trim();
+  const normalized = canonicalCargo(role).toLowerCase();
 
   if (normalized.includes("tribe") || normalized === "admin") {
     return "/squad/dashboards/tribe-level";

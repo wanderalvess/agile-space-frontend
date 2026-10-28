@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from '@/lib/cargo';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, EyeOff, Lock, Check } from 'lucide-react';
 import { DeckType, Participant } from '@/lib/types';
@@ -288,7 +289,7 @@ export function Controls({
 
   // Não-votante (cargo que não vota nesta sala, sem cargo ou espectador): aviso no lugar do baralho.
   if (!canVote) {
-    const cargo = currentUser.globalRole?.trim();
+    const cargo = canonicalCargo(currentUser.globalRole);
     const hint = currentUser.role === 'spectator'
       ? 'Você entrou como espectador desta sala.'
       : cargo
