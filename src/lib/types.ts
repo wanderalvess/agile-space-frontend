@@ -233,6 +233,10 @@ export type Room = {
     deckType: DeckType;
   } | null;
   settings?: {
+    // Cargos (da administração) que votam nesta sala; os demais entram como observadores. Ausente = padrão (dev e
+    // QA). Lido por votingCargosOf (poker-utils), que também trata o campo antigo abaixo.
+    votingCargos?: string[];
+    // Antigo "Gestão pode votar". Só lido para salas criadas antes de `votingCargos`; a interface não grava mais.
     allowManagementToVote?: boolean;
     // Revela automaticamente quando todos os votantes elegíveis já votaram.
     autoReveal?: boolean;

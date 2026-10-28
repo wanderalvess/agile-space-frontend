@@ -109,15 +109,20 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
       expect(canParticipantVote({ role: 'spectator' })).toBe(false);
     });
 
-    it('gestão só pode votar se o facilitador explicitamente permitir', () => {
+    it('outros cargos só votam se o facilitador os incluir em "Quem vota"', () => {
       const pm = { role: 'organizador' as const, globalRole: 'Product Owner' as const };
-      expect(canParticipantVote(pm, false)).toBe(false);
-      expect(canParticipantVote(pm, true)).toBe(true);
+      expect(canParticipantVote(pm)).toBe(false);
+      expect(canParticipantVote(pm, ['Developer', 'Product Owner'])).toBe(true);
     });
 
-    it('desenvolvedores e QAs sempre podem votar', () => {
-      expect(canParticipantVote({ role: 'dev' })).toBe(true);
-      expect(canParticipantVote({ role: 'qa' })).toBe(true);
+    it('por padrão, desenvolvedores e QAs (pelo cargo) votam', () => {
+      expect(canParticipantVote({ role: 'dev', globalRole: 'Developer' })).toBe(true);
+      expect(canParticipantVote({ role: 'qa', globalRole: 'QA' })).toBe(true);
+    });
+
+    it('sem cargo, observa mesmo com role dev ou qa', () => {
+      expect(canParticipantVote({ role: 'dev' })).toBe(false);
+      expect(canParticipantVote({ role: 'qa' })).toBe(false);
     });
   });
 
