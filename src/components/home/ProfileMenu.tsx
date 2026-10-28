@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ProfileAvatar } from '@/components/common/ProfileAvatar';
-import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING } from './home-ui';
@@ -19,7 +18,6 @@ import { FOCUS_RING } from './home-ui';
 /** Menu da conta (com `compact`, de 1024 a 1359 px só o avatar, para caber no AppHeader; com `compact="wide"`, só o avatar até 1799 px, para caber nas barras de sala com ações extras): Meu perfil, Meu espaço, Manual de uso, Configurações, Administração (só admin) e Sair. */
 export function ProfileMenu({ compact = false }: { compact?: boolean | 'wide' }) {
   const { userProfile, logout, setIsEditProfileOpen, requestIdentity } = useUserContext();
-  const { session } = useAuth();
 
   if (!userProfile) {
     return (
@@ -34,7 +32,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean | 'wide' })
   }
 
   const isAdmin = userProfile.role?.toLowerCase() === 'admin';
-  const roleLabel = session?.activeProjectRole || (isAdmin ? 'Administrador' : '');
+  // O mesmo cargo de Minha identidade, do Poker e da Retro (lib/cargo.ts); sem cargo, o admin mostra o nível de acesso.
+  const roleLabel = userProfile.cargo || (isAdmin ? 'Administrador' : '');
   const first = userProfile.name?.trim().split(/\s+/)[0] || 'Conta';
 
   return (

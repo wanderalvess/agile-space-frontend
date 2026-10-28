@@ -8,6 +8,7 @@ import { clearJustSignedUp, markJustSignedUp } from '@/lib/team-welcome';
 import { loginContextFrom, loginModeFrom, signUpToastDescription } from '@/lib/login-context';
 import { inviteApi, type InvitePreview } from '@/lib/invite-api';
 import { clearPendingInvite, savePendingInvite } from '@/lib/pending-invite';
+import { resolveCargo } from '@/lib/cargo';
 import {
   errorMessage,
   getFieldErrors,
@@ -145,7 +146,7 @@ export function useLoginFlow() {
         description:
           linkContext?.kind === 'invite'
             ? 'Abrindo o convite…'
-            : `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${session.activeProjectRole || 'Membro'})`,
+            : `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${resolveCargo(session.jobTitle, session.activeProjectRole) || 'Membro'})`,
       });
     } catch (err) {
       // A mensagem vem do servidor, inclusive a do limite de tentativas (429).

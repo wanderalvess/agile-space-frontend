@@ -232,7 +232,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
     brainstormingApi.joinBoard(boardId, {
       nickname: userProfile.name,
-      role: userProfile.role || 'DEV',
+      // Cargo exibido no mural: o mesmo da identidade, do Poker e da Retro (lib/cargo.ts).
+      role: userProfile.cargo || (userProfile.role !== 'admin' && userProfile.role !== 'user' ? userProfile.role : '') || 'DEV',
     } as any).then(joined => {
       setParticipants(prev => upsertById(prev, joined as any));
     }).catch(e => {
