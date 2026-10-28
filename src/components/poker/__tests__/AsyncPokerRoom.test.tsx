@@ -43,7 +43,7 @@ beforeAll(() => {
 });
 afterEach(cleanup);
 
-const me = { id: 'u1', nickname: 'Ana', role: 'developer' } as unknown as Participant;
+const me = { id: 'u1', nickname: 'Ana', role: 'dev', globalRole: 'Developer' } as unknown as Participant;
 const issue = { id: 'i1', title: 'Login social', status: 'pending' } as unknown as Issue;
 
 function renderRoom(over: Record<string, unknown> = {}) {
@@ -77,6 +77,22 @@ describe('AsyncPokerRoom: barra do kit', () => {
     expect(screen.queryByRole('dialog', { name: 'Exportar resultados' })).toBeNull();
     fireEvent.click(screen.getAllByRole('button', { name: /Exportar resultados/ })[0]);
     expect(screen.getByRole('dialog', { name: 'Exportar resultados' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Votar agora/ }));
+    expect(screen.getByText('Escolha sua estimativa')).toBeTruthy();
+  });
+
+  it('cargo que não vota entra como observador: sem baralho, com o motivo', () => {
+    const tl = { id: 'u1', nickname: 'Ana', role: 'organizador', globalRole: 'Tech Lead' } as unknown as Participant;
+    renderRoom({ currentUser: tl, participants: [tl] });
+    fireEvent.click(screen.getByRole('button', { name: /Votar agora/ }));
+    expect(screen.queryByText('Escolha sua estimativa')).toBeNull();
+    expect(screen.getByText('Você acompanha como observador')).toBeTruthy();
+    expect(screen.getByText('O cargo Tech Lead não vota nesta sala.')).toBeTruthy();
+  });
+
+  it('cargo incluído em "Quem vota" recebe o baralho', () => {
+    const tl = { id: 'u1', nickname: 'Ana', role: 'organizador', globalRole: 'Tech Lead' } as unknown as Participant;
+    renderRoom({ currentUser: tl, participants: [tl], settings: { votingCargos: ['Developer', 'Tech Lead'] } });
     fireEvent.click(screen.getByRole('button', { name: /Votar agora/ }));
     expect(screen.getByText('Escolha sua estimativa')).toBeTruthy();
   });

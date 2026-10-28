@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
-import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantPresent, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
+import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantPresent, getEligibleStatsVotes, votingCargosOf, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
 import { summarizeRound, divergenceLabel } from '@/lib/poker-results';
 import { plainSnippet } from '@/lib/poker-table';
 import { ParticipantList } from '@/components/poker/ParticipantList';
@@ -184,6 +184,9 @@ const PokerRoomComponent = ({
   const { toast } = useToast();
   const router = useRouter();
 
+  // Quem vota: a política da sala (cargos), a mesma em mesa, baralho, contagem, revelação e estatísticas.
+  const votingCargos = useMemo(() => votingCargosOf(settings), [settings]);
+
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isFacilitatorSettingsOpen, setIsFacilitatorSettingsOpen] = useState(false);
@@ -279,7 +282,7 @@ const PokerRoomComponent = ({
   useEffect(() => {
     if (!settings?.turnNotification) { notifiedTurnRef.current = null; return; }
     if (!activeIssueId || votesRevealed || currentUserVote) return;
-    if (!canParticipantVote(currentUser, settings?.allowManagementToVote)) return;
+    if (!canParticipantVote(currentUser, votingCargos)) return;
     if (notifiedTurnRef.current === activeIssueId) return;
     notifiedTurnRef.current = activeIssueId;
     toast({ title: 'É a sua vez de votar!', description: 'Uma nova rodada foi aberta.' });
@@ -302,7 +305,7 @@ const PokerRoomComponent = ({
         };
       } catch { /* ignore */ }
     }
-  }, [settings?.turnNotification, settings?.allowManagementToVote, activeIssueId, votesRevealed, currentUserVote, currentUser, isSoundEnabled, toast, issuesQueue]);
+  }, [settings?.turnNotification, votingCargos, activeIssueId, votesRevealed, currentUserVote, currentUser, isSoundEnabled, toast, issuesQueue]);
 
   const isInitialState = issuesQueue.length === 0;
   // Sessão encerrada: ou a fila acabou (todos concluídos), ou o facilitador
@@ -484,8 +487,8 @@ const PokerRoomComponent = ({
       // FINAL salva na issue ficava presa na moda mesmo quando o card já
       // mostrava a média real em horas (inconsistência entre o que se vê e
       // o que se salva).
-      // Só votos elegíveis (sem gestão/espectador), igual ao que o resumo da revelação mostra.
-      const eligible = getEligibleStatsVotes(votes, participants, settings?.allowManagementToVote);
+      // Só os votos de quem vota na sala (observador e espectador ficam de fora), igual ao que o resumo da revelação mostra.
+      const eligible = getEligibleStatsVotes(votes, participants, votingCargos);
       const numericVals = eligible
         .map(v => resolveTshirtHours(v.value, settings?.tshirtEquivalents))
         .filter(n => !isNaN(n));
@@ -521,17 +524,17 @@ const PokerRoomComponent = ({
   // Consenso pleno (todos os votos elegíveis iguais) e divergência crítica —
   // alimentam o auto-consenso e a sugestão de revotação (ambos opt-in).
   const hasConsensus = useMemo(() => {
-    const eligible = getEligibleStatsVotes(votes, participants, settings?.allowManagementToVote);
+    const eligible = getEligibleStatsVotes(votes, participants, votingCargos);
     return eligible.length > 1 && new Set(eligible.map(v => v.value)).size === 1;
-  }, [votes, participants, settings?.allowManagementToVote]);
+  }, [votes, participants, votingCargos]);
   const hasHighDivergence = useMemo(() => [...divergences.values()].some(d => d === 'destructive'), [divergences]);
 
   // Resultado da rodada revelada (mesma conta do salvar): alimenta o centro da mesa, os cartões por papel e o "Copiar estimativa".
   const summary = useMemo(
     () => (votesRevealed
-      ? summarizeRound(votes, participants, deck, { allowManagementToVote: settings?.allowManagementToVote, tshirtEquivalents: settings?.tshirtEquivalents, roundingMode })
+      ? summarizeRound(votes, participants, deck, { votingCargos, tshirtEquivalents: settings?.tshirtEquivalents, roundingMode })
       : null),
-    [votesRevealed, votes, participants, deck, settings?.allowManagementToVote, settings?.tshirtEquivalents, roundingMode]
+    [votesRevealed, votes, participants, deck, votingCargos, settings?.tshirtEquivalents, roundingMode]
   );
   const roundDivergenceLabel = useMemo(() => {
     if (!summary) return undefined;
@@ -612,7 +615,7 @@ const PokerRoomComponent = ({
   // Quórum: votantes elegíveis (mesma regra do denominador) E online que ainda
   // não votaram. Excluir offline evita que um fantasma (aba fechada) trave o
   // "FALTAM N" pra sempre. Alimenta o aviso antes da revelação.
-  const eligibleVoters = participants.filter(p => canParticipantVote(p, settings?.allowManagementToVote) && onlineIds.has(p.id));
+  const eligibleVoters = participants.filter(p => canParticipantVote(p, votingCargos) && onlineIds.has(p.id));
 
   // Categorias técnicas realmente presentes na sala — alimentam o revote
   // seletivo genérico (antes só Dev/QA fixos).
@@ -654,7 +657,7 @@ const PokerRoomComponent = ({
       onUpdateParticipantRole={onUpdateParticipantRole}
       onClaimFacilitator={onClaimFacilitator}
       onlineIds={onlineIds}
-      allowManagementToVote={settings?.allowManagementToVote}
+      votingCargos={votingCargos}
     />
   );
 
@@ -914,7 +917,7 @@ const PokerRoomComponent = ({
                       roomy
                       deck={deck}
                       currentUserId={currentUser.id}
-                      allowManagementToVote={settings?.allowManagementToVote}
+                      votingCargos={votingCargos}
                       divergences={divergences}
                       groupByRole={!!settings?.groupVotesByRole}
                       anonymousReveal={!!settings?.anonymousReveal}
@@ -935,12 +938,12 @@ const PokerRoomComponent = ({
                     {deck === 'fibonacci' && summary.totalHours !== '0' && summary.totalHours !== summary.avg && (
                       <p className="m-0 text-xs text-muted-foreground" title="Ao salvar, vale a soma das médias por papel">Total ao salvar: {summary.totalHours}</p>
                     )}
-                    {settings?.confidenceVote && <ConfidenceSummary votes={votes} participants={participants} allowManagementToVote={settings?.allowManagementToVote} />}
+                    {settings?.confidenceVote && <ConfidenceSummary votes={votes} participants={participants} votingCargos={votingCargos} />}
                   </div>
                   <aside className="flex min-w-0 flex-col gap-4" aria-label="Resultado da rodada">
                     <CopyEstimateCard summary={summary} deck={deck} values={deck === 'hours' ? adjusted : undefined} />
                     {settings?.outlierPrompt && !settings?.anonymousReveal && (
-                      <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
+                      <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} votingCargos={votingCargos} />
                     )}
                     {isCurrentUserFacilitator && (
                       <DecisionPanel
@@ -966,7 +969,7 @@ const PokerRoomComponent = ({
                     votesRevealed={false}
                     deck={deck}
                     currentUserId={currentUser.id}
-                    allowManagementToVote={settings?.allowManagementToVote}
+                    votingCargos={votingCargos}
                     groupByRole={!!settings?.groupVotesByRole}
                     onlineIds={onlineIds}
                     large={isTheaterMode}
@@ -992,14 +995,14 @@ const PokerRoomComponent = ({
                   onVote={onVote}
                   votesRevealed={votesRevealed}
                   currentUser={currentUser}
-                  allowManagementToVote={settings?.allowManagementToVote}
+                  votingCargos={votingCargos}
                   selectiveRevotingRole={selectiveRevotingRole}
                   isTheaterMode={isTheaterMode}
                   isSessionNotStarted={!!activeIssueId && !sessionStartedAt}
                   confidenceEnabled={!!settings?.confidenceVote}
                   onSetConfidence={onSetConfidence}
                   currentUserConfidence={currentUserConfidence}
-                  onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
+                  onAllowMyCargoVote={isCurrentUserFacilitator && currentUser.globalRole ? () => onUpdateSettings({ votingCargos: [...votingCargos, currentUser.globalRole as string] }) : undefined}
                 />
               ) : (
                 <section className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
@@ -1065,7 +1068,7 @@ const PokerRoomComponent = ({
           <FacilitatorPanel
             deck={deck}
             onUpdateSettings={onUpdateSettings}
-            allowManagementToVote={settings?.allowManagementToVote}
+            votingCargos={votingCargos}
             autoReveal={settings?.autoReveal}
             outlierPrompt={settings?.outlierPrompt}
             confidenceVote={settings?.confidenceVote}

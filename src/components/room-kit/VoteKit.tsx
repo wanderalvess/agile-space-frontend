@@ -60,7 +60,7 @@ export function VoteCard({
   delay = 0,
   highlight = false,
   label,
-  observerLabel = 'não vota',
+  observerLabel = 'observando',
   confidence,
   className,
 }: {
@@ -88,7 +88,7 @@ export function VoteCard({
         aria-label={label ?? observerLabel}
         className={cn(base, 'flex-col gap-1 border border-dashed border-border text-xs font-medium text-muted-foreground', className)}
       >
-        <Crown aria-hidden="true" className="h-4 w-4 text-amber-500" strokeWidth={1.5} />
+        <Eye aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
         {observerLabel}
       </span>
     );
@@ -168,6 +168,7 @@ export function VoteSeat({
   isYou = false,
   isHost = false,
   observer = false,
+  observerHint,
   compact = false,
   absent = false,
   seatId,
@@ -183,6 +184,8 @@ export function VoteSeat({
   isYou?: boolean;
   /** Acompanha sem votar (gestão, espectador): desenha sem carta. */
   observer?: boolean;
+  /** Por que não vota ("cargo não vota nesta sala"): vai na dica e no texto para leitor de tela do assento. */
+  observerHint?: string;
   /** Assento pequeno (mesa apertada): avatar menor no lugar de quem observa. */
   compact?: boolean;
   /** Fora da sala (sem sinal de presença): avatar esmaecido. */
@@ -206,7 +209,7 @@ export function VoteSeat({
 
   if (observer) {
     return (
-      <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando`}>
+      <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando${observerHint ? `: ${observerHint}` : ''}`}>
         <span className="relative">
           <PersonAvatar name={name} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
           <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
@@ -215,7 +218,7 @@ export function VoteSeat({
         </span>
         {nameLine}
         {roleLine}
-        <span className="text-xs font-medium leading-tight text-muted-foreground">Observando</span>
+        <span className="text-xs font-medium leading-tight text-muted-foreground" title={observerHint}>Observando</span>
       </li>
     );
   }

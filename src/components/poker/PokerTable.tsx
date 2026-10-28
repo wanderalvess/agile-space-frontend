@@ -3,7 +3,8 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import { Lock } from 'lucide-react';
 import type { DeckType, Participant, Vote } from '@/lib/types';
-import { canParticipantVote, formatRoleForCopy, getEligibleStatsVotes, getParticipantCategory } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, observerHintOf } from '@/lib/poker-utils';
+import { SEM_CARGO } from '@/lib/cargo';
 import { LATE_SEAT_MS, introOffset, introTiming, modeOf, newcomersOf, ringFits, seatToneOf, stageMinHeight, tableGeometry, waitingLabel } from '@/lib/poker-table';
 import { cn } from '@/lib/utils';
 import { ProgressRing, VoteCard, VoteSeat, useElementSize } from '@/components/room-kit';
@@ -16,7 +17,8 @@ interface PokerTableProps {
   votesRevealed: boolean;
   deck: DeckType;
   currentUserId: string;
-  allowManagementToVote?: boolean;
+  /** Cargos que votam na sala (votingCargosOf). Os demais ficam à mesa como observadores. */
+  votingCargos?: readonly string[];
   divergences?: Map<string, 'warning' | 'destructive' | 'none'>;
   /** Mantém quem tem o mesmo papel lado a lado (configuração "agrupar votos por papel"). */
   groupByRole?: boolean;
@@ -60,7 +62,7 @@ export function PokerTable({
   votesRevealed,
   deck,
   currentUserId,
-  allowManagementToVote = false,
+  votingCargos,
   divergences,
   groupByRole = false,
   anonymousReveal = false,
@@ -74,7 +76,7 @@ export function PokerTable({
 }: PokerTableProps) {
   const voteByPerson = useMemo(() => new Map(votes.map((v) => [v.participantId, v])), [votes]);
 
-  // Quem vota fica primeiro; quem só observa (gestão sem voto liberado) vai junto, no fim: o grupo de observadores não toma o lugar de ninguém.
+  // Quem vota fica primeiro; quem só observa (cargo que não vota na sala, sem cargo) vai junto, no fim: o grupo de observadores não toma o lugar de ninguém.
   const seats = useMemo(() => {
     const list = participants.filter((p) => p.role !== 'spectator');
     const rank = (p: Participant) => {
@@ -83,18 +85,18 @@ export function PokerTable({
     };
     const ordered = groupByRole ? [...list].sort((a, b) => rank(a) - rank(b)) : list;
     return [
-      ...ordered.filter((p) => canParticipantVote(p, allowManagementToVote)),
-      ...ordered.filter((p) => !canParticipantVote(p, allowManagementToVote)),
+      ...ordered.filter((p) => canParticipantVote(p, votingCargos)),
+      ...ordered.filter((p) => !canParticipantVote(p, votingCargos)),
     ];
-  }, [participants, groupByRole, allowManagementToVote]);
+  }, [participants, groupByRole, votingCargos]);
 
-  const voters = useMemo(() => seats.filter((p) => canParticipantVote(p, allowManagementToVote)), [seats, allowManagementToVote]);
+  const voters = useMemo(() => seats.filter((p) => canParticipantVote(p, votingCargos)), [seats, votingCargos]);
   const votedCount = voters.filter((p) => voteByPerson.has(p.id)).length;
   const waiting = voters.filter((p) => !voteByPerson.has(p.id) && (onlineIds ? onlineIds.has(p.id) : true)).map((p) => p.nickname);
 
   const mode = useMemo(
-    () => modeOf(getEligibleStatsVotes(votes, participants, allowManagementToVote).map((v) => v.value)),
-    [votes, participants, allowManagementToVote]
+    () => modeOf(getEligibleStatsVotes(votes, participants, votingCargos).map((v) => v.value)),
+    [votes, participants, votingCargos]
   );
 
   // Entrada do time: ao sair de "refinamento não iniciado" os assentos entram em sequência a partir
@@ -147,7 +149,8 @@ export function PokerTable({
   const renderSeat = (p: Participant, index: number, place?: { x: number; y: number; width: number; flipped: boolean }) => {
     const vote = voteByPerson.get(p.id);
     const category = getParticipantCategory(p);
-    const roleLabel = category && category !== 'Management' ? formatRoleForCopy(category) : (p.globalRole || (p.role === 'organizador' ? 'Organizador' : 'Participante'));
+    // O cargo por extenso (o da administração), nunca um rótulo inventado pela categoria.
+    const roleLabel = p.globalRole?.trim() || SEM_CARGO;
     const absent = !!onlineIds && !onlineIds.has(p.id);
     const seatProps = {
       seatId: p.id,
@@ -161,8 +164,8 @@ export function PokerTable({
       style: place ? { left: place.x, top: place.y, width: place.width, transform: 'translate(-50%, -50%)' } : undefined,
     };
 
-    if (!canParticipantVote(p, allowManagementToVote)) {
-      return <VoteSeat key={p.id} {...seatProps} observer compact={cardSize === 'xs' || cardSize === 'sm'} />;
+    if (!canParticipantVote(p, votingCargos)) {
+      return <VoteSeat key={p.id} {...seatProps} observer observerHint={observerHintOf(p)} compact={cardSize === 'xs' || cardSize === 'sm'} />;
     }
     let card: React.ReactNode;
     if (!vote) {

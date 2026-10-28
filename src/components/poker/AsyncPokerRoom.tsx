@@ -5,7 +5,8 @@ import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useMemo, useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
-import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy } from '@/lib/poker-utils';
+import { SEM_CARGO } from '@/lib/cargo';
+import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy, observerHintOf, votingCargosOf } from '@/lib/poker-utils';
 import { summarizeRound } from '@/lib/poker-results';
 import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
@@ -92,13 +93,15 @@ const AsyncPokerRoomComponent = ({
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
+  // Quem vota: a política da sala (cargos), a mesma da sala ao vivo.
+  const votingCargos = useMemo(() => votingCargosOf(settings), [settings]);
   const deckValues = useMemo(() => getDeckCards(deck, settings?.maxHours), [deck, settings?.maxHours]);
   const isDense = deckValues.length > 14;
 
   // Mesmo gate de room/[id]/page.tsx e Controls.tsx (poker-utils.canParticipantVote) —
   // a lista local antiga (MANAGEMENT_ROLES) divergia da centralizada, deixando o botão
   // de voto habilitado pra papéis (ex: People Lead) que o write-path já bloqueava.
-  const canVote = canParticipantVote(currentUser, settings?.allowManagementToVote);
+  const canVote = canParticipantVote(currentUser, votingCargos);
 
   const toggleExpand = (id: string) => {
     setExpandedIssues(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -184,7 +187,7 @@ const AsyncPokerRoomComponent = ({
                     const isRevealed = revealedIssues.includes(issue.id);
                     const issueVotes = votes.filter(v => v.issueId === issue.id);
                     const myVoteValue = issueVotes.find(v => v.participantId === currentUser.id)?.value || null;
-                    const summary = isRevealed ? summarizeRound(issueVotes, participants, deck, { allowManagementToVote: settings?.allowManagementToVote, tshirtEquivalents: settings?.tshirtEquivalents }) : null;
+                    const summary = isRevealed ? summarizeRound(issueVotes, participants, deck, { votingCargos, tshirtEquivalents: settings?.tshirtEquivalents }) : null;
 
                     return (
                       <article key={issue.id} className={cn(CARD, 'overflow-hidden transition-[border-color,box-shadow] duration-slow', isExpanded && 'border-primary/40')}>
@@ -236,8 +239,10 @@ const AsyncPokerRoomComponent = ({
                                 </section>
                               ) : (
                                 <section className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border p-6 text-center">
-                                  <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha sem votar</p>
-                                  <p className="m-0 text-xs text-muted-foreground">Facilitador pode liberar o voto da gestão nas configurações.</p>
+                                  <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha como observador</p>
+                                  <p className="m-0 text-xs text-muted-foreground">
+                                    {currentUser.globalRole?.trim() ? `O cargo ${currentUser.globalRole.trim()} não vota nesta sala.` : 'Você está sem cargo na administração, por isso entra como observador.'}
+                                  </p>
                                 </section>
                               )
                             )}
@@ -251,7 +256,9 @@ const AsyncPokerRoomComponent = ({
                                   const showValue = !!pVote && isRevealed && !settings?.anonymousReveal;
                                   return (
                                     <li key={p.id} className="flex min-w-0 flex-col items-center gap-2">
-                                      {!pVote ? (
+                                      {!canParticipantVote(p, votingCargos) ? (
+                                        <VoteCard state="observer" size="md" label={`${p.nickname}, observando: ${observerHintOf(p)}`} />
+                                      ) : !pVote ? (
                                         <VoteCard state="thinking" size="md" label={`${p.nickname} ainda não votou`} />
                                       ) : showValue ? (
                                         <VoteCard state="revealed" size="md" value={pVote.value} unit={deck === 'hours' ? 'h' : undefined} tone="plain" label={`${p.nickname}: ${pVote.value}`} />
@@ -259,6 +266,7 @@ const AsyncPokerRoomComponent = ({
                                         <VoteCard state="hidden" size="md" label={`${p.nickname} votou`} />
                                       )}
                                       <span className="w-full truncate text-center text-xs font-semibold" title={p.nickname}>{p.nickname}</span>
+                                      <span className="w-full truncate text-center text-xs text-muted-foreground" title={p.globalRole?.trim() || SEM_CARGO}>{p.globalRole?.trim() || SEM_CARGO}</span>
                                     </li>
                                   );
                                 })}
@@ -269,12 +277,12 @@ const AsyncPokerRoomComponent = ({
                               <div className="grid items-start gap-4 lg:grid-cols-2">
                                 <CopyEstimateCard summary={summary} deck={deck} />
                                 {settings?.outlierPrompt && (
-                                  <OutlierPrompt votes={issueVotes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
+                                  <OutlierPrompt votes={issueVotes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} votingCargos={votingCargos} />
                                 )}
                               </div>
                             )}
                             {isRevealed && settings?.showDistribution && (
-                              <VoteDistribution votes={issueVotes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />
+                              <VoteDistribution votes={issueVotes} participants={participants} deck={deck} votingCargos={votingCargos} />
                             )}
 
                             {isCurrentUserFacilitator && (
@@ -337,7 +345,7 @@ const AsyncPokerRoomComponent = ({
               onRemoveParticipant={onRemoveParticipant}
               onUpdateParticipantRole={onUpdateParticipantRole}
               onClaimFacilitator={onClaimFacilitator}
-              allowManagementToVote={settings?.allowManagementToVote}
+              votingCargos={votingCargos}
             />
           </ResponsivePanel>
         </div>
@@ -348,7 +356,7 @@ const AsyncPokerRoomComponent = ({
           <FacilitatorPanel
             deck={deck}
             onSetDeck={onSetDeck}
-            allowManagementToVote={settings?.allowManagementToVote}
+            votingCargos={votingCargos}
             autoReveal={settings?.autoReveal}
             outlierPrompt={settings?.outlierPrompt}
             confidenceVote={settings?.confidenceVote}

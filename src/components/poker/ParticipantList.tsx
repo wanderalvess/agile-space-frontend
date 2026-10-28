@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Crown, UserX } from 'lucide-react';
 import type { Participant, Vote, Role } from '@/lib/types';
-import { canParticipantVote, formatRoleForCopy, getParticipantCategory } from '@/lib/poker-utils';
+import { canParticipantVote, getParticipantCategory, observerHintOf } from '@/lib/poker-utils';
+import { SEM_CARGO } from '@/lib/cargo';
 import { ConfirmDialog, PresenceList, type PresenceItem, type PresenceStatus } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,16 +18,9 @@ interface ParticipantListProps {
   onUpdateParticipantRole: (id: string, newRole: Role) => void;
   onClaimFacilitator?: () => void;
   onlineIds?: Set<string>;
-  /** Gestão que não vota não fica "pensando": aparece como observando. */
-  allowManagementToVote?: boolean;
+  /** Cargos que votam na sala. Quem não vota não fica "pensando": aparece como observando. */
+  votingCargos?: readonly string[];
 }
-
-const ROLE_LABELS: Record<Role, string> = {
-  dev: 'Desenvolvedor',
-  qa: 'QA',
-  organizador: 'Organizador',
-  spectator: 'Espectador',
-};
 
 const GROUP_ORDER = [
   { id: 'Developer', label: 'DEV' },
@@ -36,11 +30,8 @@ const GROUP_ORDER = [
   { id: 'Management', label: 'Gestão' },
 ] as const;
 
-/** Texto do papel ao lado do nome: sigla do papel técnico ou o cargo/papel da sala. */
-function roleLabelOf(p: Pick<Participant, 'role' | 'globalRole'>, category: string | null): string {
-  if (category && category !== 'Management') return formatRoleForCopy(category);
-  return p.globalRole || ROLE_LABELS[p.role] || 'Participante';
-}
+/** Texto ao lado do nome: o cargo por extenso (o da administração), ou "Sem cargo". */
+const cargoLabelOf = (globalRole?: string | null): string => globalRole?.trim() || SEM_CARGO;
 
 export function ParticipantList({
   participants,
@@ -50,7 +41,7 @@ export function ParticipantList({
   onClaimFacilitator,
   votes,
   onlineIds,
-  allowManagementToVote = false,
+  votingCargos,
 }: ParticipantListProps) {
   const [toRemove, setToRemove] = useState<Participant | null>(null);
   const [claimOpen, setClaimOpen] = useState(false);
@@ -66,17 +57,19 @@ export function ParticipantList({
       const category = getParticipantCategory(p);
       const online = onlineIds ? onlineIds.has(p.id) : true;
       let status: PresenceStatus = 'idle';
+      let statusLabel: string | undefined;
       if (p.role === 'spectator') status = 'spectator';
-      else if (!canParticipantVote(p, allowManagementToVote)) status = 'observer';
+      else if (!canParticipantVote(p, votingCargos)) { status = 'observer'; statusLabel = `Observando · ${observerHintOf(p)}`; }
       else if (votedIds.has(p.id)) status = 'voted';
       else status = online ? 'thinking' : 'away';
       return {
         id: p.id,
         name: p.nickname,
-        roleLabel: roleLabelOf(p, category),
+        roleLabel: cargoLabelOf(p.globalRole),
         category,
         online,
         status,
+        statusLabel,
         isYou: p.id === currentUserId,
         isHost: !!p.isFacilitator,
       };
@@ -91,7 +84,7 @@ export function ParticipantList({
         return {
           id: `ghost-${v.participantId}`,
           name: v.participantNickname || 'Participante',
-          roleLabel: v.participantGlobalRole || (v.participantRole ? ROLE_LABELS[v.participantRole] : 'Ausente'),
+          roleLabel: cargoLabelOf(v.participantGlobalRole),
           category,
           online: false,
           status: 'voted',
@@ -99,7 +92,7 @@ export function ParticipantList({
         };
       });
     return [...live, ...ghosts];
-  }, [participants, votes, votedIds, onlineIds, currentUserId, allowManagementToVote]);
+  }, [participants, votes, votedIds, onlineIds, currentUserId, votingCargos]);
 
   const renderActions = (item: PresenceItem) => {
     if (item.ghost) return null;

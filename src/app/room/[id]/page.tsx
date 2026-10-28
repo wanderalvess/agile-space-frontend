@@ -16,7 +16,7 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantPresent, roundEstimate, resolveRoundingMode, shouldAutoReveal } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantPresent, roundEstimate, resolveRoundingMode, shouldAutoReveal, votingCargosOf } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { createPresenceSession, withPresenceParam } from '@/lib/room-presence';
@@ -763,7 +763,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // se a gravação falhar, em vez de a tela mostrar um voto que o servidor nunca recebeu.
   const handleVote = useCallback((voteValue: string) => {
     if (!currentUser || !roomData) return;
-    if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
+    if (!canParticipantVote(currentUser, votingCargosOf(roomData.settings))) return;
     if (roomData.votesRevealed) return;
 
     const previous = votes.find(v => v.participantId === currentUser.id);
@@ -883,7 +883,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       const roundVotes = finalVotes.filter(v => !v.issueId || !roomData.activeIssueId || v.issueId === roomData.activeIssueId);
 
       const rounding = resolveRoundingMode(roomData.settings?.roundingMode);
-      const statsVotes = getEligibleStatsVotes(roundVotes, participants, roomData.settings?.allowManagementToVote);
+      const statsVotes = getEligibleStatsVotes(roundVotes, participants, votingCargosOf(roomData.settings));
       const allVoteValues = statsVotes.map(v => v.value);
       const numericVotes = allVoteValues.filter((v): v is string => v !== null && !isNaN(Number(v))).map(Number);
       const stats: VotingRound['stats'] = { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false };
@@ -1651,7 +1651,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // Sala assíncrona: um voto por (participante, tarefa). O servidor monta o id room_participant_issue.
   const handleAsyncVote = useCallback((issueId: string, voteValue: string) => {
     if (!currentUser || !roomData) return;
-    if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
+    if (!canParticipantVote(currentUser, votingCargosOf(roomData.settings))) return;
     if ((roomData.revealedIssues || []).includes(issueId)) return;
 
     const isMine = (v: Vote) => v.participantId === currentUser.id && v.issueId === issueId;

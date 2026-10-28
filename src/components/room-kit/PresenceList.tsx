@@ -65,6 +65,8 @@ export interface PresenceItem {
   /** Online agora. Sem o campo (`undefined`) a sala não sabe: sem ponto de presença e sem "ausente". */
   online?: boolean;
   status?: PresenceStatus;
+  /** Texto do estado (dica e leitor de tela) quando precisa dizer mais que o padrão, ex.: "Observando · cargo não vota nesta sala". */
+  statusLabel?: string;
   isYou?: boolean;
   isHost?: boolean;
   /** Voto de quem já saiu da sala: aparece esmaecido, sem ações. */
@@ -163,7 +165,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                     {p.ghost && <span className="font-normal text-muted-foreground"> · saiu da sala</span>}
                   </span>
                 </span>
-                {p.status && <PresenceIndicator status={p.status} />}
+                {p.status && <PresenceIndicator status={p.status} label={p.statusLabel} />}
                 {renderActions?.(p)}
               </li>
             ))}

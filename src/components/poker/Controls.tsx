@@ -19,7 +19,8 @@ interface ControlsProps {
   currentUserVote: string | null;
   votesRevealed: boolean;
   currentUser: Participant;
-  allowManagementToVote?: boolean;
+  // Cargos que votam na sala (votingCargosOf). Ausente = padrão (dev e QA).
+  votingCargos?: readonly string[];
   selectiveRevotingRole?: string | null;
   isTheaterMode?: boolean;
   // Sessão ainda não iniciada pelo facilitador: o baralho fica bloqueado.
@@ -29,8 +30,8 @@ interface ControlsProps {
   confidenceEnabled?: boolean;
   onSetConfidence?: (confidence: 'low' | 'medium' | 'high') => void;
   currentUserConfidence?: 'low' | 'medium' | 'high' | null;
-  // Facilitador de gestão: atalho para liberar o próprio voto (e o da gestão) sem abrir as configurações.
-  onAllowManagementVote?: () => void;
+  // Facilitador cujo cargo não vota: atalho para incluir o próprio cargo em "Quem vota" sem abrir as configurações.
+  onAllowMyCargoVote?: () => void;
   // Horas máximas do baralho "Horas reais" (ausente = baralho completo).
   maxHours?: number | null;
 }
@@ -125,13 +126,13 @@ export function Controls({
   currentUserVote,
   votesRevealed,
   currentUser,
-  allowManagementToVote = false,
+  votingCargos,
   selectiveRevotingRole = null,
   isTheaterMode = false,
   isSessionNotStarted = false,
   confidenceEnabled = false,
   onSetConfidence,
-  onAllowManagementVote,
+  onAllowMyCargoVote,
   currentUserConfidence = null,
   maxHours,
 }: ControlsProps) {
@@ -175,8 +176,8 @@ export function Controls({
 
   // Gate único (poker-utils.canParticipantVote) para botão e denominador.
   const canVote = useMemo(
-    () => canParticipantVote(currentUser, allowManagementToVote),
-    [currentUser, allowManagementToVote]
+    () => canParticipantVote(currentUser, votingCargos),
+    [currentUser, votingCargos]
   );
 
   // Revotação seletiva é por CATEGORIA técnica (Developer/QA/UX/Designer).
@@ -285,16 +286,25 @@ export function Controls({
     return <DeckNotice icon={Lock} title="O baralho abre quando o refinamento começar" />;
   }
 
-  // Não-votante (gestão sem liberação / observador): aviso no lugar do baralho.
+  // Não-votante (cargo que não vota nesta sala, sem cargo ou espectador): aviso no lugar do baralho.
   if (!canVote) {
+    const cargo = currentUser.globalRole?.trim();
+    const hint = currentUser.role === 'spectator'
+      ? 'Você entrou como espectador desta sala.'
+      : cargo
+        ? `O cargo ${cargo} não vota nesta sala.`
+        : `Você está sem cargo na administração, por isso entra como observador.`;
     return (
-      <DeckNotice icon={EyeOff} title="Gestão acompanha sem votar">
-        {onAllowManagementVote ? (
-          <Button onClick={onAllowManagementVote} className="h-10 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground room-glow hover:bg-primary/90">
-            Votar também
+      <DeckNotice icon={EyeOff} title="Você acompanha como observador">
+        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' ? (
+          <Button onClick={onAllowMyCargoVote} className="h-11 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground room-glow hover:bg-primary/90 sm:h-10">
+            Votar também ({cargo})
           </Button>
         ) : (
-          <span className="text-xs text-muted-foreground">O facilitador pode liberar o voto da gestão nas configurações.</span>
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        )}
+        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' && (
+          <span className="w-full text-xs text-muted-foreground">{hint}</span>
         )}
       </DeckNotice>
     );

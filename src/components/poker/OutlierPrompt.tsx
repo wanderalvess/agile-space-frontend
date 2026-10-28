@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, resolveTshirtHours, formatRoleForCopy } from '@/lib/poker-utils';
+import { getParticipantCategory, getEligibleStatsVotes, TECHNICAL_CATEGORIES, resolveTshirtHours, formatRoleForCopy } from '@/lib/poker-utils';
+import { SEM_CARGO } from '@/lib/cargo';
 import { MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLE_STYLES, roleToneOf } from '@/components/room-kit';
@@ -15,7 +16,11 @@ interface OutlierPromptProps {
   // passa a fazer sentido nesse deck. Ausente = comportamento histórico
   // (outlier desligado pra t-shirt, só moda categórica).
   tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>;
+  /** Cargos que votam na sala (votingCargosOf): só o voto deles entra nos extremos. */
+  votingCargos?: readonly string[];
 }
+
+type Outlier = { name: string; cargo: string; value: number };
 
 /**
  * Ritual de refinamento: ao revelar, destaca o MAIOR e o MENOR votante de cada
@@ -24,16 +29,17 @@ interface OutlierPromptProps {
  * fibonacci) e em t-shirt quando o facilitador configurou equivalência.
  * Puramente visual — não persiste nada.
  */
-export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: OutlierPromptProps) {
+export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents, votingCargos }: OutlierPromptProps) {
   const tshirtCalculating = deck === 'tshirt' && !!tshirtEquivalents && Object.keys(tshirtEquivalents).length > 0;
 
   const outliers = useMemo(() => {
     if (deck === 'tshirt' && !tshirtCalculating) return [];
     const pMap = new Map(participants.map(p => [p.id, p]));
+    const eligibleVotes = getEligibleStatsVotes(votes, participants, votingCargos);
 
     return TECHNICAL_CATEGORIES.map(category => {
       // Votos numéricos da categoria (identidade viva ou congelada no voto).
-      const entries = votes
+      const entries = eligibleVotes
         .map(v => {
           const p = pMap.get(v.participantId);
           const cat = p
@@ -41,9 +47,11 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
             : (v.participantRole ? getParticipantCategory({ role: v.participantRole, globalRole: v.participantGlobalRole }) : null);
           const num = deck === 'tshirt' ? resolveTshirtHours(v.value, tshirtEquivalents) : Number(v.value);
           const name = p?.nickname || v.participantNickname || 'Participante';
-          return cat === category && !isNaN(num) ? { name, value: num } : null;
+          // O cargo por extenso (o da administração; congelado no voto se a pessoa já saiu).
+          const cargo = (p ? p.globalRole : v.participantGlobalRole)?.trim() || SEM_CARGO;
+          return cat === category && !isNaN(num) ? { name, cargo, value: num } : null;
         })
-        .filter((e): e is { name: string; value: number } => e !== null);
+        .filter((e): e is Outlier => e !== null);
 
       if (entries.length < 2) return null;
       const max = entries.reduce((a, b) => (b.value > a.value ? b : a));
@@ -51,8 +59,8 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
       // Sem divergência (todos iguais) => nada a explicar.
       if (max.value === min.value) return null;
       return { category, max, min };
-    }).filter(Boolean) as { category: string; max: { name: string; value: number }; min: { name: string; value: number } }[];
-  }, [votes, participants, deck, tshirtCalculating, tshirtEquivalents]);
+    }).filter(Boolean) as { category: string; max: Outlier; min: Outlier }[];
+  }, [votes, participants, deck, tshirtCalculating, tshirtEquivalents, votingCargos]);
 
   if (outliers.length === 0) return null;
 
@@ -77,7 +85,7 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-[13px] font-semibold">{x.name}</span>
-                  <span className="text-xs text-muted-foreground">{i === 0 ? 'Votou mais baixo' : 'Votou mais alto'}</span>
+                  <span className="truncate text-xs text-muted-foreground">{i === 0 ? 'Votou mais baixo' : 'Votou mais alto'} · {x.cargo}</span>
                 </span>
               </div>
             ))}

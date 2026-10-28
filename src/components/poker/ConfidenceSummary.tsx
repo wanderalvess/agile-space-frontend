@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 interface ConfidenceSummaryProps {
   votes: Vote[];
   participants: Participant[];
-  allowManagementToVote?: boolean;
+  votingCargos?: readonly string[];
 }
 
 const LEVELS = [
@@ -23,9 +23,9 @@ const LEVELS = [
  * informaram confiança. Mostra a proporção por nível e um índice agregado
  * (alta=1, média=0.5, baixa=0). Sinaliza item arriscado quando o índice é baixo.
  */
-export function ConfidenceSummary({ votes, participants, allowManagementToVote = false }: ConfidenceSummaryProps) {
+export function ConfidenceSummary({ votes, participants, votingCargos }: ConfidenceSummaryProps) {
   const summary = useMemo(() => {
-    const eligible = getEligibleStatsVotes(votes, participants, allowManagementToVote);
+    const eligible = getEligibleStatsVotes(votes, participants, votingCargos);
     const withConf = eligible.filter(v => v.confidence);
     if (withConf.length === 0) return null;
 
@@ -34,7 +34,7 @@ export function ConfidenceSummary({ votes, participants, allowManagementToVote =
     const total = withConf.length;
     const score = LEVELS.reduce((acc, l) => acc + counts[l.key] * l.weight, 0) / total; // 0..1
     return { counts, total, score };
-  }, [votes, participants, allowManagementToVote]);
+  }, [votes, participants, votingCargos]);
 
   if (!summary) return null;
 
