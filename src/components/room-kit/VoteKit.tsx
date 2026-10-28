@@ -162,6 +162,7 @@ export function shortSeatName(name: string): string {
  */
 export function VoteSeat({
   name,
+  userId,
   roleLabel,
   roleCategory,
   flipped = false,
@@ -178,6 +179,8 @@ export function VoteSeat({
 }: {
   isHost?: boolean;
   name: string;
+  /** Id da conta: mostra a foto enviada pela pessoa no avatar. */
+  userId?: string | null;
   roleLabel: string;
   roleCategory?: string | null;
   flipped?: boolean;
@@ -211,7 +214,7 @@ export function VoteSeat({
     return (
       <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando${observerHint ? `: ${observerHint}` : ''}`}>
         <span className="relative">
-          <PersonAvatar name={name} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
+          <PersonAvatar name={name} userId={userId} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
           <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
             <Eye className="h-3 w-3" strokeWidth={1.5} />
           </span>
@@ -227,7 +230,7 @@ export function VoteSeat({
     <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1.5', flipped && 'flex-col-reverse', className)} style={style}>
       {children}
       <span className="flex max-w-full items-center gap-1.5">
-        <PersonAvatar name={name} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />
+        <PersonAvatar name={name} userId={userId} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />
         <span className="flex min-w-0 flex-col items-start">
           {nameLine}
           {roleLine}

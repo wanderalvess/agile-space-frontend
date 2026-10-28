@@ -114,7 +114,7 @@ export function SummaryWelcome({ squadId, syncState, syncError, myRole, squadMem
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <div className="flex -space-x-2.5" role="img" aria-label={peopleLabel}>
             {members.slice(0, 6).map((m, i) => (
-              <InitialsAvatar key={`${m.key}-${i}`} name={m.displayName} src={m.avatarUrl} className="h-9 w-9 border-2 border-card text-xs" />
+              <InitialsAvatar key={`${m.key}-${i}`} name={m.displayName} userId={m.userId} src={m.avatarUrl} className="h-9 w-9 border-2 border-card text-xs" />
             ))}
             {members.length > 6 && (
               <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-semibold text-muted-foreground">

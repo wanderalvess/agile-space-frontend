@@ -79,7 +79,7 @@ export function IntelligenceHubMonitor() {
               <li key={u.userId} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50">
                 <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
                   <span className="w-7 text-[13px] font-semibold tabular-nums text-muted-foreground max-sm:hidden">#{String(idx + 1).padStart(2, '0')}</span>
-                  <InitialsAvatar name={u.userName || u.userId} className="h-10 w-10 text-sm" />
+                  <InitialsAvatar name={u.userName || u.userId} userId={u.userId} className="h-10 w-10 text-sm" />
                   <div className="flex min-w-0 flex-col">
                     <p className="truncate text-sm font-semibold text-foreground" title={u.userName || u.userId}>{u.userName || u.userId}</p>
                     <p className="text-xs text-muted-foreground">

@@ -107,7 +107,7 @@ function RosterRow({
       )}
     >
       <div role="cell" className="col-span-full flex min-w-0 items-center gap-2.5 xl:col-span-1">
-        <InitialsAvatar name={m.displayName || id} email={m.email} className="h-8 w-8 text-xs" />
+        <InitialsAvatar name={m.displayName || id} email={m.email} userId={m.claimedByUid} className="h-8 w-8 text-xs" />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-foreground" title={m.displayName}>{m.displayName}</span>
           <span className="truncate text-xs text-muted-foreground" title={m.email || id}>{m.email || id}</span>

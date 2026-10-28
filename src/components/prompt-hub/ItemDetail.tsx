@@ -104,7 +104,7 @@ export function ItemDetail({ item, mode, onPatch, onDeleted, onSelectTag, Title 
         <dl className="grid grid-cols-[104px_1fr] gap-x-3 gap-y-2.5 text-sm">
           <Fact label="Autor">
             <span className="flex items-center gap-2">
-              <InitialsAvatar name={item.authorName} className="h-6 w-6 text-xs" />
+              <InitialsAvatar name={item.authorName} userId={item.authorId} className="h-6 w-6 text-xs" />
               <span className="min-w-0">
                 {item.authorId ? (
                   <Link

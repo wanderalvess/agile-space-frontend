@@ -356,7 +356,7 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                                   title={vote.confidence ? `Confiança ${CONFIDENCE_LABEL[vote.confidence]}` : undefined}
                                   className="inline-flex h-8 items-center gap-1.5 rounded-full bg-card pl-1 pr-2 text-xs ring-1 ring-inset ring-border"
                                 >
-                                  <PersonAvatar name={nickname} size="sm" />
+                                  <PersonAvatar name={nickname} userId={vote.participantId} size="sm" />
                                   <strong className="tabular-nums">{vote.value}</strong>
                                   {vote.confidence && (
                                     <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', vote.confidence === 'high' ? 'bg-emerald-500' : vote.confidence === 'medium' ? 'bg-amber-500' : 'bg-red-500')} />

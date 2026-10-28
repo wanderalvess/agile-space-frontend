@@ -6,7 +6,7 @@ import { getParticipantCategory, getEligibleStatsVotes, TECHNICAL_CATEGORIES, re
 import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 import { MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ROLE_STYLES, roleToneOf } from '@/components/room-kit';
+import { PersonAvatar, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
 
 interface OutlierPromptProps {
   votes: Vote[];
@@ -20,7 +20,7 @@ interface OutlierPromptProps {
   votingCargos?: readonly string[];
 }
 
-type Outlier = { name: string; cargo: string; value: number };
+type Outlier = { id: string; name: string; cargo: string; value: number };
 
 /**
  * Ritual de refinamento: ao revelar, destaca o MAIOR e o MENOR votante de cada
@@ -49,7 +49,7 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents, vo
           const name = p?.nickname || v.participantNickname || 'Participante';
           // O cargo por extenso (o da administração; congelado no voto se a pessoa já saiu).
           const cargo = canonicalCargo(p ? p.globalRole : v.participantGlobalRole) || SEM_CARGO;
-          return cat === category && !isNaN(num) ? { name, cargo, value: num } : null;
+          return cat === category && !isNaN(num) ? { id: v.participantId, name, cargo, value: num } : null;
         })
         .filter((e): e is Outlier => e !== null);
 
@@ -83,6 +83,7 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents, vo
                 <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-md border-[1.5px] border-amber-500/60 bg-amber-500/10 text-[15px] font-bold tabular-nums text-amber-800 dark:text-amber-200">
                   {x.value}{suffix}
                 </span>
+                <PersonAvatar name={x.name} userId={x.id} size="md" />
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-[13px] font-semibold">{x.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{i === 0 ? 'Votou mais baixo' : 'Votou mais alto'} · {x.cargo}</span>

@@ -67,4 +67,15 @@ export const userPhotoApi = {
     if (!res.ok) throw new PhotoApiError('Não foi possível carregar a foto.', res.status);
     return res.blob();
   },
+
+  /**
+   * Foto de QUALQUER pessoa (colegas): `GET /users/{id}/photo`, com Bearer. `no-cache` faz o navegador revalidar pelo
+   * ETag (barato: 304 sem corpo) em vez de servir uma foto trocada há pouco. `null` quando a pessoa não enviou foto (404).
+   */
+  async fetchUserBlob(userId: string): Promise<Blob | null> {
+    const res = await authFetch(`${API_BASE_URL}/users/${encodeURIComponent(userId)}/photo`, { cache: 'no-cache' });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new PhotoApiError('Não foi possível carregar a foto.', res.status);
+    return res.blob();
+  },
 };

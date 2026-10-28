@@ -8,11 +8,14 @@ import { ROLE_STYLES, roleToneOf } from './tokens';
 
 export function PersonAvatar({
   name,
+  userId,
   size = 'md',
   highlight = false,
   className,
 }: {
   name: string;
+  /** Id da conta: com ele aparece a foto que a pessoa enviou (senão, iniciais). */
+  userId?: string | null;
   size?: 'sm' | 'md' | 'lg';
   /** Anel de destaque (a própria pessoa). */
   highlight?: boolean;
@@ -22,6 +25,7 @@ export function PersonAvatar({
   return (
     <InitialsAvatar
       name={name}
+      userId={userId}
       className={cn(box, highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-card', className)}
     />
   );
@@ -57,6 +61,8 @@ export function PresenceIndicator({ status, label }: { status: PresenceStatus; l
 
 export interface PresenceItem {
   id: string;
+  /** Id da CONTA, quando difere de `id` (ex.: voto de quem saiu, cujo item tem id sintético). Padrão: `id`. */
+  userId?: string;
   name: string;
   /** Texto do papel exibido ao lado do nome ("DEV", "QA", "PO · facilitadora"). */
   roleLabel: string;
@@ -142,7 +148,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                 )}
               >
                 <span className="relative">
-                  <PersonAvatar name={p.name} highlight={p.isYou} />
+                  <PersonAvatar name={p.name} userId={p.userId ?? p.id} highlight={p.isYou} />
                   {p.online !== undefined && (
                     <span
                       aria-hidden="true"

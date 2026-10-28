@@ -174,7 +174,7 @@ export function PlanSettingsDialog({ open, onOpenChange, board, taskCount, peopl
                 {participants.length === 0 && <li className="text-xs text-muted-foreground">Só você, por enquanto.</li>}
                 {participants.map((id) => (
                   <li key={id} className="flex items-center gap-2.5 rounded-[10px] border border-border px-3 py-2">
-                    <InitialsAvatar name={nameOf(id)} className="h-6 w-6 text-xs" />
+                    <InitialsAvatar name={nameOf(id)} userId={id} className="h-6 w-6 text-xs" />
                     <span className="min-w-0 flex-1 truncate text-sm">{nameOf(id)}</span>
                     {id === board.creatorId && <span className="text-xs text-muted-foreground">criou o plano</span>}
                   </li>

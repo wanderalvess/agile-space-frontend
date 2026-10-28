@@ -34,7 +34,7 @@ export function ChatDirectList({ peers, onSelect }: { peers: DirectPeer[]; onSel
             className="flex w-full items-center gap-3 rounded-[10px] p-2.5 text-left transition-colors duration-fast hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="relative shrink-0">
-              <PersonAvatar name={participant.nickname} size="lg" />
+              <PersonAvatar name={participant.nickname} userId={participant.id} size="lg" />
               <span
                 aria-hidden="true"
                 className={cn('absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card', online ? 'bg-emerald-500' : 'bg-muted-foreground/40')}

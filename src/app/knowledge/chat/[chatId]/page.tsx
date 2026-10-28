@@ -411,7 +411,7 @@ function ChatContent({ chatId }: { chatId: string }) {
               <Trash2 className="h-4 w-4" aria-hidden="true" /> Limpar conversa
             </Button>
             <div className="flex items-center gap-3 px-2">
-              <InitialsAvatar name={session?.name} className="h-8 w-8 text-xs" />
+              <InitialsAvatar name={session?.name} userId={session?.id} className="h-8 w-8 text-xs" />
               <span className="min-w-0 truncate text-sm font-medium text-foreground">{session?.name || 'Usuário'}</span>
             </div>
           </div>

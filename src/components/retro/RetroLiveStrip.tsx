@@ -44,7 +44,7 @@ export function RetroLiveStrip({
 
       {visible.map((a) => (
         <span key={a.id} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2.5 text-xs">
-          <InitialsAvatar name={a.name} className="h-6 w-6 text-xs" />
+          <InitialsAvatar name={a.name} userId={a.id} className="h-6 w-6 text-xs" />
           {a.id === currentUserId ? 'Você' : a.name}
           <span className="font-semibold tabular-nums">{a.count}</span>
         </span>

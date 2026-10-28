@@ -166,7 +166,7 @@ export function Discussion({ item, canModerate, authorSnapshot, className }: Dis
             const isItemOwner = comment.authorId === item.authorId;
             return (
               <li key={comment.id} className="flex gap-3 border-t border-border pt-3.5 first:mt-0 [&:not(:first-child)]:mt-3.5">
-                <InitialsAvatar name={comment.authorName} className="h-8 w-8 text-xs" />
+                <InitialsAvatar name={comment.authorName} userId={comment.authorId} className="h-8 w-8 text-xs" />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <strong className="text-sm text-foreground">{mine ? 'Você' : comment.authorName || 'Membro'}</strong>
