@@ -311,7 +311,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
     healthCheckApi.joinBoard(boardId, {
       nickname: userProfile.name,
-      role: mapGlobalToTeamRole(userProfile.role),
+      role: mapGlobalToTeamRole(userProfile.cargo as GlobalRole),
     }).then(joined => {
       setParticipants(prev => upsertById(prev, joined));
     }).catch(e => {

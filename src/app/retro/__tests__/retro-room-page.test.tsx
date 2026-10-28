@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
   state: {
     auth: { isAuthenticated: true, isLoading: false },
-    profile: { id: 'me', name: 'Ana Souza', role: 'Developer' } as { id: string; name: string; role: string } | null,
+    profile: { id: 'me', name: 'Ana Souza', role: 'Developer', cargo: 'Developer' } as { id: string; name: string; role: string; cargo?: string } | null,
     roomProps: null as any,
     socket: null as any,
   },
@@ -103,7 +103,7 @@ beforeEach(() => {
   state.roomProps = null;
   state.socket = null;
   state.auth = { isAuthenticated: true, isLoading: false };
-  state.profile = { id: 'me', name: 'Ana Souza', role: 'Developer' };
+  state.profile = { id: 'me', name: 'Ana Souza', role: 'Developer', cargo: 'Developer' };
   serverBoard = {
     id: 'b1', creatorId: 'me', isCardsRevealed: true, votingStatus: 'active', isAuthorsRevealed: false, createdAt: '2025-10-17T10:00:00Z',
     title: 'Retro 42', team: 'Phoenix', columns: COLUMNS, maxVotesPerParticipant: 2, participantIds: ['me'], timer: { status: 'stopped', endTime: null, initialDuration: 300, remainingOnPause: 300 },

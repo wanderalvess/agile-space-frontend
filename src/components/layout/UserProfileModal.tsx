@@ -9,7 +9,6 @@ import { MODAL_OVERLAY, MODAL_SURFACE, FOCUS_RING } from '@/components/room-kit'
 import { useUserContext } from '@/context/UserContext';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { cn } from '@/lib/utils';
-import { resolveCargo } from '@/lib/cargo';
 import { isUserLeadershipOrAdmin } from '@/lib/dashboard-roles';
 import { NAME_EDITOR_ATTR } from '@/components/profile/EditableName';
 import { IdentityHero } from '@/components/profile/IdentityHero';
@@ -85,8 +84,8 @@ export function UserProfileModal() {
     await updateProfile({ name: next }, { keepOpen: true });
   };
 
-  // Mesmo cargo da administração, do Poker e da Retro (lib/cargo.ts); sem ele, o papel do vínculo ativo.
-  const roleOfPerson = userProfile?.cargo || resolveCargo(undefined, activeLink?.role);
+  // O cargo da administração (lib/cargo.ts): o mesmo em todas as telas.
+  const roleOfPerson = userProfile?.cargo || '';
 
   return (
     <Dialog

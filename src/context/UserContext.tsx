@@ -102,7 +102,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       ...baseProfile,
       squadId: activeSquadId || baseProfile.squadId,
       role: (isAdminProfile ? 'admin' : activeMembershipRole || baseProfile.role) as GlobalRole,
-      cargo: resolveCargo(baseProfile.jobTitle, activeMembershipRole),
+      cargo: resolveCargo(baseProfile.jobTitle),
     };
   }, [baseProfile, activeSquadId, activeMembershipRole]);
 

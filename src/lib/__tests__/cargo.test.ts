@@ -1,26 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCargo } from '../cargo';
+import { resolveCargo, SEM_CARGO } from '../cargo';
 
-describe('resolveCargo', () => {
-  it('prefere o cargo da administração ao papel na squad', () => {
-    expect(resolveCargo('Tech Lead', 'Developer')).toBe('Tech Lead');
+describe('resolveCargo: o cargo é o da administração, sem fallback', () => {
+  it('devolve o jobTitle aparado', () => {
+    expect(resolveCargo('  Tech Lead ')).toBe('Tech Lead');
   });
 
-  it('sem cargo, usa o papel na squad ativa', () => {
-    expect(resolveCargo(undefined, 'Analista de QA')).toBe('Analista de QA');
-    expect(resolveCargo('  ', 'QA')).toBe('QA');
+  it('sem cargo definido devolve vazio (as telas mostram "Sem cargo")', () => {
+    expect(resolveCargo()).toBe('');
+    expect(resolveCargo(null)).toBe('');
+    expect(resolveCargo('   ')).toBe('');
+    expect(SEM_CARGO).toBe('Sem cargo');
   });
 
   it('nível de acesso não é cargo', () => {
-    expect(resolveCargo('admin', 'user')).toBe('');
-    expect(resolveCargo(null, 'Admin')).toBe('');
-  });
-
-  it('cargo de verdade vence mesmo com nível de acesso no outro campo', () => {
-    expect(resolveCargo('admin', 'Product Owner')).toBe('Product Owner');
-  });
-
-  it('sem nada, vazio', () => {
-    expect(resolveCargo()).toBe('');
+    expect(resolveCargo('admin')).toBe('');
+    expect(resolveCargo('User')).toBe('');
   });
 });

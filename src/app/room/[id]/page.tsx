@@ -523,9 +523,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             roomId: roomId,
             nickname: userProfile.name,
             email: userProfile.email || '',
-            role: mapGlobalToPokerRole(userProfile.role),
-            // O cargo exibido é o mesmo de Minha identidade e da administração (lib/cargo.ts); a permissão segue o vínculo.
-            globalRole: (userProfile.cargo || userProfile.role) as GlobalRole,
+            role: mapGlobalToPokerRole(userProfile.cargo as GlobalRole),
+            // O cargo da administração (lib/cargo.ts): o mesmo em todas as telas.
+            globalRole: (userProfile.cargo || undefined) as GlobalRole | undefined,
             isFacilitator: session.id === roomData.creatorId,
           };
           await pokerApi.joinRoom(roomId, newParticipant);
@@ -555,12 +555,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     if (
       lastSyncedProfileRef.current && 
       lastSyncedProfileRef.current.name === userProfile.name && 
-      lastSyncedProfileRef.current.role === (userProfile.cargo || userProfile.role) &&
+      lastSyncedProfileRef.current.role === (userProfile.cargo || '') &&
       lastSyncedProfileRef.current.email === (userProfile.email || '')
     ) return;
 
     const needsNameUpdate = currentUser.nickname !== userProfile.name;
-    const needsRoleUpdate = currentUser.globalRole !== (userProfile.cargo || userProfile.role);
+    const needsRoleUpdate = (currentUser.globalRole || '') !== (userProfile.cargo || '');
     const needsEmailUpdate = (currentUser.email || '') !== (userProfile.email || '');
 
     if (needsNameUpdate || needsRoleUpdate || needsEmailUpdate) {
@@ -568,12 +568,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       if (needsNameUpdate) updates.nickname = userProfile.name;
       if (needsEmailUpdate) updates.email = userProfile.email || '';
       if (needsRoleUpdate) {
-        updates.globalRole = (userProfile.cargo || userProfile.role) as GlobalRole;
-        updates.role = mapGlobalToPokerRole(userProfile.role);
+        updates.globalRole = (userProfile.cargo || undefined) as GlobalRole | undefined;
+        updates.role = mapGlobalToPokerRole(userProfile.cargo as GlobalRole);
       }
       lastSyncedProfileRef.current = { 
         name: userProfile.name, 
-        role: userProfile.cargo || userProfile.role,
+        role: userProfile.cargo || '',
         email: userProfile.email || ''
       };
       pokerApi.joinRoom(roomId, updates).catch(err => {
@@ -584,7 +584,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     } else {
       lastSyncedProfileRef.current = { 
         name: userProfile.name, 
-        role: userProfile.cargo || userProfile.role,
+        role: userProfile.cargo || '',
         email: userProfile.email || ''
       };
     }

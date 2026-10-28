@@ -228,11 +228,11 @@ describe('UserProfileModal: linha Cargo', () => {
     expect(rowButton(/Pedir ajuste, Cargo/).getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('sem cargo mostra "Sem cargo definido"', () => {
+  it('sem cargo mostra "Sem cargo" (não cai no papel da squad)', () => {
     h.profile = { ...ana, cargo: undefined };
     h.links = [];
     render(<UserProfileModal />);
-    expect(screen.getByText('Sem cargo definido')).toBeTruthy();
+    expect(screen.getByText('Sem cargo')).toBeTruthy();
   });
 });
 

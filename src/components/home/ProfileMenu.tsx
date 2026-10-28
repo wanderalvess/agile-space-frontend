@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ProfileAvatar } from '@/components/common/ProfileAvatar';
 import { useUserContext } from '@/context/UserContext';
+import { SEM_CARGO } from '@/lib/cargo';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING } from './home-ui';
 
@@ -32,8 +33,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean | 'wide' })
   }
 
   const isAdmin = userProfile.role?.toLowerCase() === 'admin';
-  // O mesmo cargo de Minha identidade, do Poker e da Retro (lib/cargo.ts); sem cargo, o admin mostra o nível de acesso.
-  const roleLabel = userProfile.cargo || (isAdmin ? 'Administrador' : '');
+  // O cargo da administração (lib/cargo.ts), igual em todas as telas.
+  const roleLabel = userProfile.cargo || SEM_CARGO;
   const first = userProfile.name?.trim().split(/\s+/)[0] || 'Conta';
 
   return (

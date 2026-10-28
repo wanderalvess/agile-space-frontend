@@ -422,8 +422,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         id: userProfile.id,
         boardId,
         nickname: userProfile.name,
-        role: mapGlobalToTeamRole(userProfile.role),
-        globalRole: (userProfile.cargo || userProfile.role) as GlobalRole,
+        role: mapGlobalToTeamRole(userProfile.cargo as GlobalRole),
+        globalRole: (userProfile.cargo || undefined) as GlobalRole | undefined,
         isCreator: userProfile.id === boardData.creatorId,
       };
 
@@ -450,23 +450,23 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     if (!isAuthenticated || !userProfile || !boardId || !currentUser) return;
 
-    if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === (userProfile.cargo || userProfile.role)) return;
+    if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === (userProfile.cargo || '')) return;
 
     const needsNameUpdate = currentUser.nickname !== userProfile.name;
-    const needsRoleUpdate = currentUser.globalRole !== (userProfile.cargo || userProfile.role);
+    const needsRoleUpdate = (currentUser.globalRole || '') !== (userProfile.cargo || '');
 
     if (needsNameUpdate || needsRoleUpdate) {
       const updates = { ...currentUser };
       if (needsNameUpdate) updates.nickname = userProfile.name;
       if (needsRoleUpdate) {
-        updates.globalRole = (userProfile.cargo || userProfile.role) as GlobalRole;
-        updates.role = mapGlobalToTeamRole(userProfile.role);
+        updates.globalRole = (userProfile.cargo || undefined) as GlobalRole | undefined;
+        updates.role = mapGlobalToTeamRole(userProfile.cargo as GlobalRole);
       }
       retroApi.addOrUpdateParticipant(boardId, updates)
-        .then(() => { lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || userProfile.role }; })
+        .then(() => { lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || '' }; })
         .catch((err) => console.error(err));
     } else {
-      lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || userProfile.role };
+      lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.cargo || '' };
     }
   }, [isAuthenticated, userProfile, boardId, currentUser]);
 

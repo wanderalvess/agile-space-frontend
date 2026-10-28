@@ -23,22 +23,23 @@ describe('ProfileMenu: cargo no cabeçalho', () => {
     expect(screen.queryByText('Developer')).toBeNull();
   });
 
-  it('admin sem cargo mostra o nível de acesso "Administrador"', () => {
+  it('sem cargo definido na administração mostra "Sem cargo", nem para admin se inventa outro rótulo', () => {
     h.profile = { id: 'u2', name: 'Ana', role: 'admin', cargo: '' };
     render(<ProfileMenu />);
-    expect(screen.getByText('Administrador')).toBeTruthy();
+    expect(screen.getByText('Sem cargo')).toBeTruthy();
+    expect(screen.queryByText('Administrador')).toBeNull();
   });
 
   it('admin com cargo mostra o cargo', () => {
     h.profile = { id: 'u3', name: 'Ana', role: 'admin', cargo: 'Tech Lead' };
     render(<ProfileMenu />);
     expect(screen.getByText('Tech Lead')).toBeTruthy();
-    expect(screen.queryByText('Administrador')).toBeNull();
   });
 
-  it('sem cargo e sem ser admin não mostra nada além do nome', () => {
+  it('quem não é admin e não tem cargo também mostra "Sem cargo"', () => {
     h.profile = { id: 'u4', name: 'Rui', role: 'user', cargo: '' };
     render(<ProfileMenu />);
     expect(screen.getByText('Rui')).toBeTruthy();
+    expect(screen.getByText('Sem cargo')).toBeTruthy();
   });
 });
