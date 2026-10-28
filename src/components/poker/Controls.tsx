@@ -297,15 +297,11 @@ export function Controls({
         : `Você está sem cargo na administração, por isso entra como observador.`;
     return (
       <DeckNotice icon={EyeOff} title="Você acompanha como observador">
-        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' ? (
+        <span className="text-xs text-muted-foreground">{hint}</span>
+        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' && (
           <Button onClick={onAllowMyCargoVote} className="h-11 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground room-glow hover:bg-primary/90 sm:h-10">
             Votar também ({cargo})
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">{hint}</span>
-        )}
-        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' && (
-          <span className="w-full text-xs text-muted-foreground">{hint}</span>
         )}
       </DeckNotice>
     );
