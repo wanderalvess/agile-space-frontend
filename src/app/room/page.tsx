@@ -325,7 +325,8 @@ export default function PokerHubPage() {
                 onClick={() => setFilter(f.id)}
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
-                  active ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent/40',
+                  // Ativo: texto em foreground (o laranja sobre o tom laranja claro dava 4,39:1 no tema padrão claro); a borda e o fundo marcam a seleção.
+                  active ? 'border-primary/50 bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent/40',
                   FOCUS_RING
                 )}
               >

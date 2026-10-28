@@ -86,7 +86,8 @@ export function ReserveSettings({
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-semibold text-foreground">{m.label}</span>
-                <span className="text-[13px] text-muted-foreground">{m.description}</span>
+                {/* Selecionado, o fundo ganha o tom da marca: o cinza apagado ficava em 4,3:1 em dois temas. */}
+                <span className={cn('text-[13px]', on ? 'text-foreground/80' : 'text-muted-foreground')}>{m.description}</span>
               </span>
             </label>
           );
