@@ -1,6 +1,6 @@
 "use client";
 
-import { Modal, ModalButton, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
+import { Modal, ModalButton, PersonAvatar, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
 import { CheckCircle2, ClipboardCopy, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -133,10 +133,13 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
               const category = p ? getParticipantCategory(p) : null;
               return (
                 <li key={vote.participantId} className="flex items-center justify-between gap-3 rounded-[10px] border border-border bg-muted/30 px-3 py-2">
-                  <span className="flex min-w-0 flex-col">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <PersonAvatar name={p?.nickname || 'Participante'} userId={vote.participantId} size="md" />
+                    <span className="flex min-w-0 flex-col">
                     <span className="truncate text-[13px] font-semibold">{p?.nickname || 'Participante'}</span>
                     <span className={cn('truncate text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
                       {p ? (canonicalCargo(p.globalRole) || SEM_CARGO) : (canonicalCargo(vote.participantGlobalRole) || SEM_CARGO)}
+                    </span>
                     </span>
                   </span>
                   <span className="rounded-md border border-border bg-card px-2 py-0.5 text-sm font-bold tabular-nums">{vote.value}</span>

@@ -154,6 +154,7 @@ export function PokerTable({
     const absent = !!onlineIds && !onlineIds.has(p.id);
     const seatProps = {
       seatId: p.id,
+      userId: p.id,
       name: p.nickname,
       roleLabel,
       roleCategory: category,

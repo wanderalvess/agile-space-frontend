@@ -83,6 +83,7 @@ export function ParticipantList({
           : null;
         return {
           id: `ghost-${v.participantId}`,
+          userId: v.participantId,
           name: v.participantNickname || 'Participante',
           roleLabel: cargoLabelOf(v.participantGlobalRole),
           category,

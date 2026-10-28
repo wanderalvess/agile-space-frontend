@@ -189,7 +189,7 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
                 <div className="flex items-center">
                   {participants.slice(0, 5).map((p, i) => (
                     <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
-                      <PersonAvatar name={p.nickname} size="md" />
+                      <PersonAvatar name={p.nickname} userId={p.id} size="md" />
                     </span>
                   ))}
                   {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 5}</span>}
@@ -275,7 +275,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
             <div className="flex items-center">
               {participants.slice(0, 6).map((p, i) => (
                 <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
-                  <PersonAvatar name={p.nickname} size="lg" />
+                  <PersonAvatar name={p.nickname} userId={p.id} size="lg" />
                 </span>
               ))}
               {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 6}</span>}

@@ -240,7 +240,7 @@ function PresenceStack({ people, open, onClick, unknown }: { people: readonly To
           // Quem vem antes fica por cima: o ponto de online nunca some atrás do vizinho.
           <span key={p.id} className={cn('relative inline-flex', i > 0 && '-ml-1.5')} style={{ zIndex: stack.visible.length - i }}>
             {/* O vizinho da frente cobre a borda esquerda (6 px + anel): o recuo de 4 px leva as iniciais para a parte que aparece. */}
-            <PersonAvatar name={p.name} size="sm" className={cn('h-7 w-7 text-xs ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
+            <PersonAvatar name={p.name} userId={p.id} size="sm" className={cn('h-7 w-7 text-xs ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
             {!unknown && p.online && (
               <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
             )}

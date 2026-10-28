@@ -398,7 +398,7 @@ export function RetroCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-muted-foreground', metaSize)}>
                 {showAuthorInfo && authorName ? (
-                  <InitialsAvatar name={authorName} className="h-6 w-6 text-xs" />
+                  <InitialsAvatar name={authorName} userId={card.authorId} className="h-6 w-6 text-xs" />
                 ) : (
                   <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-full bg-muted"><EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} /></span>
                 )}
