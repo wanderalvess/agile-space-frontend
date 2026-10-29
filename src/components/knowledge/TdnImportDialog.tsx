@@ -6,11 +6,9 @@ import {
   RefreshCw, CheckCircle2, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
@@ -159,258 +157,187 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
     setQuery('');
   };
 
+  const footerStart = (
+    <ModalButton variant="ghost" onClick={() => setShowConfig(!showConfig)}>
+      <Settings className="mr-1.5 h-4 w-4" aria-hidden="true" />
+      {showConfig ? 'Voltar para a busca' : 'Configurar acesso ao TDN'}
+    </ModalButton>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] rounded-2xl p-0 border-none shadow-3xl overflow-hidden bg-card flex flex-col">
-        <DialogHeader className="p-5 pb-4 border-b border-border bg-muted/50 dark:bg-background/20 relative overflow-hidden shrink-0">
-          <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12">
-            <CloudDownload className="h-16 w-16 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
+    <Modal
+      open={open}
+      onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}
+      size="xl"
+      className="sm:max-w-5xl"
+      icon={CloudDownload}
+      title="Buscar na Base de Conhecimento TDN"
+      description="Importe ou atualize manuais e documentações técnicas do Confluence TDN."
+      footerStart={footerStart}
+      footer={
+        <>
+          <ModalButton onClick={() => { reset(); onClose(); }}>Fechar</ModalButton>
+          {showConfig && <ModalButton variant="primary" onClick={handleSaveConfig}>Salvar configurações</ModalButton>}
+        </>
+      }
+      headerExtra={
+        !showConfig && (
+          <div className="flex gap-2 px-6 pb-4">
+            <div className="relative flex-1">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                aria-label="Pesquisar documentações no TDN"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Pesquisar no TDN..."
+                className="h-10 pl-10 text-sm"
+              />
+            </div>
+            <ModalButton variant="primary" onClick={handleSearch} disabled={loading} className="min-w-24">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-label="Buscando" /> : 'Buscar'}
+            </ModalButton>
           </div>
-          <div className="relative z-10 flex items-center justify-between w-full">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-                <CloudDownload className="h-4.5 w-4.5 text-foreground" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold tracking-tight text-foreground leading-none">
-                  Buscar na Base de Conhecimento TDN
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed max-w-sm">
-                  Importe ou atualize manuais e documentações técnicas do Confluence TDN.
-                </DialogDescription>
-              </div>
+        )
+      }
+      bodyClassName="min-h-[16rem]"
+    >
+      <AnimatePresence mode="wait">
+        {showConfig ? (
+          <motion.div
+            key="config"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            className="space-y-4"
+          >
+            <div className="flex items-center gap-2 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm font-semibold">Credenciais de acesso</span>
             </div>
 
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowConfig(!showConfig)}
-              className={`h-8 w-8 rounded-xl border-border dark:border-border text-muted-foreground dark:text-muted-foreground hover:text-primary dark:hover:text-primary transition-all ${showConfig ? 'bg-primary/10 dark:bg-primary/15 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : ''}`}
-              title="Configurações do TDN"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-hidden flex flex-col p-6 min-h-0">
-          <AnimatePresence mode="wait">
-            {showConfig ? (
-              <motion.div
-                key="config"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="space-y-4 flex flex-col justify-between h-full"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
-                    <ShieldCheck className="h-4 w-4" />
-                    <span className="text-xs font-bold tracking-normal">Credenciais de Acesso</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Base URL do TDN</Label>
-                      <Input
-                        value={baseUrl}
-                        onChange={(e) => setBaseUrl(e.target.value)}
-                        placeholder="wiki.suaempresa.com.br"
-                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Token de Acesso (Bearer)</Label>
-                      <Input
-                        type="password"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        placeholder="Insira o Token do Confluence..."
-                        className="h-10 rounded-xl text-xs font-code bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Espaço (Space Key - Opcional)</Label>
-                      <Input
-                        value={space}
-                        onChange={(e) => setSpace(e.target.value)}
-                        placeholder="Ex: Framework, Protheus..."
-                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Marcador (Label - Opcional)</Label>
-                      <Input
-                        value={label}
-                        onChange={(e) => setLabel(e.target.value)}
-                        placeholder="Ex: manual, api..."
-                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 justify-end pt-4 border-t border-border">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowConfig(false)}
-                    className="h-10 px-5 rounded-xl font-bold text-xs tracking-normal text-muted-foreground hover:bg-card transition-all border-border"
-                  >
-                    Voltar para Busca
-                  </Button>
-                  <Button
-                    onClick={handleSaveConfig}
-                    className="h-10 px-6 bg-primary hover:bg-primary text-foreground font-bold tracking-normal text-xs rounded-xl shadow-xl shadow-primary/10 transition-all active:scale-95"
-                  >
-                    Salvar Configurações
-                  </Button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="search"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="flex flex-col flex-1 min-h-0 space-y-4"
-              >
-                {/* Search Bar */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="Pesquisar documentações no TDN..."
-                      className="h-10 pl-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSearch}
-                    disabled={loading}
-                    className="h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-normal text-xs rounded-xl transition-all"
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
-                  </Button>
-                </div>
-
-                {/* Results list */}
-                <div className="flex-1 min-h-0 flex flex-col">
-                  {results.length > 0 ? (
-                    <div className="flex-1 overflow-y-auto pr-3 -mr-3 custom-scrollbar">
-                      <div className="space-y-2.5 pb-4">
-                        {results.map((item) => {
-                          const isAlreadyImported = importedIds.includes(`tdn_${item.id}`);
-                          return (
-                            <div
-                              key={item.id}
-                              className="p-3 border-2 border-border rounded-2xl bg-card dark:bg-card/30 flex items-center justify-between group hover:border-border transition-all"
-                            >
-                              <div className="min-w-0 flex-1 pr-4">
-                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                  <span className="text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground tracking-normal">
-                                    ID: {item.id}
-                                  </span>
-                                  {item.space && (
-                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-muted/60 dark:bg-muted text-muted-foreground tracking-normal">
-                                      {item.space}
-                                    </span>
-                                  )}
-                                  {isAlreadyImported && (
-                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30 tracking-normal">
-                                      Importado
-                                    </span>
-                                  )}
-                                  {item.lastModified && (
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                      Alt: {new Date(item.lastModified).toLocaleDateString('pt-BR')}
-                                    </span>
-                                  )}
-                                </div>
-                                <h4 className="text-xs font-bold text-foreground tracking-tight line-clamp-1">
-                                  {item.title}
-                                </h4>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <a
-                                  href={item.link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground flex items-center justify-center hover:bg-muted/40 dark:hover:bg-muted transition-all"
-                                  title="Abrir link original"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleDownloadDirect(item)}
-                                  disabled={downloadingId === item.id || importingId === item.id}
-                                  className="h-8 w-8 rounded-lg border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all"
-                                  title="Baixar Markdown (.md)"
-                                >
-                                  {downloadingId === item.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
-                                  ) : (
-                                    <Download className="h-3.5 w-3.5" />
-                                  )}
-                                </Button>
-                                <Button
-                                  onClick={() => handleImport(item)}
-                                  disabled={importingId === item.id || downloadingId === item.id}
-                                  className={`h-8 px-3.5 rounded-lg text-xs font-bold  tracking-normal gap-1 shadow-sm transition-all ${
-                                    isAlreadyImported
-                                      ? "bg-primary hover:bg-primary text-foreground"
-                                      : "bg-primary hover:bg-primary text-foreground"
-                                  }`}
-                                  title={isAlreadyImported ? "Atualizar documento na base" : "Importar para a Base Local"}
-                                >
-                                  {importingId === item.id ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                      <span>Lendo...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {isAlreadyImported ? <RefreshCw className="h-3 w-3" /> : <CloudDownload className="h-3 w-3" />}
-                                      <span>{isAlreadyImported ? "Atualizar" : "Importar"}</span>
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-center bg-muted/20 dark:bg-card/10">
-                      <FileText className="h-10 w-10 text-muted-foreground mb-3" />
-                      <p className="text-xs font-bold text-muted-foreground tracking-normal">Aguardando termo de pesquisa</p>
-                      <p className="text-xs text-muted-foreground max-w-xs mt-1">Busque páginas por palavra-chave e importe-as diretamente como documentos locais indexados.</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <DialogFooter className="p-4 px-6 bg-muted/40 dark:bg-background border-t border-border flex items-center justify-end shrink-0">
-          <Button
-            variant="outline"
-            onClick={() => { reset(); onClose(); }}
-            className="h-10 px-5 rounded-xl font-bold text-xs tracking-normal text-muted-foreground hover:bg-card transition-all border-border"
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="tdn-base-url" className="text-xs font-semibold text-muted-foreground">Endereço do TDN</Label>
+                <Input id="tdn-base-url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="wiki.suaempresa.com.br" className="h-10 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="tdn-token" className="text-xs font-semibold text-muted-foreground">Token de acesso (Bearer)</Label>
+                <Input id="tdn-token" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Cole o token do Confluence" className="h-10 font-code text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="tdn-space" className="text-xs font-semibold text-muted-foreground">Espaço (opcional)</Label>
+                <Input id="tdn-space" value={space} onChange={(e) => setSpace(e.target.value)} placeholder="Ex.: Framework, Protheus" className="h-10 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="tdn-label" className="text-xs font-semibold text-muted-foreground">Marcador (opcional)</Label>
+                <Input id="tdn-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: manual, api" className="h-10 text-sm" />
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="search"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
           >
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {results.length > 0 ? (
+              <div className="space-y-2.5">
+              {results.map((item) => {
+                const isAlreadyImported = importedIds.includes(`tdn_${item.id}`);
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3 border-2 border-border rounded-2xl bg-card dark:bg-card/30 flex items-center justify-between group hover:border-border transition-all"
+                  >
+                    <div className="min-w-0 flex-1 pr-4">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground tracking-normal">
+                          ID: {item.id}
+                        </span>
+                        {item.space && (
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-muted/60 dark:bg-muted text-muted-foreground tracking-normal">
+                            {item.space}
+                          </span>
+                        )}
+                        {isAlreadyImported && (
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30 tracking-normal">
+                            Importado
+                          </span>
+                        )}
+                        {item.lastModified && (
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Alt: {new Date(item.lastModified).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="truncate text-sm font-semibold text-foreground" title={item.title}>
+                        {item.title}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground flex items-center justify-center hover:bg-muted/40 dark:hover:bg-muted transition-all"
+                        title="Abrir link original"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDownloadDirect(item)}
+                        disabled={downloadingId === item.id || importingId === item.id}
+                        className="h-8 w-8 rounded-lg border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all"
+                        title="Baixar Markdown (.md)"
+                      >
+                        {downloadingId === item.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => handleImport(item)}
+                        disabled={importingId === item.id || downloadingId === item.id}
+                        className={`h-8 px-3.5 rounded-lg text-xs font-bold  tracking-normal gap-1 shadow-sm transition-all ${
+                          isAlreadyImported
+                            ? "bg-primary hover:bg-primary text-foreground"
+                            : "bg-primary hover:bg-primary text-foreground"
+                        }`}
+                        title={isAlreadyImported ? "Atualizar documento na base" : "Importar para a Base Local"}
+                      >
+                        {importingId === item.id ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Lendo...</span>
+                          </>
+                        ) : (
+                          <>
+                            {isAlreadyImported ? <RefreshCw className="h-3 w-3" /> : <CloudDownload className="h-3 w-3" />}
+                            <span>{isAlreadyImported ? "Atualizar" : "Importar"}</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/20 p-8 text-center">
+                <FileText className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm font-semibold text-foreground">Aguardando termo de pesquisa</p>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">Busque páginas por palavra-chave e importe-as diretamente como documentos locais indexados.</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Modal>
   );
 }

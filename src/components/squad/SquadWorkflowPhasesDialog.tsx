@@ -2,10 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Workflow, Plus, Trash2, ChevronUp, ChevronDown, X } from 'lucide-react';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SquadWorkflowPhase } from '@/lib/types';
 
@@ -76,7 +76,7 @@ function PhaseRow({
 
   return (
     <div className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2.5">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-col gap-0.5 shrink-0">
           <button
             type="button" onClick={onMoveUp} disabled={isFirst}
@@ -102,7 +102,8 @@ function PhaseRow({
           value={row.label}
           onChange={e => onChange({ label: e.target.value })}
           placeholder="Nome da fase (ex: Code Review)"
-          className="h-8 text-xs rounded-lg flex-1 min-w-0"
+          aria-label="Nome da fase"
+          className="h-8 text-xs rounded-lg flex-1 min-w-[10rem]"
         />
         <Input
           value={row.kind}
@@ -110,7 +111,8 @@ function PhaseRow({
           placeholder="Rótulo curto (ex: Review)"
           maxLength={12}
           title="Texto compacto mostrado dentro da fita do cronograma"
-          className="h-8 text-xs rounded-lg w-32 shrink-0 font-code"
+          aria-label="Rótulo curto da fase"
+          className="h-8 text-xs rounded-lg w-36 shrink-0 font-code"
         />
 
         <Select value={row.color} onValueChange={v => onChange({ color: v })}>
@@ -271,18 +273,24 @@ export function SquadWorkflowPhasesDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
-            <Workflow className="h-5 w-5 text-primary" /> Fases do Workflow ({squadId})
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-1">
-            Mapeie os tipos de issue do Jira para fases do fluxo (Codificação, Code Review, Teste QA...). A ordem abaixo é a ordem usada na fita do cronograma do Jira Plans. Sem fases configuradas, o sistema usa uma heurística padrão pelo nome do tipo.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-3 mt-2">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="lg"
+      icon={Workflow}
+      title={`Fases do Workflow (${squadId})`}
+      description="Mapeie os tipos de issue do Jira para fases do fluxo (Codificação, Code Review, Teste QA...). A ordem abaixo é a ordem usada na fita do cronograma do Jira Plans. Sem fases configuradas, o sistema usa uma heurística padrão pelo nome do tipo."
+      preventClose={isSaving}
+      footer={
+        <>
+          <ModalButton onClick={() => onOpenChange(false)} disabled={isSaving}>Cancelar</ModalButton>
+          <ModalButton variant="primary" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Salvando…' : 'Salvar fases'}
+          </ModalButton>
+        </>
+      }
+    >
+        <div className="space-y-3">
           {availableIssueTypes.length === 0 && (
             <p className="text-xs text-muted-foreground">
               Nenhum tipo de issue sincronizado ainda — sincronize o squad ou digite o nome manualmente em cada fase.
@@ -318,17 +326,7 @@ export function SquadWorkflowPhasesDialog({
           >
             <Plus className="h-3.5 w-3.5" /> Adicionar Fase
           </Button>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-xs">
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-primary text-primary-foreground rounded-xl text-xs font-bold">
-              {isSaving ? 'Salvando...' : 'Salvar Fases'}
-            </Button>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

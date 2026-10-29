@@ -1,13 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -360,43 +354,27 @@ export function BoardConfigModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-[1680px] h-[92vh] max-h-[92vh] overflow-hidden rounded-3xl p-0 border-border flex flex-col shadow-2xl">
-        {/* Top Header */}
-        <div className="p-4 px-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card shrink-0">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge className="bg-primary/10 text-primary font-bold text-xs">
-                Configuração do Quadro
-              </Badge>
-              <span className="text-xs font-code text-muted-foreground">
-                {boardName} #{rapidViewId}
-              </span>
-            </div>
-            <DialogTitle className="text-lg md:text-xl font-semibold tracking-tight font-headline text-foreground flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5 text-primary" />
-              Painel de Configuração Ágil
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Gerencie os filtros rápidos com consultas JQL, limites de WIP por coluna e o fluxo do time.
-            </DialogDescription>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleApplyChanges}
-              className="rounded-xl h-8 text-xs font-bold px-4 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Check className="h-3.5 w-3.5 mr-1.5" />
-              Salvar & Aplicar
-            </Button>
-          </div>
-        </div>
-
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="xl"
+      icon={SlidersHorizontal}
+      title="Painel de Configuração Ágil"
+      description={`${boardName}${rapidViewId ? ` #${rapidViewId}` : ''} · Gerencie os filtros rápidos com consultas JQL, limites de WIP por coluna e o fluxo do time.`}
+      className="h-[88vh]"
+      bodyClassName="flex flex-col overflow-hidden p-0"
+      footer={
+        <>
+          <ModalButton onClick={() => onOpenChange(false)}>Cancelar</ModalButton>
+          <ModalButton variant="primary" onClick={handleApplyChanges}>
+            <Check className="mr-1.5 h-4 w-4" />
+            Salvar e aplicar
+          </ModalButton>
+        </>
+      }
+    >
         {/* Layout com Sidebar e Área de Conteúdo */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-muted/50">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-border bg-muted/50 md:flex-row">
           {/* Sidebar lateral estilo Jira Settings */}
           <div className="w-full md:w-56 p-3 border-b md:border-b-0 md:border-r border-border bg-card shrink-0 flex md:flex-col gap-1 overflow-x-auto">
             <span className="text-xs font-semibold text-muted-foreground p-2 hidden md:block">
@@ -404,6 +382,7 @@ export function BoardConfigModal({
             </span>
 
             <button
+              type="button"
               onClick={() => setActiveTab('filters')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'filters'
@@ -419,6 +398,7 @@ export function BoardConfigModal({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('columns')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'columns'
@@ -431,6 +411,7 @@ export function BoardConfigModal({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('swimlanes')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'swimlanes'
@@ -444,7 +425,7 @@ export function BoardConfigModal({
           </div>
 
           {/* Área Principal */}
-          <div className="flex-1 p-6 overflow-y-auto max-h-[calc(92vh-85px)]">
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
             {/* ═════════════════════════════════════════════════════════════════
                 ABA: FILTROS RÁPIDOS (IMAGEM 3)
                ═════════════════════════════════════════════════════════════════ */}
@@ -559,8 +540,8 @@ export function BoardConfigModal({
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground">
-                          <th className="p-3 pl-4 w-40">Nome</th>
-                          <th className="p-3">JQL</th>
+                          <th className="p-3 pl-4 sm:w-40">Nome</th>
+                          <th className="hidden p-3 sm:table-cell">JQL</th>
                           <th className="p-3 w-48 hidden lg:table-cell">Descrição</th>
                           <th className="p-3 pr-4 w-28 text-right">Ações</th>
                         </tr>
@@ -574,13 +555,21 @@ export function BoardConfigModal({
                               <tr key={filter.id} className="bg-primary/10/40">
                                 <td className="p-2 pl-4">
                                   <Input
+                                    aria-label="Nome do filtro"
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
                                     className="h-7 text-xs rounded-lg font-bold"
                                   />
-                                </td>
-                                <td className="p-2">
                                   <Input
+                                    aria-label="Consulta JQL"
+                                    value={editQuery}
+                                    onChange={e => setEditQuery(e.target.value)}
+                                    className="mt-2 h-7 text-xs rounded-lg font-code sm:hidden"
+                                  />
+                                </td>
+                                <td className="hidden p-2 sm:table-cell">
+                                  <Input
+                                    aria-label="Consulta JQL"
                                     value={editQuery}
                                     onChange={e => setEditQuery(e.target.value)}
                                     className="h-7 text-xs rounded-lg font-code"
@@ -627,8 +616,11 @@ export function BoardConfigModal({
                                 <span className="px-2 py-0.5 rounded-md bg-muted/50 text-xs">
                                   {filter.name}
                                 </span>
+                                <span className="mt-1.5 block break-all font-code text-xs font-normal leading-relaxed text-muted-foreground sm:hidden">
+                                  {filter.query}
+                                </span>
                               </td>
-                              <td className="p-3 font-code text-xs text-muted-foreground break-all leading-relaxed">
+                              <td className="hidden p-3 font-code text-xs text-muted-foreground break-all leading-relaxed sm:table-cell">
                                 {filter.query}
                               </td>
                               <td className="p-3 text-xs text-muted-foreground hidden lg:table-cell">
@@ -942,8 +934,8 @@ export function BoardConfigModal({
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
                             <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground">
-                              <th className="p-3 pl-4 w-48">Nome</th>
-                              <th className="p-3">JQL</th>
+                              <th className="p-3 pl-4 sm:w-48">Nome</th>
+                              <th className="hidden p-3 sm:table-cell">JQL</th>
                               <th className="p-3 w-48 hidden lg:table-cell">Descrição</th>
                               <th className="p-3 pr-4 w-28 text-right">Ações</th>
                             </tr>
@@ -958,14 +950,24 @@ export function BoardConfigModal({
                                   <tr key={swimlane.id} className="bg-primary/10/40">
                                     <td className="p-2 pl-4">
                                       <Input
+                                        aria-label="Nome da raia"
                                         value={editSwimlaneName}
                                         onChange={e => setEditSwimlaneName(e.target.value)}
                                         disabled={isDefault}
                                         className="h-7 text-xs rounded-lg font-bold"
                                       />
-                                    </td>
-                                    <td className="p-2">
                                       <Input
+                                        aria-label="Consulta JQL"
+                                        value={editSwimlaneQuery}
+                                        onChange={e => setEditSwimlaneQuery(e.target.value)}
+                                        disabled={isDefault}
+                                        placeholder={isDefault ? 'Filtro padrão para todos os demais itens' : ''}
+                                        className="mt-2 h-7 text-xs rounded-lg font-code sm:hidden"
+                                      />
+                                    </td>
+                                    <td className="hidden p-2 sm:table-cell">
+                                      <Input
+                                        aria-label="Consulta JQL"
                                         value={editSwimlaneQuery}
                                         onChange={e => setEditSwimlaneQuery(e.target.value)}
                                         disabled={isDefault}
@@ -1021,8 +1023,11 @@ export function BoardConfigModal({
                                         </Badge>
                                       )}
                                     </div>
+                                    <span className="mt-1.5 block break-all font-code text-xs font-normal leading-relaxed text-muted-foreground sm:hidden">
+                                      {isDefault ? 'Todos os itens que não corresponderem a nenhuma consulta acima' : swimlane.query}
+                                    </span>
                                   </td>
-                                  <td className="p-3 font-code text-xs text-muted-foreground break-all leading-relaxed">
+                                  <td className="hidden p-3 font-code text-xs text-muted-foreground break-all leading-relaxed sm:table-cell">
                                     {isDefault ? (
                                       <span className="text-muted-foreground font-sans text-xs">
                                         Todos os itens que não corresponderem a nenhuma consulta acima
@@ -1113,8 +1118,7 @@ export function BoardConfigModal({
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
 

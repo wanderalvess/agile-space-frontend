@@ -4,14 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { History, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/room-kit';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { knowledgeApi } from '@/app/knowledge/api';
 import { ArticleContent } from '@/components/knowledge/ArticleContent';
@@ -160,20 +153,19 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
         )}
       </div>
 
-      <Dialog open={confirming} onOpenChange={(o) => !isRestoring && setConfirming(o)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Restaurar a versão {selected?.versionNumber}?</DialogTitle>
-            <DialogDescription>
-              O conteúdo atual continua guardado no histórico. A versão escolhida vira a versão mais recente do documento.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" disabled={isRestoring} onClick={() => setConfirming(false)}>Cancelar</Button>
-            <Button disabled={isRestoring} onClick={restore}>{isRestoring ? 'Restaurando...' : 'Restaurar'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        tone="brand"
+        icon={RotateCcw}
+        title={`Restaurar a versão ${selected?.versionNumber ?? ''}?`}
+        description="O conteúdo atual continua guardado no histórico. A versão escolhida vira a versão mais recente do documento."
+        confirmLabel="Restaurar"
+        loading={isRestoring}
+        loadingLabel="Restaurando…"
+        keepOpenOnConfirm
+        onConfirm={restore}
+      />
     </div>
   );
 }

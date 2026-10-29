@@ -9,13 +9,14 @@ import { cn } from '@/lib/utils';
 import { IconTile } from './primitives';
 import { DANGER_BUTTON, FOCUS_RING, PRIMARY_BUTTON, TONES, type Tone } from './tokens';
 
-/** Larguras do design: P 420 (avisos), M 560 (formulários curtos), G 800 (configurações, detalhes). */
-export type ModalSize = 'sm' | 'md' | 'lg';
+/** Larguras do design: P 420 (avisos), M 560 (formulários curtos), G 800 (configurações, detalhes), GG 1280 (painéis com menu lateral e tabelas). */
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const SIZE_CLASS: Record<ModalSize, string> = {
   sm: 'sm:max-w-[420px]',
   md: 'sm:max-w-[560px]',
   lg: 'sm:max-w-[800px]',
+  xl: 'sm:max-w-[1280px]',
 };
 
 /** Casca visual compartilhada por Modal e ConfirmDialog. */
