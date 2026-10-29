@@ -151,7 +151,9 @@ export function VoteCard({
 export function shortSeatName(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (name.trim().length <= 14 || parts.length < 2) return name.trim();
-  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+  // A inicial vem da última parte que começa com letra: "João Pedro (PO)" vira "João P.", não "João (.".
+  const last = parts.slice(1).reverse().find((p) => /^\p{L}/u.test(p));
+  return last ? `${parts[0]} ${last[0].toUpperCase()}.` : parts[0];
 }
 
 /**

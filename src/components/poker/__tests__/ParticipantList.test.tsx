@@ -73,3 +73,17 @@ describe('ParticipantList: cargo por extenso e observadores', () => {
     expect(screen.getByText('Analista de QA')).toBeTruthy();
   });
 });
+
+describe('ParticipantList: grupos pelo cargo da administração', () => {
+  it('quem está sem cargo não entra em DEV só porque a sala o registrou como dev: vai para "Sem cargo"', () => {
+    const people = [
+      p('dev', { globalRole: 'Desenvolvedor(a)', nickname: 'Davi' }),
+      p('sem', { globalRole: undefined, nickname: 'Sam' }),
+    ];
+    render(<ParticipantList {...base} participants={people} onlineIds={new Set(['dev', 'sem'])} />);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/DEV\s*1/);
+    expect(text).not.toMatch(/DEV\s*2/);
+    expect(screen.getAllByText('Sem cargo').length).toBeGreaterThanOrEqual(2); // grupo + cargo ao lado do nome
+  });
+});

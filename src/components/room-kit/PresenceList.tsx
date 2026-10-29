@@ -112,6 +112,8 @@ export interface PresenceListProps {
   items: PresenceItem[];
   /** Agrupa por papel (ordem e rótulos dados). Sem isso, lista única. */
   groupOrder?: readonly { id: string; label: string }[];
+  /** Grupo de quem não casa com nenhuma categoria. Padrão: "Outros". */
+  fallbackGroup?: { id: string; label: string };
   renderActions?: (item: PresenceItem) => React.ReactNode;
   emptyLabel?: string;
   className?: string;
@@ -121,8 +123,8 @@ export interface PresenceListProps {
  * Lista de presença: avatar, nome, papel, online/ausente e estado (pensando,
  * votou, espectador, organizador). Agrupada por papel quando `groupOrder` vem.
  */
-export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'Ninguém na sala ainda', className }: PresenceListProps) {
-  const groups = groupOrder ? groupPresence(items, groupOrder) : [{ id: 'all', label: '', items }];
+export function PresenceList({ items, groupOrder, fallbackGroup, renderActions, emptyLabel = 'Ninguém na sala ainda', className }: PresenceListProps) {
+  const groups = groupOrder ? groupPresence(items, groupOrder, fallbackGroup) : [{ id: 'all', label: '', items }];
 
   if (items.length === 0) {
     return <p className="px-4 py-8 text-center text-sm text-muted-foreground">{emptyLabel}</p>;

@@ -54,7 +54,8 @@ export function ParticipantList({
 
   const items = useMemo<PresenceItem[]>(() => {
     const live = participants.map((p): PresenceItem => {
-      const category = getParticipantCategory(p);
+      // Quem está sem cargo na administração não é DEV só porque a sala o registrou assim: vai para "Sem cargo".
+      const category = canonicalCargo(p.globalRole) ? getParticipantCategory(p) : null;
       const online = onlineIds ? onlineIds.has(p.id) : true;
       let status: PresenceStatus = 'idle';
       let statusLabel: string | undefined;
@@ -133,7 +134,7 @@ export function ParticipantList({
 
   return (
     <>
-      <PresenceList items={items} groupOrder={GROUP_ORDER} renderActions={renderActions} />
+      <PresenceList items={items} groupOrder={GROUP_ORDER} fallbackGroup={{ id: 'sem-cargo', label: SEM_CARGO }} renderActions={renderActions} />
 
       <ConfirmDialog
         open={!!toRemove}
