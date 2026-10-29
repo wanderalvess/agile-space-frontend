@@ -10,13 +10,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CircleAlert, Clock, RefreshCw, Users } from 'lucide-react';
+import { CircleAlert, Clock, CloudDownload, RefreshCw, Users } from 'lucide-react';
 import { LinkedTeamWelcome } from '@/components/home/LinkedTeamWelcome';
 import { Notice } from '@/components/home/Notice';
 import { EmptyState, LoadingSkeleton, PageColumns } from '@/components/page';
-import { ModalButton } from '@/components/room-kit';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateTeamAvatars, useTeamAvatars } from '@/hooks/useTeamAvatars';
 import type { SquadDashboardData } from '@/hooks/useSquadDashboardData';
@@ -235,12 +234,15 @@ export function SummaryTab({
       )}
 
       {/* Importação do Jira: disponível sempre, para refazer a prévia (nova foto, pessoas, cargos). */}
-      <Dialog open={jiraImportOpen} onOpenChange={setJiraImportOpen}>
-        <DialogContent className="max-h-[90dvh] max-w-4xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Importar a {squadId} do Jira</DialogTitle>
-            <DialogDescription>Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia.</DialogDescription>
-          </DialogHeader>
+      <Modal
+        open={jiraImportOpen}
+        onOpenChange={setJiraImportOpen}
+        size="xl"
+        className="sm:max-w-4xl"
+        icon={CloudDownload}
+        title={`Importar a ${squadId} do Jira`}
+        description="Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia."
+      >
           <JiraProfieldsImport
             initialProjectKey={squadId}
             onImported={({ project }) => {
@@ -250,8 +252,7 @@ export function SummaryTab({
               void sync.runJiraSync();
             }}
           />
-        </DialogContent>
-      </Dialog>
+      </Modal>
     </div>
   );
 }

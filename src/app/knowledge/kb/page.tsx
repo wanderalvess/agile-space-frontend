@@ -25,14 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ArticleReader } from '@/components/knowledge/ArticleReader';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal, ModalButton } from '@/components/room-kit';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
@@ -1035,21 +1028,23 @@ function KBExplorerContent() {
       />
 
       {/* Modal Formato de Download */}
-      <Dialog open={isDownloadFormatOpen} onOpenChange={setIsDownloadFormatOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-foreground">
-              Exportar artigo
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Escolha o formato do arquivo para guardar uma cópia.
-            </DialogDescription>
-          </DialogHeader>
-
+      <Modal
+        open={isDownloadFormatOpen}
+        onOpenChange={setIsDownloadFormatOpen}
+        icon={Download}
+        title="Exportar artigo"
+        description="Escolha o formato do arquivo para guardar uma cópia."
+        footer={
+          <>
+            <ModalButton onClick={() => setIsDownloadFormatOpen(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={executeDownload}>Baixar</ModalButton>
+          </>
+        }
+      >
           <RadioGroup
             value={selectedFormat}
             onValueChange={(val: any) => setSelectedFormat(val)}
-            className="gap-3 py-2"
+            className="gap-3"
           >
             {([
               ['md', 'Markdown (.md)', 'Para colar em outros documentos.'],
@@ -1072,17 +1067,7 @@ function KBExplorerContent() {
               </Label>
             ))}
           </RadioGroup>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDownloadFormatOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={executeDownload}>
-              Baixar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </Modal>
     </div>
   );
 }

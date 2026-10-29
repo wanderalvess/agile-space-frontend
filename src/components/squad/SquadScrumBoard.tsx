@@ -37,13 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
 import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import {
@@ -925,42 +919,36 @@ export function SquadScrumBoard({
       {/* ═══════════════════════════════════════════════════════════════════
           MODAL DE DETALHES RÁPIDOS DA ISSUE
          ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={!!selectedIssue} onOpenChange={open => !open && setSelectedIssue(null)}>
-        <DialogContent className="max-w-2xl rounded-3xl p-6">
+      <Modal
+        open={!!selectedIssue}
+        onOpenChange={open => !open && setSelectedIssue(null)}
+        size="lg"
+        icon={ListTodo}
+        title={selectedIssue?.summary ?? 'Tarefa'}
+        description="Detalhes e metadados sincronizados da tarefa no Jira."
+        headerExtra={selectedIssue && (
+          <div className="flex flex-wrap items-center gap-2 px-6 pb-3">
+            <Badge variant="outline" className="font-code text-xs font-semibold text-primary">
+              {selectedIssue.key}
+            </Badge>
+            <Badge variant="secondary" className="text-xs font-bold">
+              {selectedIssue.statusName || 'Status'}
+            </Badge>
+          </div>
+        )}
+        footer={selectedIssue && (
+          <ModalButton
+            onClick={() => window.open(`https://${activeDomain}/browse/${selectedIssue.key}`, '_blank')}
+            className="gap-1.5"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Abrir no Jira
+          </ModalButton>
+        )}
+      >
           {selectedIssue && (
             <div>
-              <DialogHeader className="pb-3 border-b border-border">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-code text-xs font-semibold text-primary">
-                      {selectedIssue.key}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs font-bold">
-                      {selectedIssue.statusName || 'Status'}
-                    </Badge>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const jiraUrl = `https://${activeDomain}/browse/${selectedIssue.key}`;
-                      window.open(jiraUrl, '_blank');
-                    }}
-                    className="h-7 text-xs font-bold gap-1 rounded-xl"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Abrir no Jira
-                  </Button>
-                </div>
-                <DialogTitle className="text-base font-semibold text-foreground mt-2">
-                  {selectedIssue.summary}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-1">
-                  Detalhes e metadados sincronizados da tarefa no Jira.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 text-xs mt-4">
+              <div className="space-y-4 text-xs">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
                     <p className="text-xs font-semibold text-muted-foreground">Responsável</p>
@@ -999,8 +987,7 @@ export function SquadScrumBoard({
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* ═══════════════════════════════════════════════════════════════════
           PAINEL / MODAL DE CONFIGURAÇÃO DO QUADRO (FILTROS JQL & COLUNAS WIP)

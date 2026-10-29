@@ -9,8 +9,6 @@ import { describe, expect, it } from 'vitest';
  *
  * Exceções justificadas (linhas liberadas abaixo):
  * - AgileSpinner, variante `white`: spinner para fundo escuro saturado.
- * - Botões de EliteExportDialog/EliteNicknameDialog: `text-white` sobre fundo
- *   saturado (amber/emerald/rose-600/700) escolhido pelo tema do chamador.
  * - chart-theme.ts: o Recharts precisa de hex em props (não são classes).
  */
 const ROOT = join(__dirname, '..', '..', '..');
@@ -27,7 +25,7 @@ function walk(dir: string): string[] {
 
 const PALETTE = /(?:bg|text|border|ring|divide|fill|stroke|from|to|via|placeholder|shadow)-(?:slate|gray|zinc|neutral|stone)-\d+/;
 const BW = /(?<![\w-])(?:bg|border|ring)-(?:white|black)(?![\w-])|(?<![\w:-])text-(?:white|black)(?![\w-])/;
-const BW_OK = [/white: 'border-white/, /variant === 'white'/, /text-white (?:rounded-xl )?transition-colors/];
+const BW_OK = [/white: 'border-white/, /variant === 'white'/];
 const SMALL = /text-\[(?:[0-9]|1[01])(?:\.\d+)?px\]|text-[2-6]xs(?![\w-])/;
 const HEAVY = /(?<![\w-])(?:italic|font-black)(?![\w-])/;
 const FONT_SIZE = /fontSize[:=]\s*[{'"]*(?:[0-9]|1[01])(?:\.\d+)?(?:px)?['"}]*[,\s}/]/;
