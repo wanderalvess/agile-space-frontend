@@ -175,7 +175,7 @@ export function ModuleSearchButton({ query, onQueryChange, className }: Pick<Mod
           <Search aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[340px] max-w-[calc(100vw-2rem)] rounded-xl p-2.5">
+      <PopoverContent align="end" aria-label="Buscar módulo" className="w-[340px] max-w-[calc(100vw-2rem)] rounded-xl p-2.5">
         <ModuleSearch
           query={query}
           onQueryChange={onQueryChange}

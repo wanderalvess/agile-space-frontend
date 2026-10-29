@@ -53,7 +53,7 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
               <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
                 Integrar {label}
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground line-clamp-1">
+              <DialogDescription className="text-xs text-muted-foreground">
                 {tagline}
               </DialogDescription>
             </div>
