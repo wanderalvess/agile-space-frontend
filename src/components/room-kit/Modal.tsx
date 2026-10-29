@@ -132,9 +132,8 @@ export function Modal({
           {(footer || footerStart) && (
             // No celular o texto de apoio ocupa a linha de cima e os botões ficam à direita embaixo: sem isso, o botão principal passa da borda.
             <footer className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2.5 border-t border-border bg-muted/40 px-6 py-3.5">
-              {footerStart && <div className="flex min-w-0 items-center gap-2 max-sm:basis-full">{footerStart}</div>}
-              <span className="flex-1 max-sm:hidden" />
-              {footer && <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 max-sm:ml-auto">{footer}</div>}
+              {footerStart && <div className="flex min-w-0 items-center gap-2 max-sm:basis-full sm:flex-1">{footerStart}</div>}
+              {footer && <div className="ml-auto flex shrink-0 items-center justify-end gap-2">{footer}</div>}
             </footer>
           )}
         </DialogPrimitive.Content>
