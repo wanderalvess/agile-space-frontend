@@ -89,8 +89,10 @@ export const IconButton = React.forwardRef<
     pressed?: boolean;
     badge?: number;
     size?: 'sm' | 'md';
+    /** Texto curto ao lado do ícone (a partir de 2200 px); abaixo disso fica só o ícone, com o `label` como nome. */
+    text?: string;
   } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'>
->(({ label, icon: Icon, pressed, badge, size = 'md', className, ...props }, ref) => (
+>(({ label, icon: Icon, pressed, badge, size = 'md', text, className, ...props }, ref) => (
   <button
     ref={ref}
     type="button"
@@ -101,6 +103,7 @@ export const IconButton = React.forwardRef<
       'relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-fast',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
       size === 'sm' ? 'h-8 w-8' : 'h-9 w-9 max-sm:h-11 max-sm:w-11',
+      text && 'min-[2200px]:w-auto min-[2200px]:gap-2 min-[2200px]:px-3',
       pressed
         ? 'border-primary/60 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground'
         : 'border-border bg-transparent text-foreground hover:bg-accent',
@@ -109,10 +112,11 @@ export const IconButton = React.forwardRef<
     {...props}
   >
     <Icon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+    {text && <span aria-hidden="true" className="hidden text-sm font-medium min-[2200px]:inline">{text}</span>}
     {!!badge && badge > 0 && (
       <span
         aria-hidden="true"
-        className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
+        className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-xs font-semibold text-primary-foreground"
       >
         {badge > 99 ? '99+' : badge}
       </span>

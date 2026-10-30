@@ -32,6 +32,12 @@ export const INVITE_ROLES = ['Developer', 'QA', 'UX/Designer', 'SME'] as const;
 /** Validade do convite, fixa no servidor (InviteService.EXPIRATION_DAYS). */
 export const INVITE_EXPIRATION_DAYS = 7;
 
+/** Convite de equipe (link para várias pessoas): padrões e tetos (o servidor confere de novo). */
+export const TEAM_INVITE_DEFAULT_MAX_USES = 25;
+export const TEAM_INVITE_MAX_USES = 200;
+export const TEAM_INVITE_DEFAULT_DAYS = 7;
+export const TEAM_INVITE_MAX_DAYS = 30;
+
 export type CalcMethod = 'STANDARD' | 'JIRA_WORKLOG_AVERAGE' | 'CUSTOM_FORMULA';
 
 export const CALC_METHOD_LABELS: Record<CalcMethod, string> = {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { summarizeRound, buildRoundCopyText, copyUnitSuffix, sumRoleHours } from '../poker-results';
+import { DEFAULT_VOTING_CARGOS } from '../poker-utils';
 import type { Participant, Vote } from '../types';
 
 const P = (id: string, role: Participant['role'], globalRole: string): Participant => ({ id, nickname: id, role, globalRole } as Participant);
@@ -10,9 +11,12 @@ const people = [
   P('q1', 'qa', 'QA'), P('u1', 'dev', 'UX'), P('sm', 'organizador', 'Scrum Master'),
 ];
 
+// UX só vota quando o facilitador o inclui em "Quem vota" (por padrão, só dev e QA votam).
+const withUx = { votingCargos: [...DEFAULT_VOTING_CARGOS, 'UX'] };
+
 describe('summarizeRound', () => {
   it('horas: média por papel arredondada para cima e total = soma das médias', () => {
-    const s = summarizeRound([V('d1', '8'), V('d2', '6'), V('d3', '16'), V('q1', '4'), V('u1', '2'), V('sm', '40')], people, 'hours');
+    const s = summarizeRound([V('d1', '8'), V('d2', '6'), V('d3', '16'), V('q1', '4'), V('u1', '2'), V('sm', '40')], people, 'hours', withUx);
     expect(s.rolePoints).toEqual({ Developer: '10', QA: '4', UX: '2' });
     expect(s.totalHours).toBe('16');
     expect(s.activeRoles).toEqual(['Developer', 'QA', 'UX']);
@@ -22,10 +26,10 @@ describe('summarizeRound', () => {
     expect(s.max).toBe('16');
   });
 
-  it('ignora gestão nas métricas, a menos que seja liberada', () => {
+  it('ignora quem não vota nas métricas, a menos que o cargo seja incluído em "Quem vota"', () => {
     const votes = [V('d1', '5'), V('sm', '5')];
     expect(summarizeRound(votes, people, 'fibonacci').consensus).toBe(false);
-    expect(summarizeRound(votes, people, 'fibonacci', { allowManagementToVote: true }).consensus).toBe(true);
+    expect(summarizeRound(votes, people, 'fibonacci', { votingCargos: [...DEFAULT_VOTING_CARGOS, 'Scrum Master'] }).consensus).toBe(true);
   });
 
   it('respeita o modo de arredondamento', () => {
@@ -50,7 +54,7 @@ describe('summarizeRound', () => {
 
 describe('Copiar estimativa da rodada', () => {
   it('horas: "(DEV 10h / QA 4h / UX 2h)"', () => {
-    const s = summarizeRound([V('d1', '8'), V('d2', '6'), V('d3', '16'), V('q1', '4'), V('u1', '2')], people, 'hours');
+    const s = summarizeRound([V('d1', '8'), V('d2', '6'), V('d3', '16'), V('q1', '4'), V('u1', '2')], people, 'hours', withUx);
     expect(buildRoundCopyText(s, 'hours')).toBe('(DEV 10h / QA 4h / UX 2h)');
   });
   it('fibonacci usa " SP"; camisetas puras não levam unidade', () => {

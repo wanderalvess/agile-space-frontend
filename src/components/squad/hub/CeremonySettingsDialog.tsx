@@ -11,15 +11,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { CalendarClock, Plus, Trash2 } from 'lucide-react';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -124,7 +117,7 @@ export function CeremonySettingsDialog({
         ceremonies: draftMode === 'manual' ? draftCeremonies : ceremonies,
         ...(draftUnit ? { estimationUnit: draftUnit as NonNullable<SquadConfig['estimationUnit']> } : {}),
       });
-      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada pra squad toda.' });
+      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada para a squad toda.' });
       onOpenChange(false);
     } catch (err: any) {
       toast({
@@ -138,20 +131,29 @@ export function CeremonySettingsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Configuração da squad</DialogTitle>
-          <DialogDescription>
-            Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale pra squad inteira.
-          </DialogDescription>
-        </DialogHeader>
-
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      icon={CalendarClock}
+      title="Configuração da squad"
+      description="Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale para a squad inteira."
+      preventClose={isSaving}
+      footer={
+        <>
+          <ModalButton onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancelar
+          </ModalButton>
+          <ModalButton variant="primary" onClick={handleSave} disabled={isSaving || !canSave}>
+            {isSaving ? 'Salvando…' : 'Salvar'}
+          </ModalButton>
+        </>
+      }
+    >
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Unidade de estimativa</Label>
+            <Label htmlFor="ceremony-unit">Unidade de estimativa</Label>
             <Select value={draftUnit} onValueChange={setDraftUnit}>
-              <SelectTrigger>
+              <SelectTrigger id="ceremony-unit">
                 <SelectValue placeholder="Escolha como a squad estima" />
               </SelectTrigger>
               <SelectContent>
@@ -164,9 +166,9 @@ export function CeremonySettingsDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Fonte dos rituais</Label>
+            <Label htmlFor="ceremony-mode">Fonte dos rituais</Label>
             <Select value={draftMode} onValueChange={(v) => setDraftMode(v as 'google_calendar' | 'manual')}>
-              <SelectTrigger>
+              <SelectTrigger id="ceremony-mode">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -192,6 +194,7 @@ export function CeremonySettingsDialog({
                       value={c.title}
                       onChange={(e) => updateCeremony(c.id, { title: e.target.value })}
                       placeholder="Nome (ex: Daily)"
+                      aria-label="Nome da cerimônia"
                       className="flex-1"
                     />
                     <Button
@@ -211,9 +214,10 @@ export function CeremonySettingsDialog({
                       <button
                         key={day}
                         type="button"
+                        aria-pressed={c.daysOfWeek.includes(day)}
                         onClick={() => toggleDay(c.id, day)}
                         className={cn(
-                          'h-8 w-10 rounded-lg text-xs font-semibold uppercase transition-colors',
+                          'h-8 w-10 rounded-lg text-xs font-semibold transition-colors',
                           c.daysOfWeek.includes(day)
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-accent'
@@ -226,16 +230,18 @@ export function CeremonySettingsDialog({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Horário</Label>
+                      <Label htmlFor={`${c.id}-time`} className="text-xs text-muted-foreground">Horário</Label>
                       <Input
+                        id={`${c.id}-time`}
                         type="time"
                         value={c.startTime}
                         onChange={(e) => updateCeremony(c.id, { startTime: e.target.value })}
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Duração (min)</Label>
+                      <Label htmlFor={`${c.id}-duration`} className="text-xs text-muted-foreground">Duração (min)</Label>
                       <Input
+                        id={`${c.id}-duration`}
                         type="number"
                         min={5}
                         step={5}
@@ -246,8 +252,9 @@ export function CeremonySettingsDialog({
                   </div>
 
                   <div>
-                    <Label className="text-xs text-muted-foreground">Link do Meet (opcional)</Label>
+                    <Label htmlFor={`${c.id}-meet`} className="text-xs text-muted-foreground">Link do Meet (opcional)</Label>
                     <Input
+                      id={`${c.id}-meet`}
                       value={c.meetLink || ''}
                       onChange={(e) => updateCeremony(c.id, { meetLink: e.target.value })}
                       placeholder="https://meet.google.com/..."
@@ -268,16 +275,6 @@ export function CeremonySettingsDialog({
             </div>
           )}
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving || !canSave}>
-            {isSaving ? 'Salvando…' : 'Salvar'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

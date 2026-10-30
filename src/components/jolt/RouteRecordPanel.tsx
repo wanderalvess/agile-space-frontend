@@ -1,49 +1,69 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash2, TriangleAlert, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SelectField } from '@/components/room-kit';
+import { FIELD } from '@/components/room-kit/tokens';
+import { cn } from '@/lib/utils';
 import type { KeyValue, RouteForm } from '@/lib/jolt-route-record';
 import { routeFormFromRecord } from '@/lib/jolt-route-record';
+import { FIELD_LABEL } from './LayoutCard';
+import { Notice } from './JoltBits';
 
-const inputClass = 'h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground';
-const labelClass = 'flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground';
+const inputClass = cn(FIELD, 'h-10');
+const monoInput = cn(inputClass, 'font-code text-[13px]');
+
+const TIPO_OPTIONS = [
+  { value: 'BUSCAR', label: 'BUSCAR' },
+  { value: 'ENVIAR', label: 'ENVIAR' },
+];
+const METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => ({ value: m, label: m }));
 
 function Rows({
   title,
   rows,
+  emptyText,
   onChange,
 }: {
   title: string;
   rows: KeyValue[];
+  emptyText: string;
   onChange: (rows: KeyValue[]) => void;
 }) {
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</legend>
+    <fieldset className="flex flex-col gap-2">
+      <legend className={cn(FIELD_LABEL, 'mb-2')}>{title}</legend>
+      {rows.length === 0 && <span className="text-[13px] text-muted-foreground">{emptyText}</span>}
       {rows.map((row, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-2">
           <input
             aria-label={`${title}: nome ${i + 1}`}
             value={row.key}
             onChange={(e) => onChange(rows.map((r, j) => (j === i ? { ...r, key: e.target.value } : r)))}
-            className={`${inputClass} font-code text-[12.5px]`}
+            className={cn(monoInput, 'h-9 text-xs')}
             placeholder="nome"
           />
           <input
             aria-label={`${title}: valor ${i + 1}`}
             value={row.value}
             onChange={(e) => onChange(rows.map((r, j) => (j === i ? { ...r, value: e.target.value } : r)))}
-            className={`${inputClass} font-code text-[12.5px]`}
+            className={cn(monoInput, 'h-9 text-xs')}
             placeholder="valor"
           />
-          <Button type="button" variant="ghost" size="icon" aria-label={`Remover ${row.key || 'linha'}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
-            <Trash2 className="h-4 w-4" />
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" aria-label={`Remover ${row.key || 'linha'}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
+            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
           </Button>
         </div>
       ))}
-      <Button type="button" variant="ghost" size="sm" className="text-primary" onClick={() => onChange([...rows, { key: '', value: '' }])}>
-        <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        className="w-fit gap-1.5 px-2 text-[13px] text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
+        onClick={() => onChange([...rows, { key: '', value: '' }])}
+      >
+        <Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Adicionar
       </Button>
     </fieldset>
   );
@@ -96,74 +116,74 @@ export function RouteRecordPanel({
   ];
 
   return (
-    <section aria-labelledby="rota-titulo" className="space-y-4 rounded-2xl border border-border bg-card p-5">
+    <section aria-labelledby="rota-titulo" className="flex flex-col gap-3.5 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 id="rota-titulo" className="text-[15px] font-extrabold">Rota de integração</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Campos de <code className="font-code text-xs">PCINTEGRACAOROTASERVICO</code> em volta da spec
+        <div className="flex flex-col gap-0.5">
+          <h2 id="rota-titulo" className="text-[15px] font-bold text-foreground">Rota de integração</h2>
+          <p className="text-xs text-muted-foreground">
+            Campos de <code className="font-code">PCINTEGRACAOROTASERVICO</code> em volta da spec
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => setImporting((v) => !v)} aria-expanded={importing}>
-          <Upload className="mr-1.5 h-3.5 w-3.5" /> Carregar registro
+        <Button type="button" variant="outline" size="sm" onClick={() => setImporting((v) => !v)} aria-expanded={importing} className="h-9 gap-1.5 rounded-lg px-3 text-[13px] font-semibold">
+          <Upload className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Carregar registro
         </Button>
       </div>
 
       {importing && (
-        <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
-          <label htmlFor="rota-import" className="text-xs font-bold text-muted-foreground">
-            Cole o arquivo da rota (ex.: <code className="font-code">rotas/NOME.json</code> do repositório de layouts). A spec gerada substitui a que estiver nele.
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
+          <label htmlFor="rota-import" className="text-xs font-semibold leading-relaxed text-muted-foreground">
+            Cole o arquivo da rota (por exemplo, <code className="font-code">rotas/NOME.json</code> do repositório de layouts). A spec gerada substitui a que estiver nele.
           </label>
           <textarea
             id="rota-import"
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
-            rows={6}
+            rows={5}
             spellCheck={false}
-            className="w-full rounded-lg border border-input bg-background p-2 font-code text-xs"
+            className={cn(FIELD, 'p-2 font-code text-xs')}
           />
-          {importError && <p role="alert" className="text-xs font-semibold text-destructive">{importError}</p>}
+          {importError && <p role="alert" className="text-[13px] font-semibold text-red-700 dark:text-red-300">{importError}</p>}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setImporting(false)}>Cancelar</Button>
-            <Button type="button" size="sm" disabled={!importText.trim()} onClick={doImport}>Usar este registro</Button>
+            <Button type="button" variant="outline" size="sm" className="h-9 rounded-lg text-[13px]" onClick={() => setImporting(false)}>Cancelar</Button>
+            <Button type="button" size="sm" className="h-9 rounded-lg text-[13px] font-bold" disabled={!importText.trim()} onClick={doImport}>Usar este registro</Button>
           </div>
         </div>
       )}
 
-      <label className={labelClass} htmlFor="rota-id">
-        Serviço (ID)
-        <input id="rota-id" value={form.id} onChange={(e) => set({ id: e.target.value })} className={inputClass} placeholder="WTA - Buscar Clientes" />
-      </label>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className={labelClass} htmlFor="rota-empresa">
-          Empresa da API
-          <input id="rota-empresa" value={form.empresaApi} onChange={(e) => set({ empresaApi: e.target.value })} className={inputClass} />
-        </label>
-        <label className={labelClass} htmlFor="rota-tipo">
-          Tipo de processo
-          <select id="rota-tipo" value={form.tipoProcesso} onChange={(e) => set({ tipoProcesso: e.target.value })} className={inputClass}>
-            <option value="BUSCAR">BUSCAR</option>
-            <option value="ENVIAR">ENVIAR</option>
-          </select>
-        </label>
-      </div>
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Requisição</span>
-        <div className="flex gap-2">
-          <select aria-label="Método" value={form.method} onChange={(e) => set({ method: e.target.value })} className="h-10 rounded-lg border border-input bg-background px-2 text-sm font-bold">
-            {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <input aria-label="URL" value={form.url} onChange={(e) => set({ url: e.target.value })} className={`${inputClass} font-code text-[12.5px]`} />
+        <label className={FIELD_LABEL} htmlFor="rota-id">Serviço (ID)</label>
+        <input id="rota-id" value={form.id} onChange={(e) => set({ id: e.target.value })} className={inputClass} placeholder="WTA - Buscar Clientes" />
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label className={FIELD_LABEL} htmlFor="rota-empresa">Empresa da API</label>
+          <input id="rota-empresa" value={form.empresaApi} onChange={(e) => set({ empresaApi: e.target.value })} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={FIELD_LABEL} htmlFor="rota-tipo">Tipo de processo</label>
+          <SelectField id="rota-tipo" aria-label="Tipo de processo" value={form.tipoProcesso} onChange={(v) => set({ tipoProcesso: v })} options={TIPO_OPTIONS} className="h-10" />
         </div>
       </div>
-      <Rows title="Cabeçalhos" rows={form.headers} onChange={(headers) => set({ headers })} />
-      <Rows title="Parâmetros da URL" rows={form.query} onChange={(query) => set({ query })} />
+      <div className="flex flex-col gap-1.5">
+        <span className={FIELD_LABEL}>Requisição</span>
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
+          <SelectField aria-label="Método" value={form.method} onChange={(v) => set({ method: v })} options={METHOD_OPTIONS} className="h-10" />
+          <input aria-label="URL" value={form.url} onChange={(e) => set({ url: e.target.value })} className={monoInput} />
+        </div>
+      </div>
+      <Rows title="Cabeçalhos" rows={form.headers} emptyText="Nenhum cabeçalho." onChange={(headers) => set({ headers })} />
+      <Rows title="Parâmetros da URL" rows={form.query} emptyText="Nenhum parâmetro." onChange={(query) => set({ query })} />
 
-      <div className="flex flex-wrap gap-2">
+      <div role="group" aria-label="Opções da rota" className="flex flex-wrap gap-2">
         {flags.map(([key, label]) => (
-          <label key={key} className="inline-flex h-10 items-center gap-2 rounded-lg border border-input px-3 text-[13px] font-semibold">
+          <label
+            key={key}
+            className={cn(
+              'inline-flex h-10 cursor-pointer items-center gap-2 rounded-[10px] border px-3 text-[13px] font-semibold text-foreground transition-colors duration-fast',
+              form[key] ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border',
+              'focus-within:ring-2 focus-within:ring-ring',
+            )}
+          >
             <input
               type="checkbox"
               checked={form[key] as boolean}
@@ -175,23 +195,28 @@ export function RouteRecordPanel({
         ))}
       </div>
 
-      {variables.length > 0 && (
-        <div className="space-y-1.5">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Variáveis da rota</h3>
+      <div className="flex flex-col gap-2">
+        <h3 className={FIELD_LABEL}>Variáveis da rota</h3>
+        {variables.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {variables.map((v) => (
-              <code key={v} className="rounded-md bg-emerald-500/10 px-2 py-1 font-code text-[11.5px] text-emerald-800 dark:text-emerald-300">{`{{${v}}}`}</code>
+              <code key={v} className="rounded-lg bg-emerald-500/10 px-2 py-1 font-code text-xs text-emerald-800 dark:text-emerald-300">{`{{${v}}}`}</code>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <span className="text-[13px] text-muted-foreground">A spec e a rota não usam variáveis.</span>
+        )}
+      </div>
 
       {problems.length > 0 && (
-        <ul className="space-y-1 text-xs font-semibold text-orange-800 dark:text-orange-300">
-          {problems.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
+        <Notice tone="warn" icon={TriangleAlert} role="alert" className="text-[13px]">
+          <strong>Para conferir antes de usar</strong>
+          <ul className="mt-1 flex flex-col gap-1 text-muted-foreground">
+            {problems.map((p) => (
+              <li key={p}>• {p}</li>
+            ))}
+          </ul>
+        </Notice>
       )}
     </section>
   );

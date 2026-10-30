@@ -9,13 +9,14 @@ import { cn } from '@/lib/utils';
 import { IconTile } from './primitives';
 import { DANGER_BUTTON, FOCUS_RING, PRIMARY_BUTTON, TONES, type Tone } from './tokens';
 
-/** Larguras do design: P 420 (avisos), M 560 (formulários curtos), G 800 (configurações, detalhes). */
-export type ModalSize = 'sm' | 'md' | 'lg';
+/** Larguras do design: P 420 (avisos), M 560 (formulários curtos), G 800 (configurações, detalhes), GG 1280 (painéis com menu lateral e tabelas). */
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const SIZE_CLASS: Record<ModalSize, string> = {
   sm: 'sm:max-w-[420px]',
   md: 'sm:max-w-[560px]',
   lg: 'sm:max-w-[800px]',
+  xl: 'sm:max-w-[1280px]',
 };
 
 /** Casca visual compartilhada por Modal e ConfirmDialog. */
@@ -28,6 +29,7 @@ export const MODAL_SURFACE =
   'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 ' +
   'motion-reduce:duration-instant';
 
+/* Intencional: bg-black é o véu (scrim) do modal; tem de escurecer em qualquer tema. */
 export const MODAL_OVERLAY = 'bg-black/55 backdrop-blur-sm motion-reduce:duration-instant';
 
 export interface ModalProps {
@@ -129,10 +131,10 @@ export function Modal({
           {headerExtra}
           <div className={cn('scrollbar-thin min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-1', bodyClassName)}>{children}</div>
           {(footer || footerStart) && (
-            <footer className="flex shrink-0 items-center gap-2 border-t border-border bg-muted/40 px-6 py-3.5">
-              {footerStart}
-              <span className="flex-1" />
-              {footer}
+            // No celular o texto de apoio ocupa a linha de cima e os botões ficam à direita embaixo: sem isso, o botão principal passa da borda.
+            <footer className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2.5 border-t border-border bg-muted/40 px-6 py-3.5">
+              {footerStart && <div className="flex min-w-0 items-center gap-2 max-sm:basis-full sm:flex-1">{footerStart}</div>}
+              {footer && <div className="ml-auto flex shrink-0 items-center justify-end gap-2">{footer}</div>}
             </footer>
           )}
         </DialogPrimitive.Content>

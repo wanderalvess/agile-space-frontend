@@ -37,7 +37,7 @@ export function safeHref(url: string | null | undefined): string | null {
 export function TaskKey({ task, className }: { task: Pick<ReportTask, 'key' | 'jiraLink'>; className?: string }) {
   if (!task.key) return null;
   const href = safeHref(task.jiraLink);
-  const base = cn('text-[11px] font-semibold tabular-nums', BRAND_TEXT, className);
+  const base = cn('text-xs font-semibold tabular-nums', BRAND_TEXT, className);
   if (!href) return <span className={base}>{task.key}</span>;
   return (
     <a

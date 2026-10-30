@@ -7,7 +7,7 @@ import type { BrainstormingBoard, BrainstormingGroup, BrainstormingIdea, Partici
 // permissões, chamadas ao servidor), não o desenho.
 const h = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
-  state: { roomProps: null as any, socket: null as any, profile: { id: 'me', name: 'Ana Souza', role: 'DEV' } as any },
+  state: { roomProps: null as any, socket: null as any, profile: { id: 'me', name: 'Ana Souza', role: 'DEV', cargo: 'Developer' } as any },
   toast: vi.fn(),
   stopSocket: vi.fn(),
   api: {
@@ -54,7 +54,7 @@ beforeEach(() => {
   vi.useRealTimers();
   state.roomProps = null;
   state.socket = null;
-  state.profile = { id: 'me', name: 'Ana Souza', role: 'DEV' };
+  state.profile = { id: 'me', name: 'Ana Souza', role: 'DEV', cargo: 'Developer' };
   board = {
     id: 'b1', creatorId: 'me', title: 'Redesenho', team: 'PHOENIX', createdAt: '2026-10-14T10:00:00Z', phase: 'ideation',
     settings: { isAnonymous: false }, timer: { status: 'stopped', endTime: null, initialDuration: 600, remainingOnPause: 600 },
@@ -107,7 +107,7 @@ describe('carga e entrada na sala', () => {
     participants = [];
     await mount();
     expect(api.joinBoard).toHaveBeenCalledTimes(1);
-    expect(api.joinBoard).toHaveBeenCalledWith('b1', expect.objectContaining({ nickname: 'Ana Souza', role: 'DEV' }));
+    expect(api.joinBoard).toHaveBeenCalledWith('b1', expect.objectContaining({ nickname: 'Ana Souza', role: 'Developer' }));
   });
 
   it('mural que não existe (404) mostra "não encontrado"', async () => {

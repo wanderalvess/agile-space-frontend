@@ -71,7 +71,7 @@ export interface ImportRow {
 export interface ImportParseResult {
   delimiter: CsvDelimiter;
   rows: ImportRow[];
-  /** Linhas ignoradas: sem nome, e-mail nem ID, ou com e-mail inválido que criaria um integrante novo. */
+  /** Linhas ignoradas: sem nome, e-mail nem ID, com e-mail inválido que criaria um integrante novo, ou repetindo uma pessoa já lida no arquivo. */
   skipped: number;
 }
 
@@ -85,12 +85,12 @@ export function findMemberMatch(
 ): { member: SquadMember; by: MatchKind } | null {
   const id = key.id.trim().toLowerCase();
   if (id) {
-    const m = members.find((x) => x.jiraAccountId.toLowerCase() === id);
+    const m = members.find((x) => (x.jiraAccountId || '').trim().toLowerCase() === id);
     if (m) return { member: m, by: 'id' };
   }
   const email = key.email.trim().toLowerCase();
   if (email) {
-    const m = members.find((x) => x.email && x.email.toLowerCase() === email);
+    const m = members.find((x) => x.email && x.email.trim().toLowerCase() === email);
     if (m) return { member: m, by: 'email' };
   }
   const name = normalizeText(key.name.trim());
@@ -123,6 +123,8 @@ export function parseRosterImport(
 
   const rows: ImportRow[] = [];
   let skipped = 0;
+  // Pessoas novas já lidas neste arquivo: a mesma pessoa em duas linhas (mesmo ID, e-mail ou nome) vale uma só vez.
+  const seenNew: SquadMember[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i];
@@ -154,6 +156,10 @@ export function parseRosterImport(
       skipped++;
       continue;
     }
+    if (!existing && findMemberMatch(seenNew, { id: idRaw, email: emailOk ? emailRaw : '', name: idRaw || emailRaw ? '' : nameRaw })) {
+      skipped++;
+      continue;
+    }
     const parsed = parseDecimal(realRaw);
     const valid = Number.isFinite(parsed) && parsed > 0 && parsed <= MAX_DAILY_HOURS;
     const current = existing?.capacityHoursPerDay ?? baseHours;
@@ -166,6 +172,16 @@ export function parseRosterImport(
       : current !== imported || (!!roleRaw && roleRaw !== (existing.role || 'Developer'))
         ? 'changed'
         : 'unchanged';
+
+    if (!existing) {
+      seenNew.push({
+        dbId: '',
+        squadId: '',
+        jiraAccountId: idRaw || emailRaw.trim().toLowerCase(),
+        displayName: nameRaw,
+        email: emailOk ? emailRaw.trim().toLowerCase() : '',
+      } as SquadMember);
+    }
 
     rows.push({
       line: i + 1,
@@ -215,7 +231,7 @@ const slug = (s: string) => normalizeText(s).replace(/[^a-z0-9]+/g, '.').replace
 
 /** Quem é novo e veio sem ID da conta ganha um identificador estável (e-mail, ou o nome sem acentos). */
 export function importAccountId(row: ImportRow): string {
-  return row.jiraAccountId || row.email.toLowerCase() || `import.${slug(row.displayName) || 'integrante'}`;
+  return row.jiraAccountId || row.email.trim().toLowerCase() || `import.${slug(row.displayName) || 'integrante'}`;
 }
 
 /** Lista a gravar quando a pessoa confirma a importação. */
@@ -234,7 +250,7 @@ export function buildImportMembers(
       squadId,
       jiraAccountId,
       displayName: row.displayName,
-      email: row.email,
+      email: row.email.trim().toLowerCase(),
       role: row.role,
       capacityHoursPerDay: row.importedCapacity,
       systemCalculatedCapacityHoursPerDay: existing ? suggestedFor(existing) : baseHours,

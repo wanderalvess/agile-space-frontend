@@ -62,7 +62,7 @@ export function LoginForm({ flow }: { flow: LoginFlow }) {
           <button
             type="button"
             onClick={() => flow.switchMode('forgot')}
-            className={cn('rounded-sm text-[13px] font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:decoration-foreground', FOCUS_RING)}
+            className={cn('rounded-sm text-[13px] font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:decoration-foreground max-sm:-my-2.5 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center', FOCUS_RING)}
           >
             Esqueceu a senha?
           </button>

@@ -125,7 +125,7 @@ export default function KnowledgeSettingsPage() {
                         className={cn(
                           "flex flex-col items-center gap-3 rounded-xl border p-4 motion-safe:transition-colors",
                           selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card",
-                          !available && "opacity-70"
+                          !available && "bg-muted/40"
                         )}
                       >
                         <button
@@ -136,7 +136,7 @@ export default function KnowledgeSettingsPage() {
                           onClick={() => setModel(provider.modelValue)}
                           className={cn("flex w-full flex-col items-center gap-3 rounded-lg disabled:cursor-not-allowed", FOCUS)}
                         >
-                          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                          <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground", !available && "opacity-60")}>
                             <provider.icon className="h-6 w-6" aria-hidden="true" />
                           </span>
                           <span className="text-center text-sm font-semibold leading-tight text-foreground">
@@ -148,7 +148,7 @@ export default function KnowledgeSettingsPage() {
                           href={provider.link}
                           target="_blank"
                           rel="noreferrer"
-                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline", FOCUS)}
+                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline max-sm:min-h-11", FOCUS)}
                         >
                           Obter chave <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         </a>
@@ -174,7 +174,7 @@ export default function KnowledgeSettingsPage() {
                     type="button"
                     aria-label={showKey ? "Ocultar chave" : "Mostrar chave"}
                     onClick={() => setShowKey(prev => !prev)}
-                    className={cn("absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground", FOCUS)}
+                    className={cn("absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground max-sm:right-1 max-sm:p-3", FOCUS)}
                   >
                     {showKey ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                   </button>

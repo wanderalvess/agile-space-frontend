@@ -33,8 +33,8 @@ describe('formatEstimateCopy (Copiar estimativa)', () => {
 });
 
 describe('buildDefaultSettingsPatch (Restaurar padrão)', () => {
-  it('cobre os 22 ajustes e liga só o que nasce ligado', () => {
-    expect(CEREMONY_TOGGLE_KEYS).toHaveLength(22);
+  it('cobre os 21 ajustes e liga só o que nasce ligado', () => {
+    expect(CEREMONY_TOGGLE_KEYS).toHaveLength(21);
     const patch = buildDefaultSettingsPatch();
     const defaults = DEFAULT_ROOM_SETTINGS as Record<string, boolean>;
     for (const key of CEREMONY_TOGGLE_KEYS) expect(patch[key]).toBe(!!defaults[key]);
@@ -47,5 +47,9 @@ describe('buildDefaultSettingsPatch (Restaurar padrão)', () => {
     expect(patch.maxRounds).toBe(3);
     expect(patch.roundingMode).toBe('up');
     expect(patch.divergenceThresholds).toEqual({ warn: 2, high: 5 });
+  });
+
+  it('volta "Quem vota" ao padrão (só Desenvolvedor(a) e Analista de QA)', () => {
+    expect(buildDefaultSettingsPatch().votingCargos).toEqual(['Desenvolvedor(a)', 'Analista de QA']);
   });
 });

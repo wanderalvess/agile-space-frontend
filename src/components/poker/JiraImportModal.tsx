@@ -237,13 +237,13 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 [&>*]:shrink-0">
                 {types.map(([t, n]) => (
                   <button key={`t-${t}`} type="button" aria-pressed={filter.types.has(t)} onClick={() => toggleIn('types', t)} className={cn(CHIP, filter.types.has(t) && 'border-primary/50 bg-primary/10 font-semibold', FOCUS_RING)}>
-                    {t} <span className="tabular-nums opacity-70">{n}</span>
+                    {t} <span className="font-normal tabular-nums">{n}</span>
                   </button>
                 ))}
                 {types.length > 1 && statuses.length > 1 && <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-border" />}
                 {statuses.map(([s, n]) => (
                   <button key={`s-${s}`} type="button" aria-pressed={filter.statuses.has(s)} onClick={() => toggleIn('statuses', s)} className={cn(CHIP, filter.statuses.has(s) && 'border-primary/50 bg-primary/10 font-semibold', FOCUS_RING)}>
-                    {s} <span className="tabular-nums opacity-70">{n}</span>
+                    {s} <span className="font-normal tabular-nums">{n}</span>
                   </button>
                 ))}
               </div>
@@ -428,16 +428,16 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
                           <Checkbox id={inputId} checked={checked} onCheckedChange={() => toggle(r.key)} className="mt-0.5" />
                           <span className="flex min-w-0 flex-1 flex-col gap-1">
                             <span className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-[11px] font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
+                              <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
                               {r.type && <StatusChip tone="neutral">{r.type}</StatusChip>}
                               {r.status && <StatusChip tone={jiraStatusTone(r.status)}>{r.status}</StatusChip>}
-                              {r.priority && <span className="text-[11px] text-muted-foreground">{r.priority}</span>}
-                              {r.points > 0 && <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">{r.points} pts</span>}
+                              {r.priority && <span className="text-xs text-muted-foreground">{r.priority}</span>}
+                              {r.points > 0 && <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{r.points} pts</span>}
                             </span>
                             <span className="line-clamp-2 break-words text-[13px] font-semibold leading-snug text-foreground">{r.title}</span>
                             {snippet && <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{snippet}</span>}
                             {(r.assignee || (r.labels && r.labels.length > 0)) && (
-                              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                 {r.assignee && <span className="inline-flex items-center gap-1"><User className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />{r.assignee}</span>}
                                 {r.labels?.slice(0, 3).map((lb) => (
                                   <span key={lb} className="inline-flex items-center gap-1"><Tag className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />{lb}</span>
@@ -484,7 +484,7 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
         }
       >
         <div className="flex flex-col gap-4">
-          <pre className="m-0 max-h-24 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-border bg-muted/40 p-2.5 font-code text-[11px] leading-normal text-foreground">{jql}</pre>
+          <pre className="m-0 max-h-24 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-border bg-muted/40 p-2.5 font-code text-xs leading-normal text-foreground">{jql}</pre>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="jira-save-label" className="text-[13px] font-semibold text-foreground">Nome</label>
             <input id="jira-save-label" value={saveLabel} onChange={(e) => setSaveLabel(e.target.value)} placeholder="Ex.: Sprint ativa" autoComplete="off" className={cn(FIELD, 'h-10 text-[13px]')} />
@@ -521,13 +521,13 @@ function IssuePreview({ issue, href }: { issue: JiraIssue; href: string | null }
     <div className="flex flex-col gap-3 rounded-b-xl border-t border-border bg-muted/30 px-4 py-3.5">
       {description && (
         <section className="flex flex-col gap-1.5">
-          <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Descrição</h4>
+          <h4 className="m-0 text-xs font-bold text-muted-foreground">Descrição</h4>
           <div className="prose prose-sm max-h-60 max-w-none overflow-y-auto break-words text-[13px] leading-relaxed text-foreground dark:prose-invert prose-p:my-1.5" dangerouslySetInnerHTML={{ __html: description }} />
         </section>
       )}
       {criteria && (
         <section className="flex flex-col gap-1.5">
-          <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Critérios de aceite</h4>
+          <h4 className="m-0 text-xs font-bold text-muted-foreground">Critérios de aceite</h4>
           <div className="prose prose-sm max-h-48 max-w-none overflow-y-auto break-words text-[13px] leading-relaxed text-foreground dark:prose-invert prose-p:my-1.5" dangerouslySetInnerHTML={{ __html: criteria }} />
         </section>
       )}

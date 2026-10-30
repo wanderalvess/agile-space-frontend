@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InviteApiError, inviteErrorFrom, type Invite } from '../invite-api';
-import { expiresInLabel, inviteView, otherEmailText, unavailableKind, type InviteViewInput } from '../invite-state';
+import { expiresInLabel, inviteView, loginInviteNotice, otherEmailText, unavailableKind, type InviteViewInput } from '../invite-state';
 
 const NOW = Date.parse('2026-10-16T12:00:00Z');
 const DAY = 86_400_000;
@@ -38,7 +38,10 @@ describe('unavailableKind', () => {
 describe('inviteView', () => {
   it('espera a sessão antes de qualquer coisa', () => {
     expect(inviteView({ ...base, authLoading: true }, NOW)).toBe('sessao');
-    expect(inviteView({ ...base, hasSession: false }, NOW)).toBe('sessao');
+    expect(inviteView({ ...base, hasSession: false }, NOW)).toBe('visitante');
+    expect(inviteView({ ...base, hasSession: false, invite: null }, NOW)).toBe('verificando');
+    expect(inviteView({ ...base, hasSession: false, invite: invite({ status: 'ACCEPTED' }) }, NOW)).toBe('usado');
+    expect(inviteView({ ...base, hasSession: false, error: new Error('404') }, NOW)).toBe('invalido');
   });
 
   it('verifica enquanto o convite não chegou', () => {
@@ -122,5 +125,15 @@ describe('inviteErrorFrom', () => {
       },
     } as unknown as Response;
     expect((await inviteErrorFrom(broken)).status).toBe(502);
+  });
+});
+
+describe('texto do convite para quem ainda não entrou', () => {
+  it('o aviso do login nomeia a squad; sem a prévia fica o texto genérico', () => {
+    const n = loginInviteNotice({ squadId: 'SQ', squadName: 'Squad Alfa' });
+    expect(n.title).toBe('Você foi convidado para a squad Squad Alfa');
+    expect(n.description).not.toContain('Convite de');
+    expect(loginInviteNotice({ squadId: 'SQ', squadName: null }).title).toBe('Você foi convidado para a squad SQ');
+    expect(loginInviteNotice(null).title).toBe('Você recebeu um convite para uma squad');
   });
 });

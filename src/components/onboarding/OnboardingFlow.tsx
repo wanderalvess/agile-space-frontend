@@ -70,8 +70,10 @@ export function OnboardingFlow() {
 
   // Passo 5 — papel
   const [accessRefused, setAccessRefused] = useState(false);
+  const [refusalText, setRefusalText] = useState('');
 
   // Pedido de vínculo
+  const [requestSent, setRequestSent] = useState(false);
   const [requestTarget, setRequestTarget] = useState<LinkRequestTarget | null>(null);
   const [requestBack, setRequestBack] = useState<OnboardingStep>('roster');
   const { requests, reload: reloadRequests } = useMyLinkRequests();
@@ -166,17 +168,21 @@ export function OnboardingFlow() {
       if (!roster) return;
       setBusy(roleName);
       setAccessRefused(false);
+      setRefusalText('');
       try {
         await joinProject(roster.projectId, roleName);
         finish(`Você entrou em ${roster.projectId}`, `Como ${roleName}. A squad pode ajustar isso depois.`);
       } catch (err: any) {
         const status = httpStatusOf(err);
-        if (isAccessRefused(status)) setAccessRefused(true);
-        toast({
-          title: 'Não foi possível entrar na squad',
-          description: refusalMessage(status, err?.message, MSG_JOIN_REFUSED),
-          variant: 'destructive',
-        });
+        const reason = refusalMessage(status, err?.message, MSG_JOIN_REFUSED);
+        if (isAccessRefused(status)) {
+          // Recusa de acesso: o motivo aparece só no quadro da tela, junto dos caminhos (convite ou pedido).
+          // Um aviso a mais repetiria a mesma frase.
+          setAccessRefused(true);
+          setRefusalText(reason);
+        } else {
+          toast({ title: 'Não foi possível entrar na squad', description: reason, variant: 'destructive' });
+        }
       } finally {
         setBusy(null);
       }
@@ -225,6 +231,7 @@ export function OnboardingFlow() {
   const openRequest = useCallback((target: LinkRequestTarget, back: OnboardingStep) => {
     setRequestTarget(target);
     setRequestBack(back);
+    setRequestSent(false);
     setStep('request');
   }, []);
 
@@ -288,7 +295,9 @@ export function OnboardingFlow() {
     );
   }
 
-  const showRequests = step !== 'result' && step !== 'request' && !wideImport;
+  // Durante o preenchimento do pedido a lista fica escondida; depois de enviar ela aparece logo abaixo da confirmação,
+  // porque o texto de "Pedido enviado" manda a pessoa acompanhar por ali.
+  const showRequests = step !== 'result' && (step !== 'request' || requestSent) && !wideImport;
 
   return (
     <div className="relative flex w-full flex-1 justify-center overflow-x-clip bg-background px-4 pb-10 pt-6 text-foreground sm:px-8 sm:pt-8">
@@ -367,6 +376,7 @@ export function OnboardingFlow() {
               projectId={roster.projectId}
               joiningRole={busy}
               refused={accessRefused}
+              refusalMessage={refusalText}
               onPick={handleJoinAs}
               onOpenInvite={() => setInviteOpen(true)}
               onRequestLink={() => openRequest({ projectKey: roster.projectId }, 'role')}
@@ -379,7 +389,10 @@ export function OnboardingFlow() {
               target={requestTarget}
               defaultEmail={userProfile?.email || ''}
               onBack={() => setStep(requestBack)}
-              onSent={() => void reloadRequests()}
+              onSent={() => {
+                setRequestSent(true);
+                void reloadRequests();
+              }}
             />
           )}
 
@@ -387,7 +400,7 @@ export function OnboardingFlow() {
             <CreateSquadStep
               busy={busy === 'create'}
               onSubmit={handleCreate}
-              onEmptyName={() => toast({ title: 'Dê um nome pra squad', variant: 'destructive' })}
+              onEmptyName={() => toast({ title: 'Dê um nome para a squad', variant: 'destructive' })}
               onImport={() => setStep('jira')}
               onBack={() => setStep('intent')}
             />
@@ -408,7 +421,7 @@ export function OnboardingFlow() {
                 onPreviewChange={setWideImport}
                 onImported={handleImported}
                 onBack={() => setStep('intent')}
-                skipHint="Sem token? Dá pra criar uma squad na mão agora e importar do Jira depois, sem perder nada."
+                skipHint="Sem token? Dá para criar uma squad na mão agora e importar do Jira depois, sem perder nada."
                 skipAction={{ label: 'Criar uma squad sem o Jira', onClick: () => setStep('create') }}
               />
             </StepCard>

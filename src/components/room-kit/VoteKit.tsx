@@ -60,7 +60,7 @@ export function VoteCard({
   delay = 0,
   highlight = false,
   label,
-  observerLabel = 'não vota',
+  observerLabel = 'observando',
   confidence,
   className,
 }: {
@@ -86,9 +86,9 @@ export function VoteCard({
     return (
       <span
         aria-label={label ?? observerLabel}
-        className={cn(base, 'flex-col gap-1 border border-dashed border-border text-[10px] font-medium text-muted-foreground', className)}
+        className={cn(base, 'flex-col gap-1 border border-dashed border-border text-xs font-medium text-muted-foreground', className)}
       >
-        <Crown aria-hidden="true" className="h-4 w-4 text-amber-500" strokeWidth={1.5} />
+        <Eye aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
         {observerLabel}
       </span>
     );
@@ -126,7 +126,7 @@ export function VoteCard({
       style={{ animationDelay: `${delay}ms` }}
       aria-label={label}
     >
-      {showCorner && !isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-[10px] font-semibold leading-none opacity-70">{value}</span>}
+      {showCorner && !isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-xs font-semibold leading-none opacity-70">{value}</span>}
       {confidence && (
         <span
           title={`Confiança ${CONFIDENCE_LABEL[confidence].toLowerCase()}`}
@@ -138,9 +138,9 @@ export function VoteCard({
       {isCoffee ? (
         <Coffee className="h-[38%] w-[38%]" strokeWidth={1.75} aria-label="Pausa" />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter', GLYPH[size][(value?.length ?? 0) > 2 ? 1 : 0])}>
+        <span className={cn('font-bold leading-none tracking-tighter', GLYPH[size][(value?.length ?? 0) > 2 ? 1 : 0])}>
           {value}
-          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold not-italic opacity-80">{unit}</span>}
+          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold opacity-80">{unit}</span>}
         </span>
       )}
     </span>
@@ -151,7 +151,9 @@ export function VoteCard({
 export function shortSeatName(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (name.trim().length <= 14 || parts.length < 2) return name.trim();
-  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+  // A inicial vem da última parte que começa com letra: "João Pedro (PO)" vira "João P.", não "João (.".
+  const last = parts.slice(1).reverse().find((p) => /^\p{L}/u.test(p));
+  return last ? `${parts[0]} ${last[0].toUpperCase()}.` : parts[0];
 }
 
 /**
@@ -162,12 +164,14 @@ export function shortSeatName(name: string): string {
  */
 export function VoteSeat({
   name,
+  userId,
   roleLabel,
   roleCategory,
   flipped = false,
   isYou = false,
   isHost = false,
   observer = false,
+  observerHint,
   compact = false,
   absent = false,
   seatId,
@@ -177,12 +181,16 @@ export function VoteSeat({
 }: {
   isHost?: boolean;
   name: string;
+  /** Id da conta: mostra a foto enviada pela pessoa no avatar. */
+  userId?: string | null;
   roleLabel: string;
   roleCategory?: string | null;
   flipped?: boolean;
   isYou?: boolean;
   /** Acompanha sem votar (gestão, espectador): desenha sem carta. */
   observer?: boolean;
+  /** Por que não vota ("cargo não vota nesta sala"): vai na dica e no texto para leitor de tela do assento. */
+  observerHint?: string;
   /** Assento pequeno (mesa apertada): avatar menor no lugar de quem observa. */
   compact?: boolean;
   /** Fora da sala (sem sinal de presença): avatar esmaecido. */
@@ -202,20 +210,21 @@ export function VoteSeat({
       {isHost && <Crown aria-label="Organizador" className="h-3.5 w-3.5 shrink-0 text-amber-500" strokeWidth={1.5} />}
     </span>
   );
-  const roleLine = <span className={cn('max-w-full truncate text-xs font-bold leading-tight', ROLE_STYLES[roleToneOf(roleCategory)].text)}>{roleLabel}</span>;
+  // tracking-tight: "Desenvolvedor(a)", o cargo mais comum, passava 3 px da caixa do assento (132 px) e virava "Desenvolvedor…".
+  const roleLine = <span className={cn('max-w-full truncate text-xs font-bold leading-tight tracking-tight', ROLE_STYLES[roleToneOf(roleCategory)].text)} title={roleLabel}>{roleLabel}</span>;
 
   if (observer) {
     return (
-      <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando`}>
+      <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando${observerHint ? `: ${observerHint}` : ''}`}>
         <span className="relative">
-          <PersonAvatar name={name} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
+          <PersonAvatar name={name} userId={userId} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
           <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
             <Eye className="h-3 w-3" strokeWidth={1.5} />
           </span>
         </span>
         {nameLine}
         {roleLine}
-        <span className="text-xs font-medium leading-tight text-muted-foreground">Observando</span>
+        <span className="text-xs font-medium leading-tight text-muted-foreground" title={observerHint}>Observando</span>
       </li>
     );
   }
@@ -224,7 +233,7 @@ export function VoteSeat({
     <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1.5', flipped && 'flex-col-reverse', className)} style={style}>
       {children}
       <span className="flex max-w-full items-center gap-1.5">
-        <PersonAvatar name={name} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />
+        <PersonAvatar name={name} userId={userId} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />
         <span className="flex min-w-0 flex-col items-start">
           {nameLine}
           {roleLine}
@@ -323,15 +332,15 @@ export function DeckCard({
     >
       {showPips && (
         <>
-          <span aria-hidden="true" className="pointer-events-none absolute left-1.5 top-1 hidden text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute left-1.5 top-1 hidden text-xs font-bold leading-none opacity-60 sm:block">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-xs font-bold leading-none opacity-60 sm:block">{value}</span>
         </>
       )}
       {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-70 [.theme-leitura_&]:hidden" />}
       {isCoffee ? (
         <Coffee className="h-6 w-6 sm:h-8 sm:w-8" strokeWidth={1.75} />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>{value}</span>
+        <span className={cn('font-bold leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>{value}</span>
       )}
     </button>
   );

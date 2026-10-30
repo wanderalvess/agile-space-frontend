@@ -90,7 +90,7 @@ export function ExportDialogShell({
                 <span className="text-sm font-semibold text-foreground">{f.name}</span>
                 <span className="text-xs text-muted-foreground">{f.desc}</span>
               </span>
-              <span className="rounded border border-border px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground">{f.short}</span>
+              <span className="rounded border border-border px-1.5 py-0.5 text-xs font-bold tabular-nums text-muted-foreground">{f.short}</span>
             </label>
           );
         })}

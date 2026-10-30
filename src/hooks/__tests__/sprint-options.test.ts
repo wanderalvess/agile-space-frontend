@@ -44,4 +44,8 @@ describe('lista de sprints do painel (a mesma do Squad Hub)', () => {
     const opts = buildSprintOptions({ currentSprintId: '', history: [hist('', 'sem id'), hist('UNMAPPED', 'não mapeada')], issues: [] });
     expect(opts).toHaveLength(1);
   });
+
+  it('histórico null (squad sem histórico no backend) não quebra a lista', () => {
+    expect(buildSprintOptions({ currentSprintId: '', history: null, issues: [] })).toEqual([{ label: 'Sprint atual', value: 'current' }]);
+  });
 });

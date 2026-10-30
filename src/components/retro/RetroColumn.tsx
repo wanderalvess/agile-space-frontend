@@ -220,7 +220,7 @@ function RetroColumnComponent({
             className={cn('inline-flex items-center gap-1 text-xs font-semibold tabular-nums', votesUsed >= maxVotes ? 'text-amber-700 dark:text-amber-300' : 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground')}
           >
             <Star className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            {Math.max(0, maxVotes - votesUsed)} {maxVotes - votesUsed === 1 ? 'voto' : 'votos'}
+            {votesUsed} de {maxVotes} {maxVotes === 1 ? 'voto' : 'votos'}
           </span>
         )}
 
@@ -295,7 +295,7 @@ function RetroColumnComponent({
 
       {/* Campo fixo no topo (visão foco) */}
       {focus && !readOnly && (
-        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} placeholder={themed?.placeholder} />
+        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} placeholder={themed?.placeholder} draftKey={`${boardData.id}:${columnKey}`} />
       )}
 
       {/* Cartões */}
@@ -376,6 +376,7 @@ function RetroColumnComponent({
       {/* Rodapé da coluna (visão em quadro) */}
       {view === 'board' && !readOnly && (
         <AddRetroCard
+          draftKey={`${boardData.id}:${columnKey}`}
           columnKey={columnKey}
           isActionColumn={isActionColumn}
           variant="button"

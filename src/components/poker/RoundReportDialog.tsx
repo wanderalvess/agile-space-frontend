@@ -1,11 +1,12 @@
 "use client";
 
-import { Modal, ModalButton, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
+import { Modal, ModalButton, PersonAvatar, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
 import { CheckCircle2, ClipboardCopy, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Participant, VotingRound } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, formatRoleForCopy, formatEstimateCopy } from '@/lib/poker-utils';
+import { TECHNICAL_CATEGORIES, getParticipantCategory, formatRoleForCopy, formatEstimateCopy } from '@/lib/poker-utils';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
 
 /** Relatório consolidado de uma rodada (estimativa final, papéis ou faixa, votos). Abre pela fila. */
 export function RoundReportDialog({ round, onClose, participants }: { round: VotingRound | null; onClose: () => void; participants: Participant[] }) {
@@ -38,9 +39,8 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
     (round.votes || []).forEach((v: any) => {
       const p = participantMap.get(v.participantId);
       if (p) {
-        const category = getParticipantCategory(p);
-        const roleLabel = category || p.role;
-        text += `${p.nickname} (${roleLabel}): ${v.value}\n`;
+        // O cargo por extenso (o da administração); quem ainda não tem cargo aparece como "Sem cargo".
+        text += `${p.nickname} (${canonicalCargo(p.globalRole) || SEM_CARGO}): ${v.value}\n`;
       }
     });
 
@@ -96,7 +96,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
       <div className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="flex flex-col items-center justify-center rounded-xl bg-primary p-4 text-primary-foreground">
-            <span className="text-[11px] font-semibold opacity-80">Total</span>
+            <span className="text-xs font-semibold opacity-80">Total</span>
             <span className="text-2xl font-bold tabular-nums">{round.stats.avg}{round.deckType === 'hours' ? 'h' : ''}</span>
           </div>
           {round.deckType === 'hours' ? (
@@ -106,7 +106,7 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
               if (!value || value === '0') return null;
               return (
                 <div key={category} className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                  <span className={cn('text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>{formatRoleForCopy(category)}</span>
+                  <span className={cn('text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>{formatRoleForCopy(category)}</span>
                   <span className="text-2xl font-bold tabular-nums">{value}h</span>
                 </div>
               );
@@ -114,11 +114,11 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
           ) : (
             <>
               <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                <span className="text-[11px] font-semibold text-muted-foreground">Menor</span>
+                <span className="text-xs font-semibold text-muted-foreground">Menor</span>
                 <span className="text-xl font-bold tabular-nums">{round.stats.min}</span>
               </div>
               <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
-                <span className="text-[11px] font-semibold text-muted-foreground">Maior</span>
+                <span className="text-xs font-semibold text-muted-foreground">Maior</span>
                 <span className="text-xl font-bold tabular-nums">{round.stats.max}</span>
               </div>
             </>
@@ -133,10 +133,13 @@ export function RoundReportDialog({ round, onClose, participants }: { round: Vot
               const category = p ? getParticipantCategory(p) : null;
               return (
                 <li key={vote.participantId} className="flex items-center justify-between gap-3 rounded-[10px] border border-border bg-muted/30 px-3 py-2">
-                  <span className="flex min-w-0 flex-col">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <PersonAvatar name={p?.nickname || 'Participante'} userId={vote.participantId} size="md" />
+                    <span className="flex min-w-0 flex-col">
                     <span className="truncate text-[13px] font-semibold">{p?.nickname || 'Participante'}</span>
-                    <span className={cn('truncate text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
-                      {p ? (category ? formatRoleForCopy(category) : (p.globalRole || p.role)) : ''}
+                    <span className={cn('truncate text-xs font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
+                      {p ? (canonicalCargo(p.globalRole) || SEM_CARGO) : (canonicalCargo(vote.participantGlobalRole) || SEM_CARGO)}
+                    </span>
                     </span>
                   </span>
                   <span className="rounded-md border border-border bg-card px-2 py-0.5 text-sm font-bold tabular-nums">{vote.value}</span>

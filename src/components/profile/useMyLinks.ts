@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { useToast } from '@/hooks/use-toast';
-import { resolveActiveSquadId } from '@/lib/memberships';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { activeLinkOf, buildMyLinks, type MyLink } from '@/lib/my-links';
 
 /**
@@ -21,7 +21,7 @@ export function useMyLinks() {
   const { toast } = useToast();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
-  const activeId = resolveActiveSquadId(session?.activeProjectId, memberships);
+  const { squadId: activeId } = useActiveSquad();
   const links = useMemo(() => buildMyLinks(session, userSquads, activeId, memberships), [session, userSquads, activeId, memberships]);
   const active = useMemo(() => activeLinkOf(links), [links]);
 

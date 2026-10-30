@@ -8,13 +8,14 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useToast } from '@/hooks/use-toast';
 import type { JiraIssue } from '@/services/jiraService';
 import type { CardKind, ShowcasePresenter, ShowcaseSession, ShowcaseTask } from './types';
-import { appendUnique, buildManualTask, newIssueKeys, nextManualKey, normalizeSession, syncsToWorkItems, workItemSquad, workItemStatusFor } from './session-model';
+import { appendUnique, buildManualTask, normalizeTask, newIssueKeys, nextManualKey, normalizeSession, syncsToWorkItems, workItemSquad, workItemStatusFor } from './session-model';
 import {
   DECISION_RESTRICTED_HELP,
   DECISION_RESTRICTED_TITLE,
   STALE_CARDS_HELP,
   applyChanges,
   applyServerCard,
+  deepEqual,
   diffCard,
   findCollisions,
   getPath,
@@ -168,11 +169,49 @@ export function useShowcaseRoom(id: string) {
     savedTimerRef.current = setTimeout(() => { if (isMounted.current) setSaveState((s) => (s === 'saved' ? 'idle' : s)); }, 4000);
   }, []);
 
+  /**
+   * Alterações minhas AINDA NA FILA (não enviadas) de um campo que o servidor acaba de mudar para outro valor: sem isto,
+   * a versão do card sobe com o evento/resposta e a gravação seguinte passa sem 409, sobrescrevendo a outra pessoa em
+   * silêncio. Esses campos saem da fila e viram o aviso "Reaplicar a minha / Descartar"; a tela mostra o do servidor.
+   * A alteração em voo não entra aqui: ela vai com a versão antiga e o próprio 409 do servidor a trata.
+   */
+  const addConflictRef = useRef<(taskId: string, changes: FieldChange[]) => void>(() => undefined);
+  const guardQueuedAgainstServer = useCallback((taskId: string, raw: unknown) => {
+    const queued = cardOpsRef.current.filter((o) => o.taskId === taskId);
+    if (queued.length === 0) return;
+    const serverCard = normalizeTask(raw);
+    const lost: FieldChange[] = [];
+    for (const op of queued) {
+      // O que o servidor pode legitimamente ter sem ter sido outra pessoa: o valor de antes da minha 1ª digitação e o
+      // da que já está em voo (o eco da minha própria gravação).
+      const inflight = inflightRef.current?.taskId === taskId ? inflightRef.current.changes : [];
+      const hits = findCollisions(serverCard, op.changes).filter((c) => {
+        const own = inflight.find((i) => i.path === c.path);
+        if (!own) return true;
+        const server = getPath(serverCard, c.path);
+        return !deepEqual(server, own.base) && !deepEqual(server, own.value);
+      });
+      if (hits.length === 0) continue;
+      const hitPaths = new Set(hits.map((c) => c.path));
+      op.changes = op.changes.filter((c) => !hitPaths.has(c.path));
+      lost.push(...hits);
+      if (op.changes.length === 0) {
+        // Nada mais a gravar nesta fila: quem esperava recebe "não gravou".
+        cardOpsRef.current = cardOpsRef.current.filter((o) => o !== op);
+        op.resolvers.forEach((resolve) => resolve(false));
+      }
+    }
+    if (lost.length === 0) return;
+    lastFailureRef.current = 'conflict';
+    addConflictRef.current(taskId, lost);
+  }, []);
+
   /** Troca um card da tela pelo que veio do servidor, mantendo por cima o que ainda não foi gravado dele. */
   const applyCardFromServer = useCallback((raw: unknown, opts: { includeInflight?: boolean; ignoreOlder?: boolean } = {}) => {
     const current = sessionRef.current;
     const taskId = (raw as { id?: string } | null)?.id;
     if (!current || !taskId) return;
+    guardQueuedAgainstServer(taskId, raw);
     const next = applyServerCard(current, raw, pendingFor(taskId, opts.includeInflight ?? true), { ignoreOlder: opts.ignoreOlder });
     if (next === null) void reloadSession();
     else if (next !== current) setSession(next);
@@ -193,6 +232,8 @@ export function useShowcaseRoom(id: string) {
       return next;
     });
   }, []);
+
+  useEffect(() => { addConflictRef.current = addConflict; }, [addConflict]);
 
   /**
    * Grava as alterações de um card por PATCH com a versão lida. 409: se os campos que a pessoa mexeu NÃO foram mexidos
@@ -426,6 +467,9 @@ export function useShowcaseRoom(id: string) {
           const current = sessionRef.current;
           if (!current) { void reloadSession(); return; }
           const incoming = data.payload.card;
+          const localCard = current.tasks.find((t) => t.id === incoming.id);
+          const isNewer = typeof incoming.version === 'number' && (!localCard || typeof localCard.version !== 'number' || incoming.version > localCard.version);
+          if (isNewer) guardQueuedAgainstServer(incoming.id, incoming);
           const next = applyServerCard(current, incoming, pendingFor(incoming.id), { ignoreOlder: true });
           if (next === null) void reloadSession();
           else if (next !== current) {
@@ -489,7 +533,7 @@ export function useShowcaseRoom(id: string) {
       if (retryTimer) clearTimeout(retryTimer);
       socket?.close();
     };
-  }, [id, reloadSession, setSession, presenceBindings, pendingFor]);
+  }, [id, reloadSession, setSession, presenceBindings, pendingFor, guardQueuedAgainstServer]);
 
   const persist = useCallback(
     (updates: Partial<ShowcaseSession>) => mutate((s) => ({ ...s, ...updates })),

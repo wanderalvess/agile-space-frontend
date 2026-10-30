@@ -10,13 +10,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CircleAlert, Clock, RefreshCw, Users } from 'lucide-react';
+import { CircleAlert, Clock, CloudDownload, RefreshCw, Users } from 'lucide-react';
 import { LinkedTeamWelcome } from '@/components/home/LinkedTeamWelcome';
 import { Notice } from '@/components/home/Notice';
 import { EmptyState, LoadingSkeleton, PageColumns } from '@/components/page';
-import { ModalButton } from '@/components/room-kit';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateTeamAvatars, useTeamAvatars } from '@/hooks/useTeamAvatars';
 import type { SquadDashboardData } from '@/hooks/useSquadDashboardData';
@@ -41,6 +40,8 @@ export interface SummaryTabProps {
   sync: { syncState: JiraSyncState; syncError: string | null; runJiraSync: () => Promise<void> };
   /** Gerencia o time (mesma regra do roster): vê "Configurar" no aviso de capacidade. */
   canManageTeam: boolean;
+  /** Pode reimportar o time do Jira (o servidor só aceita liderança do projeto/admin): é quem vê "Importar do Jira". */
+  canImportJira: boolean;
   /** Pode abrir a tela de Pessoas (SQUAD_PEOPLE_ADMIN_ROLES). */
   canOpenPeople: boolean;
   /** Sincronização do cabeçalho em andamento ou sprint histórica em tela: some o convite para sincronizar. */
@@ -56,6 +57,7 @@ export function SummaryTab({
   userRole,
   sync,
   canManageTeam,
+  canImportJira,
   canOpenPeople,
   canSyncNow,
   onSyncNow,
@@ -137,7 +139,7 @@ export function SummaryTab({
     return (
       <EmptyState
         title="Você ainda não está em uma squad"
-        description="Entre em um time pra ver sprint, board e movimentos aqui."
+        description="Entre em um time para ver sprint, board e movimentos aqui."
         actions={
           <ModalButton variant="primary" onClick={() => router.push('/onboarding')}>
             Escolher meu time
@@ -156,14 +158,16 @@ export function SummaryTab({
       <LinkedTeamWelcome showPainelLink={false} />
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <ModalButton
-          onClick={() => setJiraImportOpen(true)}
-          disabled={!hasSquad}
-          className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
-          title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
-        >
-          <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
-        </ModalButton>
+        {canImportJira && (
+          <ModalButton
+            onClick={() => setJiraImportOpen(true)}
+            disabled={!hasSquad}
+            className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
+            title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
+          >
+            <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
+          </ModalButton>
+        )}
         <ModalButton
           onClick={handleRefresh}
           disabled={isRefreshing || !hasSquad}
@@ -230,12 +234,15 @@ export function SummaryTab({
       )}
 
       {/* Importação do Jira: disponível sempre, para refazer a prévia (nova foto, pessoas, cargos). */}
-      <Dialog open={jiraImportOpen} onOpenChange={setJiraImportOpen}>
-        <DialogContent className="max-h-[90dvh] max-w-4xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Importar a {squadId} do Jira</DialogTitle>
-            <DialogDescription>Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia.</DialogDescription>
-          </DialogHeader>
+      <Modal
+        open={jiraImportOpen}
+        onOpenChange={setJiraImportOpen}
+        size="xl"
+        className="sm:max-w-4xl"
+        icon={CloudDownload}
+        title={`Importar a ${squadId} do Jira`}
+        description="Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia."
+      >
           <JiraProfieldsImport
             initialProjectKey={squadId}
             onImported={({ project }) => {
@@ -245,8 +252,7 @@ export function SummaryTab({
               void sync.runJiraSync();
             }}
           />
-        </DialogContent>
-      </Dialog>
+      </Modal>
     </div>
   );
 }

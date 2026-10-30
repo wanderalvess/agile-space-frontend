@@ -1,141 +1,25 @@
-# Biblioteca de IA (Prompt Hub)
+# Biblioteca de IA (Prompt Hub): requisitos
 
-## 1. Visão geral
+Os dados vivem no backend Spring Boot + PostgreSQL (não há mais Firestore). Detalhes de telas e regras:
+`docs/fluxos/biblioteca-ia.md`.
 
-Acervo da empresa para ativos de IA: prompts, skills, agentes, Gems, instruções,
-workflows, configurações de MCP e recursos de referência. O objetivo é que uma
-pessoa **encontre** o que já existe antes de escrever de novo.
+## Funções que a tela garante
+- 8 tipos: prompt, skill, agente, Gem, instrução, fluxo de trabalho, MCP e recurso.
+- Campos `{{nome}}` preenchidos antes de copiar (substituição numa passada, sem interpretar `$&`).
+- Copiar, preencher, abrir ferramenta (Gem conta o uso), duplicar, favoritar (na conta), copiar link.
+- Discussão de até 4000 caracteres; remove quem escreveu, a dona do item e a administradora.
+- Skill e recurso em modo formatado ou cru; ficha técnica só com o cargo da pessoa autora.
+- Conferência ao vivo do SKILL.md (erros bloqueiam, avisos não); aviso de itens parecidos (nunca bloqueia).
+- Etiquetas (máx. 30; a pendente entra ao publicar); detalhes de iniciativa; confirmação ao sair sujo.
+- Importar pasta (lote de até 200, com fallback item a item), coleções ordenadas, página da pessoa, tutorial.
+- Leitura pública sem login; links só `http(s)`.
 
-Rota base: `/prompt-hub`.
+## Contrato com o backend
+- `GET /api/prompts?query&type&visibility&status&impact&tag&favorites&authorId&sort&page&size`
+  (o formato novo liga quando vem `sort` ou algum filtro; o cliente sempre manda `sort`).
+- `GET /api/prompts/facets` (mesmos filtros), `POST|DELETE /api/prompts/{id}/favorite`,
+  `GET /api/prompts/{id}/versions[/{n}]`, `POST /api/prompts/{id}/versions/{n}/restore`, `GET /api/prompts/{id}/usage?weeks=8`.
+- Rotas públicas em `/api/public/prompt-hub/{items,facets,collections}` (coleções públicas: ver relatório de entrega).
 
-## 2. Estrutura de arquivos
-
-```
-src/app/prompt-hub/
-├── page.tsx                    # Landing (visitante) + porta de entrada do dashboard
-├── types.ts                    # PromptItem, PromptCollection, PromptFilters
-├── constants.tsx               # Fonte única de tipos, status, impacto, visibilidade
-├── skillFrontmatter.ts         # Validação do formato SKILL.md (função pura)
-├── findSimilar.ts              # Detecção de itens duplicados (função pura)
-├── deletePrompt.ts             # Exclusão em cascata (item + comentários + favorito)
-├── components/
-│   ├── Dashboard.tsx           # Catálogo: busca, filtros, ordenação, destaques
-│   ├── PromptCard.tsx          # Card do item
-│   ├── PromptEditor.tsx        # Publicação e edição
-│   ├── PromptView.tsx          # Detalhe: variáveis, conteúdo, metadados, discussão
-│   └── CollectionEditor.tsx    # Montagem de trilhas
-├── [id]/page.tsx               # Link compartilhável de um item
-├── autor/[authorId]/page.tsx   # Perfil: itens de uma pessoa
-├── colecoes/page.tsx           # Lista de coleções
-├── colecoes/[id]/page.tsx      # Trilha ordenada
-├── tutorial/page.tsx           # Guia de criação de skills (pt-BR)
-└── seed/page.tsx               # Carga inicial — restrita a admin, manual
-```
-
-`src/components/prompt-hub/PromptGuide.tsx` é o painel lateral "Como usar a
-biblioteca". `src/components/workspace/MyPrompts.tsx` reaproveita os componentes
-do Hub dentro do workspace.
-
-## 3. Modelo de dados
-
-### 3.1 `prompt_hub/{id}`
-
-Campos principais: `title`, `description`, `content`, `type`, `visibility`,
-`tags[]`, `gemLink`, `architectureLink`, `status`, `impact`, `businessGoal`,
-`targetAudience`, autoria denormalizada (`authorId`, `authorName`, `authorRole`,
-`authorSquad`, `authorAvatar`) e contadores `useCount` / `forkCount`.
-
-Subcoleção `comments/{id}`: discussão do item.
-
-`isFavorited` **não** é persistido no documento — é derivado por usuário.
-
-### 3.2 `users/{uid}/prompt_favorites/{promptId}`
-
-Favoritos são por pessoa. Guardar a estrela no documento do prompt faria o
-favorito de um aparecer para todos que enxergam o item.
-
-### 3.3 `prompt_collections/{id}`
-
-`name`, `description`, `itemIds[]` (ordenado), `visibility`, posse
-(`ownerId`, `ownerName`, `ownerSquad`).
-
-A coleção guarda apenas IDs: **não concede acesso**. Item privado dentro de uma
-trilha pública continua invisível para quem não é o autor.
-
-## 4. Segurança
-
-Regras em `firestore.rules`, bloco `prompt_hub` e `prompt_collections`.
-
-- **Leitura**: item público, ou o autor. Estar autenticado não dá acesso a itens
-  privados de terceiros.
-- **Criação**: apenas em nome próprio (`authorId == request.auth.uid`).
-- **Edição/exclusão**: autor ou admin, sem transferir autoria.
-- **Contadores**: qualquer pessoa autenticada pode somar exatamente 1 em
-  `useCount` / `forkCount` de item público, e nada além disso.
-- **Comentários**: herdam a visibilidade do item pai (custa um `get()` no pai).
-  Exclusão permitida ao autor do comentário, ao dono do item e ao admin.
-
-> Ao escrever regras que serão avaliadas em consultas (`list`), evite checagem de
-> existência de campo (`'campo' in resource.data`). A análise estática do
-> Firestore não consegue prová-la a partir das restrições do `where` e recusa a
-> consulta inteira. Use comparação direta.
-
-### Índices necessários
-
-Declarados em `firestore.indexes.json`. Precisam ser publicados —
-`firebase deploy --only firestore:indexes` — e levam minutos construindo:
-
-| Coleção | Campos |
-|---|---|
-| `prompt_hub` | `visibility`, `updatedAt` |
-| `prompt_hub` | `authorId`, `updatedAt` |
-| `prompt_hub` | `authorId`, `visibility`, `updatedAt` |
-| `prompt_collections` | `visibility`, `updatedAt` |
-| `prompt_collections` | `ownerId`, `updatedAt` |
-
-## 5. Funcionalidades
-
-**Descoberta** — busca sobre título, descrição, conteúdo, tags e autor; filtro
-por categoria com contagem; ordenação por recência, uso, clones ou alfabética;
-tags clicáveis; favoritos; destaque de mais utilizados.
-
-**Uso** — cópia direta do card (item com `{{variáveis}}` abre o detalhe para
-preencher antes); duplicação para a biblioteca privada; link compartilhável.
-
-**Publicação** — formulário progressivo: o essencial visível, detalhes de
-iniciativa recolhidos. Campos de conteúdo mudam conforme o tipo. Skill tem o
-formato SKILL.md conferido ao vivo, e erros de formato bloqueiam a publicação.
-Itens parecidos são sinalizados antes de publicar, sem bloquear.
-
-**Organização** — coleções ordenadas e perfil por autor.
-
-**Tutorial** — guia em português para criação de skills, com uma seção reservada
-para os padrões internos da empresa.
-
-## 5.1 Permissões (backend Spring, `PromptController`)
-
-Autoria, dono de coleção e autor de comentário vêm do JWT, nunca do corpo. Item
-não público (e coleção privada) só é visto pelo autor ou ADMIN; para os demais a
-API responde 404. Editar/excluir exige autor ou ADMIN (403). Favoritos continuam
-no `localStorage` do navegador (não sincronizam entre dispositivos). A leitura
-sem login existe só em `GET /api/public/prompt-hub/items[/{id}]`: itens públicos, sem `authorId`,
-sem comentários nem coleções; privado e inexistente dão 404. Todo o resto de `/api/prompts` exige token.
-
-## 6. Limitações conhecidas
-
-- Visibilidade por **squad** e por **cargo** existe no tipo, mas nenhuma consulta
-  as carrega. As opções não aparecem no editor.
-- Busca e filtros rodam **no cliente**: todo o acervo público é carregado. Não
-  escala para centenas de itens sem paginação ou busca server-side.
-- Itens `arquivado` ficam escondidos por padrão; o filtro de status mostra todos ou só os arquivados.
-- Favoritos de terceiros apontando para item excluído ficam órfãos: limpá-los
-  exige Cloud Function ou rotina administrativa.
-- Não há testes automatizados das regras — o emulador do Firestore exige Java,
-  ausente no ambiente atual.
-
-## 7. Stack
-
-Next.js (App Router), TypeScript, Tailwind com tokens semânticos (`bg-card`,
-`text-muted-foreground`, `border-border`) para acompanhar tema claro/escuro e as
-variantes visuais do app, Firebase Firestore e Auth, Radix UI, lucide-react,
-sonner para toasts.
+## Limitações
+- Sem compartilhamento por squad ou cargo (só Privado e Público).

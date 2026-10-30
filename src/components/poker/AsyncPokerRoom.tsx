@@ -1,25 +1,27 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useMemo, useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
-import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy } from '@/lib/poker-utils';
+import { SEM_CARGO, canonicalCargo } from '@/lib/cargo';
+import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy, observerHintOf, votingCargosOf } from '@/lib/poker-utils';
 import { summarizeRound } from '@/lib/poker-results';
 import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards } from 'lucide-react';
+import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { formatExternalUrl, cn } from '@/lib/utils';
 import { TopicQueue } from './TopicQueue';
-import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { CeremonySettingsDialog } from './PokerDialogs';
 import { useSaveRoomTemplate } from './TemplateDialogs';
-import { DeckCard, FIELD, IconButton, Modal, ModalButton, ResponsivePanel, StatusChip, VoteCard } from '@/components/room-kit';
+import { DeckCard, FIELD, Modal, ModalButton, ResponsivePanel, RoomTopBar, StatusChip, VoteCard, type RoomTopBarAction, type RoomTopBarChip, type RoomTopBarMenuItem } from '@/components/room-kit';
 
 interface AsyncPokerRoomProps {
   roomId: string;
@@ -50,6 +52,7 @@ interface AsyncPokerRoomProps {
   onUpdateSettings?: (settings: Partial<NonNullable<Room['settings']>>) => void;
   onOpenFeedback: () => void;
   onOpenRetro?: () => void;
+  onDeleteRoom?: () => void;
   creatorId: string;
 }
 
@@ -80,6 +83,7 @@ const AsyncPokerRoomComponent = ({
   onUpdateSettings,
   onOpenFeedback,
   onOpenRetro,
+  onDeleteRoom,
   onSetDeck,
 }: AsyncPokerRoomProps) => {
   const [expandedIssues, setExpandedIssues] = useState<string[]>([]);
@@ -87,14 +91,17 @@ const AsyncPokerRoomComponent = ({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
+  // Quem vota: a política da sala (cargos), a mesma da sala ao vivo.
+  const votingCargos = useMemo(() => votingCargosOf(settings), [settings]);
   const deckValues = useMemo(() => getDeckCards(deck, settings?.maxHours), [deck, settings?.maxHours]);
   const isDense = deckValues.length > 14;
 
   // Mesmo gate de room/[id]/page.tsx e Controls.tsx (poker-utils.canParticipantVote) —
   // a lista local antiga (MANAGEMENT_ROLES) divergia da centralizada, deixando o botão
   // de voto habilitado pra papéis (ex: People Lead) que o write-path já bloqueava.
-  const canVote = canParticipantVote(currentUser, settings?.allowManagementToVote);
+  const canVote = canParticipantVote(currentUser, votingCargos);
 
   const toggleExpand = (id: string) => {
     setExpandedIssues(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -104,34 +111,48 @@ const AsyncPokerRoomComponent = ({
   const completedIssues = issuesQueue.filter(i => i.status === 'completed');
   const unit = deck === 'hours' ? 'h' : deck === 'tshirt' ? '' : ' SP';
 
+  const title = roomTitle || 'Scrum Poker assíncrono';
+  const presencePeople = participants.map(p => ({ id: p.id, name: p.nickname }));
+  const chips: RoomTopBarChip[] = [
+    { id: 'mode', label: 'Assíncrono', tone: 'brand' },
+    ...(roomTeam ? [{ id: 'team', label: roomTeam, secondary: true }] : []),
+  ];
+  const actions: RoomTopBarAction[] = [
+    { id: 'queue', label: 'Fila de tarefas', icon: ListChecks, pressed: isQueueOpen, badge: pendingIssues.length, onClick: () => setIsQueueOpen(v => !v) },
+    { id: 'share', label: 'Compartilhar sala', icon: Link2, onClick: () => setIsShareDialogOpen(true) },
+    ...(isCurrentUserFacilitator
+      ? [{ id: 'settings', label: 'Configurações da cerimônia', icon: SlidersHorizontal, tier: 'mid' as const, onClick: () => setIsSettingsOpen(true) }]
+      : []),
+    { id: 'export', label: 'Exportar resultados', icon: Download, tier: 'mid' as const, onClick: () => setIsExportOpen(true) },
+  ];
+  const menuItems: RoomTopBarMenuItem[] = [
+    ...(onOpenRetro ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: onOpenRetro }] : []),
+    ...(onDeleteRoom ? [{ id: 'delete-room', label: 'Excluir sala', icon: Trash2, onClick: onDeleteRoom }] : []),
+  ];
+
   return (
     <>
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
-        <RoomHeader
-          title={roomTitle || 'Scrum Poker assíncrono'}
-          toolIcon={<WalletCards className="h-4 w-4" />}
-          toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
+        <RoomTopBar
+          toolName="Scrum Poker"
+          toolIcon={moduleIcon('poker')}
+          title={title}
+          chips={chips}
+          presence={{ people: presencePeople, open: isParticipantsOpen, onClick: () => setIsParticipantsOpen(v => !v), unknown: true }}
+          actions={actions}
+          menuItems={menuItems}
           onOpenFeedback={onOpenFeedback}
-          badge={<StatusChip>Assíncrono</StatusChip>}
         />
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-3 md:px-6">
-          <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
-            {roomTeam && <span className="truncate text-xs text-muted-foreground">{roomTeam}</span>}
-            <span className="truncate text-base font-semibold">{roomTitle || 'Scrum Poker assíncrono'}</span>
-          </div>
-          <IconButton label="Fila de tarefas" icon={ListChecks} pressed={isQueueOpen} onClick={() => setIsQueueOpen(v => !v)} />
-          <IconButton label="Participantes" icon={Users} pressed={isParticipantsOpen} onClick={() => setIsParticipantsOpen(v => !v)} />
-          {isCurrentUserFacilitator && <IconButton label="Configurações da cerimônia" icon={SlidersHorizontal} onClick={() => setIsSettingsOpen(true)} />}
-          <IconButton label="Compartilhar sala" icon={Link2} onClick={() => setIsShareDialogOpen(true)} />
-          {onOpenRetro && <IconButton label="Abrir retro desta sprint" icon={MessageSquareText} onClick={onOpenRetro} />}
-          <ExportDialog
-            roomTitle={roomTitle || 'Scrum Poker assíncrono'}
-            roomTeam={roomTeam}
-            issues={issuesQueue}
-            participants={participants}
-            deck={deck}
-          />
-        </div>
+        <ExportDialog
+          roomTitle={title}
+          roomTeam={roomTeam}
+          issues={issuesQueue}
+          participants={participants}
+          deck={deck}
+          open={isExportOpen}
+          onOpenChange={setIsExportOpen}
+          hideTrigger
+        />
 
         <div className="relative flex min-h-0 flex-1">
           <ResponsivePanel side="left" open={isQueueOpen} onOpenChange={setIsQueueOpen} title="Fila" count={issuesQueue.length} icon={ListChecks} widthClass="w-80">
@@ -153,7 +174,7 @@ const AsyncPokerRoomComponent = ({
               {pendingIssues.length === 0 && completedIssues.length === 0 ? (
                 <section className="flex flex-col items-center gap-5 py-24 text-center">
                   <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground">
-                    <WalletCards className="h-8 w-8" strokeWidth={1.5} />
+                    <ModuleIcon module="poker" className="h-8 w-8" />
                   </span>
                   <h2 className="m-0 text-3xl font-bold tracking-tight">Nenhuma tarefa ainda</h2>
                   <p className="m-0 max-w-md text-[15px] leading-relaxed text-muted-foreground">Cada pessoa vota no seu tempo. Comece adicionando as tarefas que o time deve estimar.</p>
@@ -166,7 +187,7 @@ const AsyncPokerRoomComponent = ({
                     const isRevealed = revealedIssues.includes(issue.id);
                     const issueVotes = votes.filter(v => v.issueId === issue.id);
                     const myVoteValue = issueVotes.find(v => v.participantId === currentUser.id)?.value || null;
-                    const summary = isRevealed ? summarizeRound(issueVotes, participants, deck, { allowManagementToVote: settings?.allowManagementToVote, tshirtEquivalents: settings?.tshirtEquivalents }) : null;
+                    const summary = isRevealed ? summarizeRound(issueVotes, participants, deck, { votingCargos, tshirtEquivalents: settings?.tshirtEquivalents }) : null;
 
                     return (
                       <article key={issue.id} className={cn(CARD, 'overflow-hidden transition-[border-color,box-shadow] duration-slow', isExpanded && 'border-primary/40')}>
@@ -218,8 +239,10 @@ const AsyncPokerRoomComponent = ({
                                 </section>
                               ) : (
                                 <section className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border p-6 text-center">
-                                  <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha sem votar</p>
-                                  <p className="m-0 text-xs text-muted-foreground">Facilitador pode liberar o voto da gestão nas configurações.</p>
+                                  <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha como observador</p>
+                                  <p className="m-0 text-xs text-muted-foreground">
+                                    {canonicalCargo(currentUser.globalRole) ? `O cargo ${canonicalCargo(currentUser.globalRole)} não vota nesta sala.` : 'Você está sem cargo na administração, por isso entra como observador.'}
+                                  </p>
                                 </section>
                               )
                             )}
@@ -233,7 +256,9 @@ const AsyncPokerRoomComponent = ({
                                   const showValue = !!pVote && isRevealed && !settings?.anonymousReveal;
                                   return (
                                     <li key={p.id} className="flex min-w-0 flex-col items-center gap-2">
-                                      {!pVote ? (
+                                      {!canParticipantVote(p, votingCargos) ? (
+                                        <VoteCard state="observer" size="md" label={`${p.nickname}, observando: ${observerHintOf(p)}`} />
+                                      ) : !pVote ? (
                                         <VoteCard state="thinking" size="md" label={`${p.nickname} ainda não votou`} />
                                       ) : showValue ? (
                                         <VoteCard state="revealed" size="md" value={pVote.value} unit={deck === 'hours' ? 'h' : undefined} tone="plain" label={`${p.nickname}: ${pVote.value}`} />
@@ -241,6 +266,7 @@ const AsyncPokerRoomComponent = ({
                                         <VoteCard state="hidden" size="md" label={`${p.nickname} votou`} />
                                       )}
                                       <span className="w-full truncate text-center text-xs font-semibold" title={p.nickname}>{p.nickname}</span>
+                                      <span className="w-full truncate text-center text-xs text-muted-foreground" title={canonicalCargo(p.globalRole) || SEM_CARGO}>{canonicalCargo(p.globalRole) || SEM_CARGO}</span>
                                     </li>
                                   );
                                 })}
@@ -251,12 +277,12 @@ const AsyncPokerRoomComponent = ({
                               <div className="grid items-start gap-4 lg:grid-cols-2">
                                 <CopyEstimateCard summary={summary} deck={deck} />
                                 {settings?.outlierPrompt && (
-                                  <OutlierPrompt votes={issueVotes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
+                                  <OutlierPrompt votes={issueVotes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} votingCargos={votingCargos} />
                                 )}
                               </div>
                             )}
                             {isRevealed && settings?.showDistribution && (
-                              <VoteDistribution votes={issueVotes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />
+                              <VoteDistribution votes={issueVotes} participants={participants} deck={deck} votingCargos={votingCargos} />
                             )}
 
                             {isCurrentUserFacilitator && (
@@ -319,7 +345,7 @@ const AsyncPokerRoomComponent = ({
               onRemoveParticipant={onRemoveParticipant}
               onUpdateParticipantRole={onUpdateParticipantRole}
               onClaimFacilitator={onClaimFacilitator}
-              allowManagementToVote={settings?.allowManagementToVote}
+              votingCargos={votingCargos}
             />
           </ResponsivePanel>
         </div>
@@ -330,7 +356,7 @@ const AsyncPokerRoomComponent = ({
           <FacilitatorPanel
             deck={deck}
             onSetDeck={onSetDeck}
-            allowManagementToVote={settings?.allowManagementToVote}
+            votingCargos={votingCargos}
             autoReveal={settings?.autoReveal}
             outlierPrompt={settings?.outlierPrompt}
             confidenceVote={settings?.confidenceVote}

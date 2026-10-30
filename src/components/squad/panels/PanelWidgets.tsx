@@ -24,8 +24,8 @@ import {
 /** Cor de cada série (classes literais, o Tailwind só gera o que encontra escrito por inteiro). */
 export const INK: Record<SegmentTone, string> = {
   brand: BRAND_TEXT,
-  success: 'text-emerald-600 dark:text-emerald-400',
-  danger: 'text-red-600 dark:text-red-400',
+  success: 'text-emerald-700 dark:text-emerald-400',
+  danger: 'text-red-700 dark:text-red-400',
   muted: 'text-muted-foreground',
 };
 

@@ -121,8 +121,23 @@ describe('travas, filtros e detalhes (painel admin)', () => {
     expect(lockReasons(u({ id: 'l', role: 'LEAD' as any }), { currentUserId: 'me', adminCount: 1 })).toEqual({ status: null, nivel: null });
   });
 
-  it('o filtro de cargo traz todos os 15 cargos além de "todos" e "administradores"', () => {
-    expect(CARGO_FILTER_OPTIONS).toHaveLength(17);
+  it('a lista de cargos da administração não tem duplicatas: só os nomes canônicos de dev e QA', () => {
+    const values = CARGO_FILTER_OPTIONS.map((o) => o.value);
+    expect(new Set(values).size).toBe(values.length);
+    expect(values).toContain('Desenvolvedor(a)');
+    expect(values).toContain('Analista de QA');
+    expect(values).not.toContain('Developer');
+    expect(values).not.toContain('QA');
+  });
+
+  it('o filtro por cargo acha também quem ainda está gravado com a grafia antiga', () => {
+    const lista = [u({ id: 'a', jobTitle: 'Developer' as any }), u({ id: 'b', jobTitle: 'Desenvolvedor(a)' }), u({ id: 'c', jobTitle: 'QA' as any })];
+    expect(filterUsers(lista, { search: '', status: 'all', role: 'Desenvolvedor(a)' }).map((x) => x.id)).toEqual(['a', 'b']);
+    expect(filterUsers(lista, { search: '', status: 'all', role: 'Analista de QA' }).map((x) => x.id)).toEqual(['c']);
+  });
+
+  it('o filtro de cargo traz todos os 13 cargos além de "todos" e "administradores"', () => {
+    expect(CARGO_FILTER_OPTIONS).toHaveLength(15);
     expect(CARGO_FILTER_OPTIONS.map((o) => o.value)).toContain('Scrum Master');
     const sm = filterUsers(
       [u({ id: 'a', jobTitle: 'Scrum Master' }), u({ id: 'b', jobTitle: 'Agile Master' })],

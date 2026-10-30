@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from 'sonner'
-import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -105,7 +104,6 @@ export default function RootLayout({
                   <BackendHealthGatekeeper>
                     <IdentityGatekeeper>
                       <div className="relative flex min-h-dvh flex-col overflow-x-clip">
-                        <Header />
                         <main className="flex flex-col flex-1 w-full overflow-x-clip">{children}</main>
                         <Calmaria />
                       </div>

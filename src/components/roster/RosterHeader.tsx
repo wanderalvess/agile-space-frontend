@@ -23,6 +23,7 @@ export function RosterHeader({ canManageTeam, canInvite, onExport, onImport, onA
   return (
     <PageHeader
       title="Time da squad"
+      module="roster"
       breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Time da squad' }]}
       actions={
         <>

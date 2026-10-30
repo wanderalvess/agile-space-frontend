@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
-import { Bot, BookOpen, HelpCircle, Plus, Search, Settings } from 'lucide-react';
+import { Bot, HelpCircle, Plus, Search, SlidersHorizontal } from 'lucide-react';
+import { moduleIcon } from '@/lib/modules-registry';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +14,16 @@ import { AppFooter } from '@/components/layout/AppFooter';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ModalButton } from '@/components/room-kit';
 import { useUserContext } from '@/context/UserContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+
+const TITULOS: [string, string][] = [
+  ['/knowledge/admin/new-asset', 'Novo artigo'],
+  ['/knowledge/chat', 'Assistente virtual'],
+  ['/knowledge/settings', 'Ajustes da base'],
+  ['/knowledge/trash', 'Lixeira'],
+  ['/knowledge/manual', 'Manual da base'],
+  ['/knowledge', 'Base de conhecimento'],
+];
 
 export default function KnowledgeLayout({
   children,
@@ -25,11 +36,12 @@ export default function KnowledgeLayout({
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  useDocumentTitle(TITULOS.find(([prefixo]) => pathname.startsWith(prefixo))?.[1]);
 
   const navItems = [
-    { label: 'Base de conhecimento', path: '/knowledge/kb', icon: BookOpen },
+    { label: 'Base de conhecimento', path: '/knowledge/kb', icon: moduleIcon('knowledge') },
     { label: 'Assistente virtual', path: '/knowledge/chat', icon: Bot },
-    { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
+    { label: 'Ajustes', path: '/knowledge/settings', icon: SlidersHorizontal },
   ];
 
   const effectiveUser = session || userProfile;

@@ -309,7 +309,8 @@ export function RetroCard({
               disabled={!canEdit}
               onClick={(e) => { e.stopPropagation(); onToggleDone(card.id, !card.isDone); }}
               className={cn(
-                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors disabled:cursor-default',
+                // after:-inset-3 amplia a área de toque para 44 px sem mudar o desenho de 20 px.
+                "relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors after:absolute after:-inset-3 after:content-[''] disabled:cursor-default",
                 card.isDone ? 'border-primary bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-muted-foreground/50 hover:border-primary',
                 FOCUS_RING
               )}
@@ -371,7 +372,7 @@ export function RetroCard({
           <div className="flex flex-wrap items-center gap-2">
             {card.assignee && (
               <span className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2', metaSize)}>
-                <InitialsAvatar name={card.assignee} className="h-5 w-5 text-[11px]" />
+                <InitialsAvatar name={card.assignee} className="h-6 w-6 text-xs" />
                 {card.assignee}
               </span>
             )}
@@ -398,7 +399,7 @@ export function RetroCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-muted-foreground', metaSize)}>
                 {showAuthorInfo && authorName ? (
-                  <InitialsAvatar name={authorName} className="h-6 w-6 text-xs" />
+                  <InitialsAvatar name={authorName} userId={card.authorId} className="h-6 w-6 text-xs" />
                 ) : (
                   <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-full bg-muted"><EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} /></span>
                 )}

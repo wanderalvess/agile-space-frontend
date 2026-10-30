@@ -1,5 +1,6 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
 import React from 'react';
 import {
   Eye,
@@ -10,16 +11,15 @@ import {
   MessageSquareText,
   MessagesSquare,
   Monitor,
+  Trash2,
   SlidersHorizontal,
   Sparkles,
   Volume2,
   VolumeX,
-  WalletCards,
 } from 'lucide-react';
 import type { TimerState } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
-  POKER_PHASES,
   RoomTimer,
   RoomTopBar,
   type RoomTopBarAction,
@@ -34,8 +34,6 @@ export interface PokerRoomBarProps {
   /** "Squad · Sprint". */
   roomTeam?: string;
   deckLabel: string;
-  /** Fase da rodada; null com a cerimônia concluída (não há rodada em andamento). */
-  phase: 'discuss' | 'vote' | 'reveal' | 'decide' | null;
   /** Ao vivo (sessão iniciada), aguardando ou encerrada. */
   status: RoomTopBarStatus;
   isFacilitator: boolean;
@@ -72,8 +70,12 @@ export interface PokerRoomBarProps {
   onOpenGuide: () => void;
   onTheater: () => void;
   onOpenRetro?: () => void;
+  /** Só para quem criou a sala (ou admin): abre a confirmação de excluir a sala. */
+  onDeleteRoom?: () => void;
   onOpenFeedback?: () => void;
   // Ação principal
+  /** Pular/tirar da mesa, cancelar e encerrar a sessão (só facilitador, com tarefa na mesa). */
+  taskActions?: React.ReactNode;
   canReveal: boolean;
   showReveal: boolean;
   votedCount: number;
@@ -101,11 +103,11 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
     { id: 'chat', label: 'Chat da sala', icon: MessagesSquare, pressed: p.isTeamChatOpen, badge: p.isTeamChatOpen ? 0 : p.teamChatUnread, onClick: p.onToggleTeamChat },
     { id: 'share', label: 'Compartilhar sala', icon: Link2, onClick: p.onShare },
     ...(p.isFacilitator
-      ? [{ id: 'settings', label: 'Configurações da cerimônia', icon: SlidersHorizontal, tier: 'mid' as const, onClick: p.onOpenSettings }]
+      ? [{ id: 'settings', label: 'Configurações da cerimônia', text: 'Configurações', icon: SlidersHorizontal, onClick: p.onOpenSettings }]
       : []),
     { id: 'knowledge', label: 'Base de conhecimento', icon: Sparkles, pressed: p.isKnowledgeOpen, tier: 'wide', onClick: p.onToggleKnowledge },
     ...(p.isFacilitator
-      ? [{ id: 'theater', label: 'Modo apresentação', icon: Monitor, tier: 'mid' as const, onClick: p.onTheater }]
+      ? [{ id: 'theater', label: 'Modo apresentação', text: 'Apresentar', icon: Monitor, onClick: p.onTheater }]
       : []),
     { id: 'guide', label: 'Guia do poker', icon: HelpCircle, tier: 'wide', onClick: p.onOpenGuide },
   ];
@@ -118,16 +120,16 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
       onClick: () => p.onSetIsSoundEnabled(!p.isSoundEnabled),
     },
     ...(p.onOpenRetro ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: p.onOpenRetro }] : []),
+    ...(p.onDeleteRoom ? [{ id: 'delete-room', label: 'Excluir sala', icon: Trash2, onClick: p.onDeleteRoom }] : []),
   ];
 
   return (
     <RoomTopBar
       toolName="Scrum Poker"
-      toolIcon={WalletCards}
+      toolIcon={moduleIcon('poker')}
       title={p.roomTitle}
       status={p.status}
       chips={chips}
-      phases={p.phase ? { steps: POKER_PHASES, current: p.phase, label: 'Fases da rodada' } : undefined}
       timer={
         showTimer && p.timer ? (
           <RoomTimer
@@ -157,10 +159,11 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
           >
             <Eye className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
             Revelar votos
-            <span className="rounded bg-black/15 px-1.5 py-px text-xs tabular-nums dark:bg-white/20">{p.votedCount}/{p.voterTotal}</span>
+            <span className="rounded bg-primary-foreground/20 px-1.5 py-px text-xs tabular-nums">{p.votedCount}/{p.voterTotal}</span>
           </button>
         ) : undefined
       }
+      secondaryActions={p.taskActions}
       presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants }}
       actions={actions}
       menuItems={menuItems}

@@ -44,7 +44,7 @@ export function SquadsOverview({ squads, scope, liveBySquad, switchingTo, now, o
                 <span className="flex items-center justify-between gap-2">
                   <span className="truncate text-[15px] font-bold">{s.name}</span>
                   {live > 0 && (
-                    <span className="inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
                       {live} ao vivo
                     </span>

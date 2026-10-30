@@ -4,14 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { History, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/room-kit';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { knowledgeApi } from '@/app/knowledge/api';
 import { ArticleContent } from '@/components/knowledge/ArticleContent';
@@ -116,7 +109,7 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
             >
               <span className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">Versão {v.versionNumber}</span>
-                {v.current && <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-xs font-bold text-primary">Atual</span>}
+                {v.current && <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Atual</span>}
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
                 <span>{v.changedByName || v.changedBy || 'Autor desconhecido'}</span>
@@ -160,20 +153,19 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
         )}
       </div>
 
-      <Dialog open={confirming} onOpenChange={(o) => !isRestoring && setConfirming(o)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Restaurar a versão {selected?.versionNumber}?</DialogTitle>
-            <DialogDescription>
-              O conteúdo atual continua guardado no histórico. A versão escolhida vira a versão mais recente do documento.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" disabled={isRestoring} onClick={() => setConfirming(false)}>Cancelar</Button>
-            <Button disabled={isRestoring} onClick={restore}>{isRestoring ? 'Restaurando...' : 'Restaurar'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        tone="brand"
+        icon={RotateCcw}
+        title={`Restaurar a versão ${selected?.versionNumber ?? ''}?`}
+        description="O conteúdo atual continua guardado no histórico. A versão escolhida vira a versão mais recente do documento."
+        confirmLabel="Restaurar"
+        loading={isRestoring}
+        loadingLabel="Restaurando…"
+        keepOpenOnConfirm
+        onConfirm={restore}
+      />
     </div>
   );
 }

@@ -21,6 +21,8 @@ interface Props {
   joiningRole: string | null;
   /** O servidor recusou a entrada (403): o caminho passa a ser convite ou pedido de vínculo. */
   refused: boolean;
+  /** Motivo da recusa, como o servidor explicou. É a única mensagem mostrada: o aviso (toast) não repete. */
+  refusalMessage?: string;
   onPick: (role: string) => void;
   onOpenInvite: () => void;
   onRequestLink: () => void;
@@ -28,11 +30,11 @@ interface Props {
 }
 
 /** Passo 5: papel de quem não está na lista. Liderança não aparece aqui: vem do Jira ou de convite. */
-export function RoleStep({ projectId, joiningRole, refused, onPick, onOpenInvite, onRequestLink, onBack }: Props) {
+export function RoleStep({ projectId, joiningRole, refused, refusalMessage, onPick, onOpenInvite, onRequestLink, onBack }: Props) {
   const busy = joiningRole !== null;
   return (
     <StepCard>
-      <StepHeading title={`Como você participa da ${projectId}?`} subtitle="Só pra saber o que te mostrar primeiro. A squad pode ajustar isso depois." />
+      <StepHeading title={`Como você participa da ${projectId}?`} subtitle="Escolha o seu papel para entrar na squad. Ela pode ajustar isso depois." />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {ROLE_CHOICES.map((choice) => (
@@ -67,12 +69,12 @@ export function RoleStep({ projectId, joiningRole, refused, onPick, onOpenInvite
             </>
           }
         >
-          O servidor recusou a entrada. O caminho é o convite ou um pedido de vínculo.
+          {refusalMessage || 'Não foi possível entrar na squad. O caminho é o convite ou um pedido de vínculo.'}
         </InlineNotice>
       )}
 
       <BackButton onClick={onBack} disabled={busy}>
-        Voltar pra lista
+        Voltar para a lista
       </BackButton>
     </StepCard>
   );

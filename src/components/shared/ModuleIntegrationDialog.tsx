@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Bot, KeyRound, Plug, Terminal } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Modal } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
@@ -42,25 +36,16 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl max-h-[88vh] flex flex-col p-0 overflow-hidden border border-border bg-card text-card-foreground shadow-2xl rounded-2xl">
-        <DialogHeader className="border-b border-border px-6 py-4 bg-card shrink-0 text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <Plug className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
-                Integrar {label}
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground line-clamp-1">
-                {tagline}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-6">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="xl"
+      className="sm:max-w-5xl"
+      icon={Plug}
+      title={`Integrar ${label}`}
+      description={tagline}
+    >
+        <div className="space-y-6 lg:grid lg:grid-cols-12 lg:gap-6 lg:space-y-0">
           {/* Coluna Esquerda: Autenticação + Endpoints REST + MCP Tools */}
           <div className="lg:col-span-7 space-y-6">
             {/* Autenticação */}
@@ -105,7 +90,7 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={cn(
-                            'px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider',
+                            'px-2 py-0.5 rounded-md text-xs font-semibold',
                             endpoint.method === 'POST'
                               ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25'
                               : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25'
@@ -119,11 +104,11 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </div>
                       <p className="text-xs text-muted-foreground">{endpoint.summary}</p>
                       {endpoint.params && (
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           <span className="font-semibold text-foreground">Params:</span> {endpoint.params}
                         </p>
                       )}
-                      <p className="text-[11px] font-semibold text-primary">
+                      <p className="text-xs font-semibold text-primary">
                         Escopo: {endpoint.scope}
                       </p>
                     </li>
@@ -146,7 +131,7 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </code>
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider',
+                          'px-2 py-0.5 rounded-md text-xs font-semibold',
                           tool.write
                             ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
                             : 'bg-muted text-muted-foreground border border-border'
@@ -156,10 +141,10 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">{tool.summary}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       <span className="font-semibold text-foreground">Params:</span> {tool.params}
                     </p>
-                    <p className="text-[11px] font-semibold text-primary">
+                    <p className="text-xs font-semibold text-primary">
                       Escopo: {tool.scope}
                     </p>
                   </li>
@@ -206,31 +191,18 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
 
-    <Dialog open={showKeyManager} onOpenChange={setShowKeyManager}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border shadow-2xl bg-card text-card-foreground p-6">
-        <DialogHeader className="space-y-1 text-left pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
-                Minhas API Keys
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Gere, veja e revogue suas próprias chaves de acesso.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-        <div className="pt-4">
-          <MyApiKeysManager compact />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <Modal
+      open={showKeyManager}
+      onOpenChange={setShowKeyManager}
+      icon={KeyRound}
+      iconTone="warn"
+      title="Minhas API Keys"
+      description="Gere, veja e revogue suas próprias chaves de acesso."
+    >
+      <MyApiKeysManager compact />
+    </Modal>
     </>
   );
 }

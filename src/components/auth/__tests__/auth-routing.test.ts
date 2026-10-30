@@ -53,6 +53,13 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect(null, { linkedTeam: false })).toBe('/');
     });
 
+    it('sem returnUrl, um convite pendente neste navegador leva de volta ao convite (antes da squad vinculada)', () => {
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: 'tok12345' })).toBe('/invite/tok12345');
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: 'tok12345', linkedTeam: true })).toBe('/invite/tok12345');
+      expect(resolvePostLoginRedirect('/room/abc', { pendingInviteToken: 'tok12345' })).toBe('/room/abc');
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: null, linkedTeam: true })).toBe('/squad?tab=resumo');
+    });
+
     it('o link vence: quem chegou por uma sala vai para a sala mesmo vinculado a um time', () => {
       expect(resolvePostLoginRedirect('/room/abc', { linkedTeam: true })).toBe('/room/abc');
       expect(resolvePostLoginRedirect('/invite/tok', { linkedTeam: true })).toBe('/invite/tok');
@@ -127,6 +134,13 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(isOpenRoute('/changelog')).toBe(true);
       expect(isOpenRoute('/changelog/v4.22.0')).toBe(true);
       expect(isOpenRoute('/changelogs')).toBe(false);
+      expect(isOpenRoute('/invite/abc123')).toBe(true);
+      expect(isOpenRoute('/invites')).toBe(false);
+      // Jolt: visitante lê e edita; executar, gerar e salvar pedem login dentro da tela.
+      expect(isOpenRoute('/jolt')).toBe(true);
+      expect(isOpenRoute('/jolt/sandbox')).toBe(true);
+      expect(isOpenRoute('/jolt/gerador')).toBe(true);
+      expect(isOpenRoute('/joltx')).toBe(false);
       expect(isOpenRoute('/admin')).toBe(false);
       expect(isOpenRoute('/painel')).toBe(false);
       expect(isOpenRoute('/login')).toBe(false);

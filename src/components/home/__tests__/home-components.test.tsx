@@ -13,8 +13,8 @@ import { RITUAL_KEYS, type SquadSummary, type ToolSession } from '../../../hooks
 const NOW = new Date('2026-10-14T15:00:00');
 
 describe('módulos', () => {
-  it('são 12 em 4 grupos, com as rotas de sempre', () => {
-    expect(MODULE_COUNT).toBe(12);
+  it('são 11 em 4 grupos, com as rotas de sempre (a Central de qualidade virou filtro do DevTools)', () => {
+    expect(MODULE_COUNT).toBe(11);
     expect(MODULE_GROUPS.map((g) => g.label)).toEqual([
       'Qualidade e ferramentas',
       'Fluxo e entregas',
@@ -23,12 +23,12 @@ describe('módulos', () => {
     ]);
     const hrefs = MODULE_GROUPS.flatMap((g) => g.items.map((m) => m.href));
     expect(hrefs).toEqual([
-      '/jolt', '/devtools', '/qa',
+      '/jolt', '/devtools',
       '/squad?tab=resumo', '/workspace', '/sprint-planner',
       '/health-check', '/brainstorming', '/action-plan',
       '/knowledge/kb', '/prompt-hub', '/support',
     ]);
-    expect(MODULE_GROUPS.flatMap((g) => g.items).filter((m) => m.soon).map((m) => m.title)).toEqual(['Planejador']);
+    expect(MODULE_GROUPS.flatMap((g) => g.items).filter((m) => m.soon).map((m) => m.title)).toEqual([]);
   });
 
   it('nenhum texto cita "engenharia"', () => {
@@ -38,8 +38,8 @@ describe('módulos', () => {
 
   it('a busca esmaece o que não casa e conta os resultados', () => {
     const { rerender } = render(<ModuleGrid query="" />);
-    expect(screen.getByText('12 módulos')).toBeTruthy();
-    expect(screen.getByText('Em breve')).toBeTruthy();
+    expect(screen.getByText('11 módulos')).toBeTruthy();
+    expect(screen.queryByText('Em breve')).toBeNull();
 
     rerender(<ModuleGrid query="conhecimento" />);
     expect(screen.getByText('1 encontrado(s)')).toBeTruthy();

@@ -44,7 +44,7 @@ interface Props {
   /** "Tentar de novo" dos avisos de histórico indisponível (refaz a busca; `loading` fica true enquanto isso). */
   onRetry?: () => void;
   showSquad: boolean;
-  /** "Squad Phoenix" ou "Todas as squads", exibido no painel lateral. */
+  /** "Squad Phoenix" ou "Todas as squads" (só com várias squads; vazio com uma), exibido no painel lateral. */
   scopeLabel: string;
   now: Date;
 }
@@ -114,7 +114,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                   ))}
                 </span>
                 <span className="relative inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-opacity group-hover:opacity-90 [.theme-totvs:not(.dark)_&]:text-foreground">
-                  Abrir {r.title.toLowerCase()}
+                  Ver sessões de {r.title.toLowerCase()}
                 </span>
               </motion.button>
             </li>
@@ -130,7 +130,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                 <IconTile icon={TOOL_ICON[open.key]} size="lg" />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <SheetTitle className="text-xl font-bold">{open.title}</SheetTitle>
-                  <SheetDescription>{scopeLabel}</SheetDescription>
+                  {scopeLabel ? <SheetDescription>{scopeLabel}</SheetDescription> : null}
                 </div>
               </div>
               <div className="flex gap-2 border-b border-border px-5 py-4">
@@ -155,7 +155,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                 </Link>
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-5 pt-3.5">
-                <h3 className="px-1.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sessões anteriores</h3>
+                <h3 className="px-1.5 pb-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">Sessões anteriores</h3>
                 {loading && !failed ? (
                   <div aria-hidden="true" className="flex flex-col gap-1.5">
                     {[0, 1, 2].map((i) => (
@@ -183,7 +183,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                             <span className="flex items-center gap-2">
                               <span className="truncate text-sm font-semibold">{s.title}</span>
                               {showSquad && (
-                                <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-[10px] font-bold text-muted-foreground">
+                                <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-xs font-bold text-muted-foreground">
                                   {s.squadName}
                                 </span>
                               )}

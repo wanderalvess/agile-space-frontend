@@ -10,6 +10,7 @@ import { ForgotForm, LoginForm, RegisterForm } from './AuthForms';
 import { TINT_TEXT } from './login-fields';
 import type { LoginMode } from './login-utils';
 import type { LoginFlow } from './useLoginFlow';
+import { loginInviteNotice } from '@/lib/invite-state';
 
 const HEADING: Record<LoginMode, string> = {
   login: 'Bem-vindo de volta',
@@ -39,6 +40,7 @@ const TAB_CONTENT = 'mt-0 rounded-lg ring-offset-background';
 export function LoginPanel({ flow, className }: { flow: LoginFlow; className?: string }) {
   const { mode, linkContext, authError } = flow;
   const ContextIcon = linkContext?.kind === 'invite' ? UserPlus : DoorOpen;
+  const notice = linkContext?.kind === 'invite' ? loginInviteNotice(flow.invitePreview) : linkContext;
 
   return (
     <section
@@ -67,8 +69,8 @@ export function LoginPanel({ flow, className }: { flow: LoginFlow; className?: s
           <div role="note" className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 text-[13px]">
             <ContextIcon aria-hidden="true" strokeWidth={1.5} className={cn('mt-0.5 h-4 w-4 shrink-0', TINT_TEXT)} />
             <div className="min-w-0">
-              <p className="font-semibold text-foreground">{linkContext.title}</p>
-              <p className="text-muted-foreground [@media(max-height:700px)]:hidden">{linkContext.description}</p>
+              <p className="font-semibold text-foreground">{notice?.title}</p>
+              <p className="text-muted-foreground [@media(max-height:700px)]:hidden">{notice?.description}</p>
             </div>
           </div>
         )}

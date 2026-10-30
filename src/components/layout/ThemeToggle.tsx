@@ -75,9 +75,9 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-[220px] rounded-2xl border-border/40 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl shadow-2xl p-2 z-50">
-        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 px-2.5 py-2 flex items-center gap-1.5">
-          <SunMoon className="h-3.5 w-3.5 text-slate-400" />
+      <DropdownMenuContent align="end" className="w-[220px] rounded-xl border-border bg-popover shadow-lg p-2 z-50">
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-2.5 py-2 flex items-center gap-1.5">
+          <SunMoon className="h-3.5 w-3.5 text-muted-foreground" />
           Modo de Cor
         </DropdownMenuLabel>
 
@@ -94,11 +94,11 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
                   "flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-1 text-center transition-all cursor-pointer",
                   isActive
                     ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/30"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-muted/60"
+                    : "text-muted-foreground hover:bg-muted/60"
                 )}
               >
                 <Icon className={cn("h-4 w-4 shrink-0", isActive && item.activeColor)} />
-                <span className="text-[10px] font-bold leading-none">{item.name}</span>
+                <span className="text-xs font-semibold leading-none">{item.name}</span>
               </DropdownMenuItem>
             );
           })}
@@ -106,8 +106,8 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
         <DropdownMenuSeparator className="my-1.5 opacity-40" />
 
-        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 px-2.5 py-2 flex items-center gap-1.5">
-          <Palette className="h-3.5 w-3.5 text-slate-400" />
+        <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-2.5 py-2 flex items-center gap-1.5">
+          <Palette className="h-3.5 w-3.5 text-muted-foreground" />
           Estilo Visual
         </DropdownMenuLabel>
 
@@ -120,7 +120,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
               onClick={() => setVariant(theme.id)}
               className={cn(
                 "text-xs font-bold gap-2.5 py-2.5 rounded-xl cursor-pointer transition-colors px-2.5",
-                isActive ? "bg-primary/10 text-primary" : "text-slate-600 dark:text-slate-400"
+                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
               )}
             >
               <Icon className={cn("h-4 w-4 shrink-0", theme.color)} />

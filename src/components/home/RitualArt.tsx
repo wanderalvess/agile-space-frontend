@@ -38,9 +38,9 @@ function PokerArt() {
         transition={SOFT}
         className="absolute z-10 flex h-[84px] w-[58px] flex-col items-center justify-between rounded-xl border border-primary/40 bg-primary p-2 text-2xl font-bold text-primary-foreground shadow-xl shadow-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground"
       >
-        <span className="self-start text-[9px] leading-none opacity-80">5</span>
+        <span className="self-start text-xs leading-none opacity-80">5</span>
         <span className="leading-none">5</span>
-        <span className="rotate-180 self-end text-[9px] leading-none opacity-80">5</span>
+        <span className="rotate-180 self-end text-xs leading-none opacity-80">5</span>
       </motion.span>
     </>
   );
@@ -48,21 +48,21 @@ function PokerArt() {
 
 /** Mini quadro de retro: três colunas lado a lado, cada uma com um post-it. Nada se sobrepõe. */
 const RETRO_COLUMNS = [
-  { label: 'Bom', note: 'Deploy sem susto', tone: 'text-emerald-700 dark:text-emerald-300', noteTone: 'border-emerald-500/30 bg-emerald-500/10' },
-  { label: 'Melhorar', note: 'Mais contexto', tone: 'text-rose-600 dark:text-rose-300', noteTone: 'border-rose-500/30 bg-rose-500/10' },
-  { label: 'Ação', note: 'Refinar o DoD', tone: 'text-amber-700 dark:text-amber-300', noteTone: 'border-amber-500/30 bg-amber-500/10' },
+  { label: 'Bom', note: 'Deploy ok', tone: 'text-emerald-700 dark:text-emerald-300', noteTone: 'border-emerald-500/30 bg-emerald-500/10' },
+  { label: 'Melhorar', note: 'Contexto', tone: 'text-rose-600 dark:text-rose-300', noteTone: 'border-rose-500/30 bg-rose-500/10' },
+  { label: 'Ação', note: 'Revisar DoD', tone: 'text-amber-700 dark:text-amber-300', noteTone: 'border-amber-500/30 bg-amber-500/10' },
 ] as const;
 
 function RetroArt() {
   return (
-    <span className="flex h-[84px] w-full max-w-[204px] gap-1.5">
+    <span className="flex min-h-[92px] w-full max-w-[240px] gap-1.5">
       {RETRO_COLUMNS.map((c, i) => (
         <span key={c.label} className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-1.5">
-          <span className={cn('truncate text-[7px] font-bold uppercase leading-none tracking-wider', c.tone)}>{c.label}</span>
+          <span className={cn('truncate text-xs font-bold leading-none', c.tone)}>{c.label}</span>
           <motion.span
             variants={{ hover: { y: -3 } }}
             transition={{ ...SOFT, delay: i * 0.04 }}
-            className={cn('rounded-md border px-1 py-1 text-[8px] font-semibold leading-tight text-foreground shadow-sm', c.noteTone)}
+            className={cn('break-words rounded-md border px-1 py-1 text-xs font-semibold leading-tight text-foreground shadow-sm', c.noteTone)}
           >
             {c.note}
           </motion.span>
@@ -82,8 +82,8 @@ function ShowcaseArt() {
     >
       <span className="flex items-start justify-between">
         <span className="flex flex-col">
-          <span className="text-[8px] font-bold uppercase leading-none tracking-widest text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Review da sprint</span>
-          <span className="mt-1 text-[11px] font-bold uppercase leading-none tracking-tight text-foreground">Entregas</span>
+          <span className="text-xs font-bold uppercase leading-none tracking-wide text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Review da sprint</span>
+          <span className="mt-1 text-xs font-bold uppercase leading-none tracking-tight text-foreground">Entregas</span>
         </span>
         <span className="flex gap-0.5" aria-hidden="true">
           <span className="h-3 w-3 rounded-sm bg-primary/30" />
@@ -93,7 +93,7 @@ function ShowcaseArt() {
       </span>
       <span className="flex items-end justify-between border-t border-border pt-2">
         <span className="h-1.5 w-16 rounded-full bg-muted" />
-        <span className="rounded-full bg-primary px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">Teatro</span>
+        <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">Teatro</span>
       </span>
     </motion.span>
   );
@@ -126,21 +126,21 @@ function BrainArt() {
       <motion.span
         variants={{ hover: { rotate: -6, x: -34, y: -2 } }}
         transition={SOFT}
-        className={cn('absolute flex h-9 w-[88px] items-center rounded-full px-3 text-[10px] font-semibold text-muted-foreground', PAPER)}
+        className={cn('absolute flex h-9 w-[88px] items-center rounded-full px-3 text-xs font-semibold text-muted-foreground', PAPER)}
       >
         Ideia A
       </motion.span>
       <motion.span
         variants={{ hover: { rotate: 6, x: 34, y: 12 } }}
         transition={SOFT}
-        className={cn('absolute flex h-9 w-[88px] items-center rounded-full px-3 text-[10px] font-semibold text-muted-foreground', PAPER)}
+        className={cn('absolute flex h-9 w-[88px] items-center rounded-full px-3 text-xs font-semibold text-muted-foreground', PAPER)}
       >
         Ideia B
       </motion.span>
       <motion.span
         variants={{ hover: { y: -5 } }}
         transition={SOFT}
-        className="absolute z-10 flex h-10 w-[104px] items-center justify-center rounded-full border border-primary/40 bg-primary px-3 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground"
+        className="absolute z-10 flex h-10 w-[116px] items-center justify-center rounded-full border border-primary/40 bg-primary px-3 text-xs font-bold text-primary-foreground shadow-lg shadow-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground"
       >
         Mais votada
       </motion.span>

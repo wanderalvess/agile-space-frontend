@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { ArrowRight, BookOpen, ChevronRight, ListChecks, Plus, RefreshCw, Save } from 'lucide-react';
 import { PageHeader, PageShell } from '@/components/page';
 import { FOCUS_RING, IconTile, ModalButton, StatusChip } from '@/components/room-kit';
-import { moduleIcon } from '@/lib/modules-registry';
+import { moduleIcon, moduleLabel } from '@/lib/modules-registry';
 import { retroFormatName } from '@/lib/retro-formats';
 import {
   filterLobbyRows,
@@ -104,13 +104,13 @@ export function RetroLobbyView({
 
   const count = past.length;
   const subtitle = squadName
-    ? `${squadName} · ${count === 0 ? 'nenhuma retro encerrada' : `${count} ${count === 1 ? 'retro anterior' : 'retros anteriores'}`}`
+    ? count === 0 ? 'Nenhuma retro encerrada' : `${count} ${count === 1 ? 'retro anterior' : 'retros anteriores'}`
     : 'O que foi bem, o que melhorar e as ações';
 
   return (
     <PageShell documentTitle="Retrospectiva">
       <PageHeader
-        title="Retrospectivas"
+        title={moduleLabel('retro')}
         module="retro"
         breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Retrospectiva' }]}
         subtitle={subtitle}

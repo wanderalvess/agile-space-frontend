@@ -104,7 +104,7 @@ export function WhoField({ id, value, onChange, people, placeholder, invalid, de
               onMouseEnter={() => setActive(i)}
               className={cn('flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm', i === active && 'bg-accent text-accent-foreground')}
             >
-              <InitialsAvatar name={p.name} email={p.email} className="h-6 w-6 text-xs" />
+              <InitialsAvatar name={p.name} email={p.email} userId={p.userId} className="h-6 w-6 text-xs" />
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
               {p.email && <span className="hidden truncate text-xs text-muted-foreground sm:inline">{p.email}</span>}
             </li>

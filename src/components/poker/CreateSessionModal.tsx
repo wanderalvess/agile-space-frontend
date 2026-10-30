@@ -1,12 +1,13 @@
 'use client';
 
+import { moduleIcon } from '@/lib/modules-registry';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Save, Settings2, Users, WalletCards } from 'lucide-react';
+import { Clock, Save, Settings2, Users } from 'lucide-react';
 import { cleanTemplateName, deleteTemplate, listTemplates, renameTemplate, saveTemplate, TEMPLATE_NAME_MAX, type PokerTemplate } from '@/lib/poker-templates';
 import { TSHIRT_UNIT_LABELS, type DeckType, type TshirtUnit } from '@/lib/types';
 import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
-import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
+import { DEFAULT_ROOM_SETTINGS, DEFAULT_VOTING_CARGOS, votingCargosOf } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { SquadChoiceField } from '@/components/shared/SquadChoiceField';
@@ -16,6 +17,7 @@ import { pokerApi } from '@/app/room/api';
 import { FIELD, FOCUS_RING, IconButton, IconTile, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
 import { MaxHoursField } from './MaxHoursField';
 import { TemplateManagerDialog } from './TemplateDialogs';
+import { VotingCargosField } from './VotingCargosField';
 import { Switch } from '@/components/ui/switch';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
@@ -62,7 +64,6 @@ const SETUP_GROUPS = [
   {
     label: 'Automação',
     items: [
-      { key: 'allowManagementToVote', title: 'Gestão pode votar', desc: 'Inclui papéis de gestão' },
       { key: 'autoReveal', title: 'Auto-revelar', desc: 'Quando todos votarem' },
       { key: 'autoConsensus', title: 'Auto-consenso', desc: 'Salva e avança no consenso' },
     ],
@@ -78,7 +79,6 @@ const SETUP_TOTAL = SETUP_GROUPS.reduce((n, g) => n + g.items.length, 0);
 
 const baseSetupSettings = (): Record<string, boolean> => ({
   ...DEFAULT_ROOM_SETTINGS,
-  allowManagementToVote: false,
   autoReveal: false,
   autoConsensus: false,
 });
@@ -138,6 +138,8 @@ export function CreateSessionModal({
   const [templateNameError, setTemplateNameError] = useState(false);
   // O modal mostra TODOS os toggles que a sala vai levar, já no estado em que vão nascer.
   const [setupSettings, setSetupSettings] = useState<Record<string, boolean>>(baseSetupSettings);
+  // Quem vota: os cargos (da administração) que recebem baralho; os demais entram como observadores.
+  const [votingCargos, setVotingCargos] = useState<string[]>([...DEFAULT_VOTING_CARGOS]);
   // Equivalência numérica por tamanho (só relevante para o baralho de camisetas).
   const [tshirtEquivalents, setTshirtEquivalents] = useState<Record<string, { value: string; unit: TshirtUnit }>>({});
 
@@ -177,6 +179,8 @@ export function CreateSessionModal({
     setMaxHours(effectiveMaxHours(t.settings?.maxHours));
     // O template manda: cada toggle exibido passa a refletir o que ele traz (ausente = desligado),
     // senão o modal mostraria uma coisa e a sala nasceria com outra.
+    // Template de sala antiga (sem votingCargos) vale pelo que a sala fazia: padrão + gestão se tinha a opção antiga.
+    setVotingCargos([...votingCargosOf(t.settings)]);
     setSetupSettings((prev) => {
       const next: Record<string, boolean> = {};
       Object.keys(prev).forEach((k) => { next[k] = !!(t.settings as Record<string, unknown> | undefined)?.[k]; });
@@ -249,6 +253,7 @@ export function CreateSessionModal({
         ...DEFAULT_ROOM_SETTINGS,
         ...(tpl ? tpl.settings : {}),
         ...setupSettings,
+        votingCargos,
         maxHours,
         ...(Object.keys(tshirtEquivalentsClean).length ? { tshirtEquivalents: tshirtEquivalentsClean } : {}),
       },
@@ -282,7 +287,7 @@ export function CreateSessionModal({
       onOpenChange={onOpenChange}
       size="lg"
       className="sm:max-w-[800px]"
-      icon={WalletCards}
+      icon={moduleIcon('poker')}
       title="Nova sessão"
       preventClose={isCreating}
       footer={
@@ -352,7 +357,7 @@ export function CreateSessionModal({
                     <span className="text-[15px] font-bold">{opt.name}</span>
                     <span className="text-xs text-muted-foreground">{opt.desc}</span>
                   </span>
-                  <span className="text-[11px] leading-relaxed text-muted-foreground tabular-nums">
+                  <span className="text-xs leading-relaxed text-muted-foreground tabular-nums">
                     {getDeckCards(opt.key, opt.key === 'hours' ? maxHours : undefined).map((v) => (v === '☕' ? 'café' : v)).join(' · ')}
                   </span>
                 </button>
@@ -430,6 +435,9 @@ export function CreateSessionModal({
           </div>
         </fieldset>
 
+        {/* Quem vota */}
+        <VotingCargosField value={votingCargos} onChange={setVotingCargos} idPrefix="ns-voting" />
+
         {/* Recursos da sessão */}
         <section aria-label="Recursos da sessão" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -447,12 +455,12 @@ export function CreateSessionModal({
             <div className="room-rise grid gap-3 sm:grid-cols-2">
               {SETUP_GROUPS.map((group) => (
                 <div key={group.label} className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 p-3">
-                  <span className="mb-1 text-[11px] font-bold text-muted-foreground">{group.label}</span>
+                  <span className="mb-1 text-xs font-bold text-muted-foreground">{group.label}</span>
                   {group.items.map((cfg) => (
                     <div key={cfg.key} className="flex items-center justify-between gap-2.5 py-1.5">
                       <label htmlFor={`ns-${cfg.key}`} className="flex min-w-0 cursor-pointer flex-col">
                         <span className="text-[13px] font-semibold">{cfg.title}</span>
-                        <span className="text-[11px] text-muted-foreground">{cfg.desc}</span>
+                        <span className="text-xs text-muted-foreground">{cfg.desc}</span>
                       </label>
                       <Switch id={`ns-${cfg.key}`} checked={!!setupSettings[cfg.key]} onCheckedChange={(v) => setSetupSettings((s) => ({ ...s, [cfg.key]: v }))} className="shrink-0" />
                     </div>

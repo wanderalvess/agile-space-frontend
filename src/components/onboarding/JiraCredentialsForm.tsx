@@ -12,7 +12,7 @@ import { BackButton, Caption, Spinner, WIDE_CTA } from './ui';
 const TOKEN_STEPS = [
   'No Jira, abra o seu Perfil (menu da sua foto, no canto superior direito).',
   'Vá em Tokens de acesso pessoal e clique em Criar token.',
-  'Dê o nome Portal Tech V&D, copie o token e cole aqui. A gente guarda pra você não precisar de novo.',
+  'Dê o nome Portal Tech V&D, copie o token e cole aqui. A gente guarda para você não precisar de novo.',
 ];
 
 interface Props {
@@ -62,7 +62,9 @@ export function JiraCredentialsForm({
   const invalid = (msg?: string) => (msg ? 'border-red-500/60 focus-visible:ring-red-500/40' : '');
 
   return (
-    <div className="grid w-full grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+    // Duas colunas só a partir de xl (1280 px): o formulário fica dentro de um cartão ao lado da barra de passos,
+    // então em lg (1024 px) a coluna do formulário encolhia para ~190 px e cortava o botão e os placeholders.
+    <div className="grid w-full grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
       <form onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="jira-dominio">
@@ -145,7 +147,7 @@ export function JiraCredentialsForm({
         <ol className="flex flex-col gap-2.5">
           {TOKEN_STEPS.map((text, i) => (
             <li key={text} className="flex gap-2.5">
-              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+              <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
                 {i + 1}
               </span>
               <span className="text-[13px] leading-relaxed text-muted-foreground">{text}</span>

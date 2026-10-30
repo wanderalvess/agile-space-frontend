@@ -44,6 +44,8 @@ export interface RoomTopBarAction {
   pressed?: boolean;
   /** Contagem no canto do botão (fila, mensagens não lidas). */
   badge?: number;
+  /** Texto curto visível ao lado do ícone a partir de 2200 px (ações importantes que ninguém achava só em ícone). */
+  text?: string;
   /**
    * `core`: botão visível a partir de 640 px; `mid`: a partir de 1536 px; `wide`: a partir de 1920 px.
    * Fora da faixa o botão vai para o menu "Mais" (com o mesmo texto e ícone).
@@ -92,6 +94,8 @@ export interface RoomTopBarProps {
   timer?: React.ReactNode;
   /** Ação principal da sala (ex.: "Revelar votos"), ao lado do cronômetro. */
   primaryAction?: React.ReactNode;
+  /** Ações da sala logo depois da principal (ex.: pular, cancelar e encerrar do Poker). Quebram de linha se faltar largura. */
+  secondaryActions?: React.ReactNode;
   /** Presença: pilha de avatares que abre a lista de participantes. */
   presence?: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void; /** Sem dado de quem está conectado: só conta quem entrou na sala. */ unknown?: boolean };
   actions?: RoomTopBarAction[];
@@ -116,7 +120,7 @@ function StatusPill({ status, label: custom }: { status: RoomTopBarStatus; label
   return (
     <span
       className={cn(
-        'inline-flex h-[18px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-1.5 text-[11px] font-semibold',
+        'inline-flex h-[18px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-1.5 text-xs font-semibold',
         live ? cn(TONES.success.chip, 'max-sm:px-1') : cn(TONES.neutral.chip, 'max-sm:hidden')
       )}
     >
@@ -136,7 +140,7 @@ function PhaseSummary({ steps, current }: { steps: readonly PhaseStep[]; current
   const index = Math.max(0, steps.findIndex((s) => s.id === current));
   return (
     <span className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-border bg-muted/50 px-2.5 text-[13px] font-semibold sm:hidden">
-      <span aria-hidden="true" className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[11px] tabular-nums text-primary-foreground">
+      <span aria-hidden="true" className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-xs tabular-nums text-primary-foreground">
         {index + 1}/{steps.length}
       </span>
       <span>
@@ -236,7 +240,7 @@ function PresenceStack({ people, open, onClick, unknown }: { people: readonly To
           // Quem vem antes fica por cima: o ponto de online nunca some atrás do vizinho.
           <span key={p.id} className={cn('relative inline-flex', i > 0 && '-ml-1.5')} style={{ zIndex: stack.visible.length - i }}>
             {/* O vizinho da frente cobre a borda esquerda (6 px + anel): o recuo de 4 px leva as iniciais para a parte que aparece. */}
-            <PersonAvatar name={p.name} size="sm" className={cn('h-7 w-7 text-[11px] ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
+            <PersonAvatar name={p.name} userId={p.id} size="sm" className={cn('h-7 w-7 text-xs ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
             {!unknown && p.online && (
               <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
             )}
@@ -244,7 +248,7 @@ function PresenceStack({ people, open, onClick, unknown }: { people: readonly To
         ))}
       </span>
       {stack.extra > 0 && (
-        <span aria-hidden="true" className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+        <span aria-hidden="true" className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
           +{stack.extra}
         </span>
       )}
@@ -300,6 +304,7 @@ export function RoomTopBar({
   phases,
   timer,
   primaryAction,
+  secondaryActions,
   presence,
   actions = [],
   menuItems = [],
@@ -308,7 +313,7 @@ export function RoomTopBar({
   className,
 }: RoomTopBarProps) {
   const pending = pendingTiers(actions);
-  const hasCenter = !!phases || !!timer || !!primaryAction;
+  const hasCenter = !!phases || !!timer || !!primaryAction || !!secondaryActions;
   const feedbackInMenu = !!onOpenFeedback;
 
   return (
@@ -318,9 +323,9 @@ export function RoomTopBar({
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4 xl:h-14 xl:flex-nowrap xl:py-0 xl:px-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4 xl:min-h-14 xl:px-6">
         {/* Identidade */}
-        <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[15rem]">
+        <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[12rem]">
           <Link
             href={homeHref}
             aria-label={homeLabel}
@@ -335,14 +340,14 @@ export function RoomTopBar({
           <IconTile icon={toolIcon} size="md" className="max-sm:hidden" />
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-              <span className="shrink-0 text-[11px] font-medium leading-[18px] text-muted-foreground">{toolName}</span>
+              <span className="shrink-0 text-xs font-medium leading-[18px] text-muted-foreground">{toolName}</span>
               {status && <StatusPill status={status} label={statusLabel} />}
               {chips.map((c) => (
                 <StatusChip
                   key={c.id}
                   tone={c.tone ?? 'neutral'}
                   className={cn(
-                    'h-[18px] px-1.5 text-[11px]',
+                    'h-[18px] px-1.5 text-xs',
                     c.secondary ? 'min-w-[4rem] max-w-[10rem] shrink max-2xl:hidden 3xl:max-w-[14rem]' : 'shrink-0 max-md:hidden max-[1339px]:xl:hidden'
                   )}
                 >
@@ -358,7 +363,13 @@ export function RoomTopBar({
 
         {/* Centro: fases, cronômetro e ação principal. Em < lg desce para a segunda linha. */}
         {hasCenter && (
-          <div className="order-3 flex basis-full flex-wrap items-center gap-2 xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center">
+          <div
+            className={cn(
+              'order-3 flex basis-full flex-wrap items-center gap-2',
+              // Com ações extras o centro é largo: a linha única só cabe a partir de 1480 px.
+              secondaryActions ? 'min-[1480px]:order-2 min-[1480px]:basis-auto min-[1480px]:flex-nowrap min-[1480px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
+            )}
+          >
             {phases && (
               <>
                 <PhaseStepper
@@ -375,11 +386,12 @@ export function RoomTopBar({
             {primaryAction && (
               <div className="ml-auto flex items-center max-sm:basis-full max-sm:[&>*]:w-full max-sm:[&>*]:justify-center xl:ml-0">{primaryAction}</div>
             )}
+            {secondaryActions}
           </div>
         )}
 
         {/* Direita: presença, ações, tema e conta */}
-        <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 xl:order-3 xl:ml-0">
+        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', secondaryActions ? 'min-[1480px]:order-3 min-[1480px]:ml-0' : 'xl:order-3 xl:ml-0')}>
           {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} unknown={presence.unknown} />}
 
           {actions.map((a) => (
@@ -389,6 +401,7 @@ export function RoomTopBar({
               icon={a.icon}
               pressed={a.pressed}
               badge={a.badge}
+              text={a.text}
               onClick={a.onClick}
               className={TIER_BUTTON[a.tier ?? 'core']}
             />
@@ -416,7 +429,7 @@ export function RoomTopBar({
                   <DropdownMenuItem key={a.id} onClick={a.onClick} className={cn('gap-2', TIER_MENU_ITEM[a.tier ?? 'core'])}>
                     <a.icon className="h-4 w-4" strokeWidth={1.5} /> <span className="flex-1">{a.label}</span>
                     {!!a.badge && a.badge > 0 && (
-                      <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">{a.badge > 99 ? '99+' : a.badge}</span>
+                      <span className="rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">{a.badge > 99 ? '99+' : a.badge}</span>
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -439,7 +452,7 @@ export function RoomTopBar({
           <span aria-hidden="true" className="mx-1 h-6 w-px bg-border max-sm:hidden" />
 
           <ThemeToggle className="h-9 w-9 rounded-lg max-3xl:hidden" />
-          <div className="max-sm:[&_button]:h-11">{userMenu ?? <ProfileMenu />}</div>
+          <div className="max-sm:[&_button]:h-11">{userMenu ?? <ProfileMenu compact={secondaryActions ? 'wide' : false} />}</div>
         </div>
       </div>
     </header>

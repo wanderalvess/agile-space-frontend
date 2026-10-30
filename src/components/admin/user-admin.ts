@@ -1,3 +1,4 @@
+import { canonicalCargo } from '@/lib/cargo';
 import { ROLES, isLegacyLeadRole, normalizeAuthRole, type AuthRole, type UserProfile } from '@/lib/types';
 
 export type StatusFilter = 'all' | 'active' | 'inactive';
@@ -27,7 +28,7 @@ export function filterUsers(
     const matchStatus =
       opts.status === 'all' || (opts.status === 'active' ? isActiveUser(u) : !isActiveUser(u));
     const matchRole =
-      opts.role === 'all' || (opts.role === 'admin' ? isAdminUser(u) : u.jobTitle === opts.role);
+      opts.role === 'all' || (opts.role === 'admin' ? isAdminUser(u) : canonicalCargo(u.jobTitle) === opts.role);
     return matchSearch && matchStatus && matchRole;
   });
 }

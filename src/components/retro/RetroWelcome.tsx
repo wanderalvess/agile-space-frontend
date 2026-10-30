@@ -7,6 +7,7 @@ import { retroFormatName } from '@/lib/retro-formats';
 import { retroFormatTheme, type RetroSuggestedPhase } from '@/lib/retro-format-themes';
 
 export const RETRO_WELCOME_KEY = 'agile_retro_welcome_dismissed';
+export const RETRO_WELCOME_SEEN_PREFIX = 'agile_retro_welcome_seen_';
 
 const STEPS: { phase: RetroSuggestedPhase; icon: LucideIcon; label: string; hint: string }[] = [
   { phase: 'write', icon: PenLine, label: 'Escrever', hint: 'Cada pessoa escreve sem ver os outros cartões.' },
@@ -17,18 +18,21 @@ const STEPS: { phase: RetroSuggestedPhase; icon: LucideIcon; label: string; hint
 
 /**
  * Boas-vindas da retro vazia: os quatro passos na ordem em que a sala acontece. "Não mostrar de novo" guarda a
- * escolha no navegador; "Começar" só fecha por esta visita.
+ * escolha no navegador; "Começar" (ou fechar) vale só para esta retro, neste navegador.
  */
-export function RetroWelcome({ title, isFacilitator, disabled = false, templateKey }: { title: string; isFacilitator: boolean; disabled?: boolean; templateKey?: string | null }) {
+export function RetroWelcome({ title, isFacilitator, disabled = false, templateKey, boardId }: { title: string; isFacilitator: boolean; disabled?: boolean; templateKey?: string | null; boardId?: string }) {
   const theme = retroFormatTheme(templateKey);
   const formatName = theme ? retroFormatName(templateKey as Parameters<typeof retroFormatName>[0]) : undefined;
   const [dismissedForever, setDismissedForever, loaded] = useRoomPreference<boolean>(RETRO_WELCOME_KEY, false, (raw) => raw === 'true');
+  // "Começar" também vale por retro: recarregar a página não repete as boas-vindas para quem já as viu nesta sala.
+  const [seenHere, setSeenHere, seenLoaded] = useRoomPreference<boolean>(`${RETRO_WELCOME_SEEN_PREFIX}${boardId ?? ''}`, false, (raw) => raw === 'true');
   const [closed, setClosed] = useState(false);
   const [never, setNever] = useState(false);
 
-  const open = loaded && !dismissedForever && !closed && !disabled;
+  const open = loaded && seenLoaded && !dismissedForever && !seenHere && !closed && !disabled;
   const close = () => {
     if (never) setDismissedForever(true);
+    if (boardId) setSeenHere(true);
     setClosed(true);
   };
 

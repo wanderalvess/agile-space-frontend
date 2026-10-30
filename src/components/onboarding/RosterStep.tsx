@@ -36,16 +36,16 @@ function RowAction({ m, busy, disabled, onClaim, onRequestLink }: { m: Onboardin
     case 'not-you':
       return (
         <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
-          <span className="text-[11px] leading-tight text-muted-foreground">não é você</span>
+          <span className="text-xs leading-tight text-muted-foreground">não é você</span>
           <SmallButton onClick={onRequestLink} disabled={disabled} className="h-7 px-2.5 text-xs" aria-label={`Pedir vínculo: ${m.displayName}`}>
             Pedir vínculo
           </SmallButton>
         </span>
       );
     case 'mine':
-      return <span className="text-[11px] leading-tight text-muted-foreground">já é você</span>;
+      return <span className="text-xs leading-tight text-muted-foreground">já é você</span>;
     default:
-      return <span className="text-[11px] leading-tight text-muted-foreground">vinculada</span>;
+      return <span className="text-xs leading-tight text-muted-foreground">vinculada</span>;
   }
 }
 

@@ -69,7 +69,7 @@ function TransferFacilitationContent({ open, onOpenChange, candidates, onlineIds
                 )}
               >
                 <input type="radio" name="brain-transfer" value={p.id} checked={active} onChange={() => setSelected(p.id)} className="sr-only" />
-                <PersonAvatar name={name} size="sm" />
+                <PersonAvatar name={name} userId={p.id} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{name}</span>
                 {online !== undefined && <span className="shrink-0 text-xs text-muted-foreground">{online ? 'online' : 'fora da sala'}</span>}
               </label>

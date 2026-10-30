@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
   state: {
     auth: { isAuthenticated: true, isLoading: false },
-    profile: { id: 'me', name: 'Ana Souza', role: 'Developer' } as { id: string; name: string; role: string } | null,
+    profile: { id: 'me', name: 'Ana Souza', role: 'Developer', cargo: 'Developer' } as { id: string; name: string; role: string; cargo?: string } | null,
     roomProps: null as any,
     socket: null as any,
   },
@@ -103,7 +103,7 @@ beforeEach(() => {
   state.roomProps = null;
   state.socket = null;
   state.auth = { isAuthenticated: true, isLoading: false };
-  state.profile = { id: 'me', name: 'Ana Souza', role: 'Developer' };
+  state.profile = { id: 'me', name: 'Ana Souza', role: 'Developer', cargo: 'Developer' };
   serverBoard = {
     id: 'b1', creatorId: 'me', isCardsRevealed: true, votingStatus: 'active', isAuthorsRevealed: false, createdAt: '2025-10-17T10:00:00Z',
     title: 'Retro 42', team: 'Phoenix', columns: COLUMNS, maxVotesPerParticipant: 2, participantIds: ['me'], timer: { status: 'stopped', endTime: null, initialDuration: 300, remainingOnPause: 300 },
@@ -247,6 +247,18 @@ describe('tempo real (WebSocket)', () => {
     expect(latest().participants.map((p: RetroParticipant) => p.id)).toEqual(['me', 'u3', 'u4']);
     await emit('PARTICIPANT_LEFT', { userId: 'u3' });
     expect(latest().participants.map((p: RetroParticipant) => p.id)).toEqual(['me', 'u4']);
+  });
+
+  it('BOARD_DELETED de outra pessoa troca a sala pelo aviso "foi apagada"; um 404 em quadro aberto também', async () => {
+    await mount();
+    await emit('BOARD_DELETED', { boardId: 'b1' });
+    expect(screen.getByText('Esta retro foi apagada')).toBeTruthy();
+    expect(screen.queryByTestId('room')).toBeNull();
+    cleanup();
+    await mount();
+    api.getBoard.mockRejectedValue(new RetroApiError('Board não encontrado', 404));
+    await emit('REFRESH_BOARD');
+    await waitFor(() => expect(screen.getByText('Esta retro foi apagada')).toBeTruthy());
   });
 
   it('REFRESH_BOARD e evento desconhecido recarregam', async () => {

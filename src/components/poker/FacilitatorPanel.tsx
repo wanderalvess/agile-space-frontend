@@ -7,13 +7,15 @@ import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
 import { FIELD, FOCUS_RING, Segmented, SelectField } from '@/components/room-kit';
 import { effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
+import { DEFAULT_VOTING_CARGOS } from '@/lib/poker-utils';
 import { MaxHoursField } from './MaxHoursField';
 import { TemplatesTab } from './TemplateDialogs';
+import { VotingCargosField } from './VotingCargosField';
 
 type DivergenceThresholds = { warn: number; high: number };
 type TshirtSize = 'PP' | 'P' | 'M' | 'G' | 'GG';
 type FacilitatorSettings = {
-  allowManagementToVote?: boolean; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean;
+  votingCargos?: string[]; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean;
   confidenceVote?: boolean; showVelocity?: boolean; anonymousReveal?: boolean; turnNotification?: boolean; showDistribution?: boolean;
   decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean;
   suggestRevote?: boolean; reactions?: boolean; roundingMode?: 'up' | 'nearest' | 'down' | 'deck'; blindVotes?: boolean;
@@ -23,7 +25,8 @@ type FacilitatorSettings = {
 
 interface FacilitatorPanelProps {
   deck: DeckType;
-  allowManagementToVote?: boolean;
+  /** Cargos que votam na sala já resolvidos (votingCargosOf); os demais são observadores. */
+  votingCargos?: readonly string[];
   autoReveal?: boolean;
   outlierPrompt?: boolean;
   confidenceVote?: boolean;
@@ -115,7 +118,7 @@ function ControlRow({ htmlFor, title, desc, children }: { htmlFor: string; title
 
 export function FacilitatorPanel({
   deck,
-  allowManagementToVote,
+  votingCargos,
   autoReveal,
   outlierPrompt,
   confidenceVote,
@@ -168,7 +171,6 @@ export function FacilitatorPanel({
   // sem duplicar JSX. `visible: false` esconde (ex.: auto-reveal só no síncrono).
   type ToggleDef = { id: string; title: string; desc: string; tab: string; value: boolean; key: keyof FacilitatorSettings; visible?: boolean };
   const toggleDefs: ToggleDef[] = [
-    { id: 'allow-management-vote', title: 'Gestão pode votar', desc: 'Inclui papéis de gestão', tab: 'votacao', value: !!allowManagementToVote, key: 'allowManagementToVote' },
     { id: 'confidence-vote', title: 'Voto de confiança', desc: 'Baixa, média ou alta', tab: 'votacao', value: !!confidenceVote, key: 'confidenceVote' },
     { id: 'grooming-flag', title: 'Enviar para grooming', desc: 'Ação nos votos "?"', tab: 'votacao', value: !!groomingFlag, key: 'groomingFlag' },
     { id: 'auto-consensus', title: 'Auto-consenso', desc: 'Salva e avança no consenso', tab: 'votacao', value: !!autoConsensus, key: 'autoConsensus' },
@@ -201,6 +203,15 @@ export function FacilitatorPanel({
   const q = norm(search.trim());
   const visibleDefs = toggleDefs.filter((d) => d.visible !== false);
   const matched = q ? visibleDefs.filter((d) => norm(d.title).includes(q) || norm(d.desc).includes(q)) : [];
+  // "Quem vota" não é um interruptor, mas também aparece na busca.
+  const votingMatches = !!q && ['quem vota', 'cargo', 'cargos', 'observador', 'votar', 'votam'].some((t) => (q.length >= 3 && t.includes(q)) || q.includes(t));
+  const votingField = (
+    <VotingCargosField
+      idPrefix="cf-voting"
+      value={votingCargos ?? DEFAULT_VOTING_CARGOS}
+      onChange={(next) => onUpdateSettings({ votingCargos: next })}
+    />
+  );
   const countOf = (v: string) => visibleDefs.filter((d) => d.tab === v).length;
 
   const setEquivalent = (size: TshirtSize, patch: Partial<TshirtEquivalent>) => {
@@ -231,7 +242,7 @@ export function FacilitatorPanel({
           )}
           <div className="flex flex-wrap gap-1" aria-label="Cartas da escala">
             {getDeckCards(deck, maxHours).map((v) => (
-              <span key={v} className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border border-border bg-card px-1 text-[11px] font-semibold tabular-nums text-muted-foreground">{v}</span>
+              <span key={v} className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border border-border bg-card px-1 text-xs font-semibold tabular-nums text-muted-foreground">{v}</span>
             ))}
           </div>
         </div>
@@ -252,8 +263,11 @@ export function FacilitatorPanel({
       </div>
 
       {q ? (
-        matched.length > 0 ? (
-          <div className="flex flex-col">{matched.map(renderToggle)}</div>
+        matched.length > 0 || votingMatches ? (
+          <div className="flex flex-col">
+            {votingMatches && <div className="border-b border-border py-3">{votingField}</div>}
+            {matched.map(renderToggle)}
+          </div>
         ) : (
           <div className="py-10 text-center text-muted-foreground">
             <Search aria-hidden="true" className="mx-auto mb-2 h-6 w-6 opacity-40" strokeWidth={1.5} />
@@ -280,7 +294,7 @@ export function FacilitatorPanel({
                   )}
                 >
                   {t.label}
-                  {n > 0 && <span className="text-[11px] tabular-nums opacity-70">{n}</span>}
+                  {n > 0 && <span className="text-xs font-normal tabular-nums">{n}</span>}
                 </button>
               );
             })}
@@ -289,6 +303,7 @@ export function FacilitatorPanel({
           <div className="room-rise flex min-w-0 flex-col" key={tab}>
             {tab === 'votacao' && (
               <>
+                <div className="border-b border-border pb-3 pt-1">{votingField}</div>
                 {visibleDefs.filter((d) => d.tab === 'votacao').map(renderToggle)}
                 {showRoundFeatures && roundNudge && (
                   <ControlRow htmlFor="max-rounds" title="Teto de rodadas" desc="Avisa ao passar disso sem consenso">

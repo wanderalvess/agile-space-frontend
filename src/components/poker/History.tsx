@@ -262,7 +262,7 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="truncate text-[13px] font-semibold">{round.topic}</span>
                         <span
-                          className="text-[11px] font-normal text-muted-foreground"
+                          className="text-xs font-normal text-muted-foreground"
                           title={format(new Date(round.timestamp), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
                         >
                           {formatDistanceToNow(new Date(round.timestamp), { addSuffix: true, locale: ptBR })}
@@ -285,7 +285,7 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
                           {round.cancelled ? 'Cancelada no refinamento' : 'Pulada, sem estimativa'}
                         </StatusChip>
                         {round.note && (
-                          <p className="m-0 flex items-start gap-2 rounded-[10px] bg-muted/50 p-3 text-sm italic text-muted-foreground">
+                          <p className="m-0 flex items-start gap-2 rounded-[10px] bg-muted/50 p-3 text-sm text-muted-foreground">
                             <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} />
                             “{round.note}”
                           </p>
@@ -318,7 +318,7 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
                             { l: 'Maior', v: round.stats.max },
                           ].map(t => (
                             <div key={t.l} className="flex flex-col gap-0.5 rounded-lg border border-border bg-card p-2">
-                              <span className="text-[10px] text-muted-foreground">{t.l}</span>
+                              <span className="text-xs text-muted-foreground">{t.l}</span>
                               <span className="text-sm font-bold tabular-nums">{t.v}</span>
                             </div>
                           ))}
@@ -326,7 +326,7 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
 
                         {roleEntries.length > 0 && (
                           <div className="flex flex-col gap-1.5">
-                            <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Estimativa final por papel</h4>
+                            <h4 className="m-0 text-xs font-bold text-muted-foreground">Estimativa final por papel</h4>
                             <div className="flex flex-wrap gap-1.5">
                               {roleEntries.map(([role, value]) => (
                                 <RoleChip key={role} category={role} label={`${formatRoleForCopy(role)} ${value}h`} className="h-[26px] px-2.5 text-[13px]" />
@@ -337,10 +337,10 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
 
                         {m && m.distribution.length > 1 && (
                           <div className="flex flex-col gap-1.5">
-                            <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Distribuição</h4>
+                            <h4 className="m-0 text-xs font-bold text-muted-foreground">Distribuição</h4>
                             <div className="flex flex-wrap gap-1.5">
                               {m.distribution.map(([value, count]) => (
-                                <span key={value} className="rounded-md bg-card px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
+                                <span key={value} className="rounded-md bg-card px-2 py-1 text-xs font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
                                   {value} <span className="opacity-60">× {count}</span>
                                 </span>
                               ))}
@@ -349,7 +349,7 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
                         )}
 
                         <div className="flex flex-col gap-1.5">
-                          <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Votos individuais</h4>
+                          <h4 className="m-0 text-xs font-bold text-muted-foreground">Votos individuais</h4>
                           <div className="flex flex-wrap gap-1.5">
                             {round.votes.map(vote => {
                               const participant = participantMap.get(vote.participantId);
@@ -359,9 +359,9 @@ export function History({ roomId, rounds, participants, issues, onPublishToJira,
                                 <span
                                   key={vote.participantId}
                                   title={vote.confidence ? `Confiança ${CONFIDENCE_LABEL[vote.confidence]}` : undefined}
-                                  className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-card pl-1 pr-2 text-[11px] ring-1 ring-inset ring-border"
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-card pl-1 pr-2 text-xs ring-1 ring-inset ring-border"
                                 >
-                                  <PersonAvatar name={nickname} size="sm" className="h-[18px] w-[18px] text-[8px]" />
+                                  <PersonAvatar name={nickname} userId={vote.participantId} size="sm" />
                                   <strong className="tabular-nums">{vote.value}</strong>
                                   {vote.confidence && (
                                     <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', vote.confidence === 'high' ? 'bg-emerald-500' : vote.confidence === 'medium' ? 'bg-amber-500' : 'bg-red-500')} />

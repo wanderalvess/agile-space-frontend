@@ -10,7 +10,9 @@ import {
   statusCounts,
   statusMeta,
   submitLabel,
+  protocolOf,
   ticketCode,
+  ticketKind,
 } from '../ticket-utils';
 
 const t = (over: Partial<SupportTicket>): SupportTicket => ({
@@ -47,8 +49,8 @@ describe('chamados (admin)', () => {
     expect(statusMeta('OPEN').label).toBe('Aberto');
     expect(statusMeta('IN_PROGRESS').label).toBe('Em andamento');
     expect(statusMeta('CLOSED').label).toBe('Resolvido');
-    expect(statusMeta('OPEN').userSees).toBe('Em análise');
-    expect(statusMeta('IN_PROGRESS').userSees).toBe('Processando');
+    expect(statusMeta('OPEN').userSees).toBe('Aberto');
+    expect(statusMeta('IN_PROGRESS').userSees).toBe('Em andamento');
     expect(statusMeta('ARCHIVED').label).toBe('ARCHIVED');
   });
 
@@ -104,3 +106,19 @@ describe('chamados (admin)', () => {
     expect(emptyTicketsCopy({ total: 8, status: 'all', query: 'zzz' })).toMatchObject({ title: 'Nenhum chamado encontrado', canClear: true });
   });
 });
+
+describe('chamados: tipo e protocolo (campo próprio e compatibilidade)', () => {
+  it('com o campo type usa o rótulo dele e o assunto limpo; sem ele decodifica o prefixo', () => {
+    expect(ticketKind(t({ type: 'bug', subject: 'Fila não atualiza' }))).toEqual({ type: 'Bug/Erro', title: 'Fila não atualiza' });
+    expect(ticketKind(t({ type: 'feedback', subject: 'Ficou ótimo' })).type).toBe('Elogio');
+    expect(ticketKind(t({ type: null }))).toEqual({ type: 'Bug/Erro', title: 'Fila do Poker não atualiza' });
+    expect(ticketKind(t({ type: undefined, subject: 'Sem prefixo' }))).toEqual({ type: 'Suporte', title: 'Sem prefixo' });
+  });
+
+  it('protocolo do servidor, ou derivado do id (igual ao backend) em chamado antigo; a busca acha os dois', () => {
+    expect(protocolOf(t({ protocol: 'SUP-0042' }))).toBe('SUP-0042');
+    expect(protocolOf(t({}))).toBe('SUP-8F3A1C2D');
+    expect(filterTickets([t({ id: 'x1', protocol: 'SUP-0042' })], { status: 'all', query: 'sup-0042' })).toHaveLength(1);
+  });
+});
+

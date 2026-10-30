@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logSystemEvent } from '@/lib/audit';
 import { cn } from '@/lib/utils';
 import { shortWhen } from '../approvals/approvals-utils';
-import { MAX_REPLY_LENGTH, TICKET_STATUSES, canSubmit, replyIsAdmin, replyKindLabel, splitSubject, statusMeta, submitLabel, ticketCode } from './ticket-utils';
+import { MAX_REPLY_LENGTH, TICKET_STATUSES, canSubmit, replyIsAdmin, replyKindLabel, statusMeta, submitLabel, protocolOf, ticketKind } from './ticket-utils';
 
 type RepliesState = { phase: 'loading' } | { phase: 'error' } | { phase: 'ready'; items: SupportTicketReply[] };
 
@@ -59,7 +59,7 @@ function Body({
     void loadReplies();
   }, [loadReplies]);
 
-  const { type, title } = splitSubject(ticket.subject);
+  const { type, title } = ticketKind(ticket);
   const meta = statusMeta(ticket.status);
   const statusChanged = status !== ticket.status;
   const hasDraft = draft.trim().length > 0;
@@ -76,7 +76,7 @@ function Body({
         setReplies((r) => (r.phase === 'ready' ? { phase: 'ready', items: [...r.items, created] } : r));
         setDraft('');
         void logSystemEvent({
-          content: `Admin respondeu o chamado ${ticketCode(ticket.id)}: "${draft.trim().substring(0, 30)}..."`,
+          content: `Admin respondeu o chamado ${protocolOf(ticket)}: "${draft.trim().substring(0, 30)}..."`,
           type: 'admin',
           severity: 'info',
           userEmail: session?.email,
@@ -117,7 +117,7 @@ function Body({
     <>
       <header className="flex flex-col gap-2.5 border-b border-border px-6 pb-4 pr-14 pt-5">
         <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          <span className="font-mono font-bold text-foreground">Chamado {ticketCode(ticket.id)}</span>
+          <span className="font-mono font-bold text-foreground">Chamado {protocolOf(ticket)}</span>
           <span className="inline-flex h-[22px] items-center rounded-full border border-border px-2.5 text-xs font-semibold">{type}</span>
         </span>
         <SheetTitle className="text-[22px] font-bold leading-tight">{title}</SheetTitle>
@@ -161,7 +161,7 @@ function Body({
             </ModalButton>
           </div>
         )}
-        {replies.phase === 'ready' && replies.items.length === 0 && <span className="text-[13px] italic text-muted-foreground">Nenhuma resposta ainda</span>}
+        {replies.phase === 'ready' && replies.items.length === 0 && <span className="text-[13px] text-muted-foreground">Nenhuma resposta ainda</span>}
         {replies.phase === 'ready' &&
           replies.items.map((r) => {
             const admin = replyIsAdmin(r);
@@ -253,7 +253,7 @@ function Body({
         onOpenChange={setConfirmDelete}
         tone="danger"
         icon={Trash2}
-        title={`Excluir o chamado ${ticketCode(ticket.id)}?`}
+        title={`Excluir o chamado ${protocolOf(ticket)}?`}
         description="As respostas também são apagadas e a pessoa deixa de ver o chamado em Meus Tickets. Não dá para desfazer."
         cancelLabel="Manter"
         confirmLabel="Excluir chamado"

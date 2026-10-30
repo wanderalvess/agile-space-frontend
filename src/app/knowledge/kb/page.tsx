@@ -1,5 +1,6 @@
 "use client";
 
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -17,21 +18,14 @@ import {
   FileUp,
   RefreshCw,
   Download,
-  BookOpen,
   AlertTriangle,
+  ArchiveRestore,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ArticleReader } from '@/components/knowledge/ArticleReader';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal, ModalButton } from '@/components/room-kit';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
@@ -48,6 +42,31 @@ import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
 import { ConfirmTrashDialog, type TrashTarget } from '@/components/knowledge/ConfirmTrashDialog';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
+
+type KbStatusView = 'published' | 'draft' | 'archived';
+
+const STATUS_VIEWS: { id: KbStatusView; label: string }[] = [
+  { id: 'published', label: 'Publicados' },
+  { id: 'draft', label: 'Meus rascunhos' },
+  { id: 'archived', label: 'Arquivados' },
+];
+
+/** "Publicados" é a lista padrão do servidor (sem parâmetro); as outras visões usam `?status=`. */
+function statusFilterParam(view: KbStatusView): string | undefined {
+  return view === 'published' ? undefined : view;
+}
+
+const STATUS_COUNT_LABEL: Record<KbStatusView, string> = {
+  published: 'Artigos ativos',
+  draft: 'Meus rascunhos',
+  archived: 'Arquivados',
+};
+
+const EMPTY_LABEL: Record<KbStatusView, string> = {
+  published: 'Nenhum documento encontrado nesta busca',
+  draft: 'Você não tem rascunhos. Use "Salvar rascunho" no editor para guardar um artigo sem publicar.',
+  archived: 'Nenhum artigo arquivado que você possa editar.',
+};
 
 function KBExplorerContent() {
   const { session } = useAuth();
@@ -376,12 +395,16 @@ function KBExplorerContent() {
 
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Estado dos artigos listados: o servidor devolve "publicados" por padrão; "draft" são só os rascunhos de quem
+  // está logado (admin vê todos) e "archived" os arquivados que a pessoa pode editar.
+  const [statusView, setStatusView] = useState<KbStatusView>('published');
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   const fetchDocuments = React.useCallback(async () => {
     if (!session) return;
     setIsLoading(true);
     try {
-      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200);
+      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200, statusFilterParam(statusView));
       setDocuments(response.content);
     } catch (err) {
       console.error(err);
@@ -389,11 +412,33 @@ function KBExplorerContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, statusView]);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
+
+  const changeStatusView = (next: KbStatusView) => {
+    if (next === statusView) return;
+    setSelectedIds(new Set());
+    setStatusView(next);
+  };
+
+  // Artigo arquivado -> publicado (só quem edita; o servidor confere).
+  const unarchive = async (target: KnowledgeDocument, fromReader: boolean) => {
+    if (isUnarchiving) return;
+    setIsUnarchiving(true);
+    try {
+      const updated = await knowledgeApi.setDocumentStatus(target, 'published');
+      toast.success('Artigo restaurado e publicado.');
+      if (fromReader) setSelectedFile(updated);
+      fetchDocuments();
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao restaurar o artigo.');
+    } finally {
+      setIsUnarchiving(false);
+    }
+  };
 
   const filteredDocs = useMemo(() => {
     if (!documents) return [];
@@ -462,6 +507,19 @@ function KBExplorerContent() {
     }
   }, [initialDocId, documents]);
 
+  // Link direto para um artigo que a lista atual não traz (rascunho depois de salvar, arquivado, ou aberto de outra
+  // tela): busca pelo id. O servidor responde 404 para rascunho de outra pessoa.
+  const idFetchedRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialDocId || isLoading || !session) return;
+    if (documents.some(d => d.id === initialDocId) || selectedFile?.id === initialDocId) return;
+    if (idFetchedRef.current === initialDocId) return;
+    idFetchedRef.current = initialDocId;
+    knowledgeApi.getDocumentById(initialDocId)
+      .then(doc => setSelectedFile(doc))
+      .catch(() => toast.error('Não encontramos esse artigo, ou você não tem acesso a ele.'));
+  }, [initialDocId, isLoading, session, documents, selectedFile]);
+
   const formatDocDate = (updatedAt: any) => {
     if (!updatedAt) return '---';
     try {
@@ -472,8 +530,8 @@ function KBExplorerContent() {
 
   return (
     <div className="flex flex-col h-full w-full bg-background/30 overflow-hidden relative">
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-150 dark:bg-cyan-950/20 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-150 dark:bg-indigo-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-hidden flex flex-col">
@@ -494,6 +552,8 @@ function KBExplorerContent() {
               onEdit={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)}
               tdnBaseUrl={tdnSettings?.baseUrl}
               onRestored={(restored) => { setSelectedFile(restored); fetchDocuments(); }}
+              onUnarchive={() => unarchive(selectedFile, true)}
+              isUnarchiving={isUnarchiving}
             />
           ) : (
             /* ========================================================================= */
@@ -505,7 +565,7 @@ function KBExplorerContent() {
                 {/* Barra Lateral Widescreen: Módulo/Pasta, Categoria e Rótulos */}
                 <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
                   <div className="space-y-2">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                    <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                       Módulo / Pasta
                     </span>
                     <div className="space-y-1">
@@ -551,7 +611,7 @@ function KBExplorerContent() {
 
                   {categoryCounts.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
-                      <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                      <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                         Categoria
                       </span>
                       <div className="space-y-1">
@@ -580,11 +640,11 @@ function KBExplorerContent() {
                   {availableTags.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
                       <div className="flex items-center justify-between px-2">
-                        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground">
                           Rótulos
                         </span>
                         {selectedTags.length > 0 && (
-                          <button onClick={() => setSelectedTags([])} className="text-xs font-medium text-primary hover:underline">
+                          <button onClick={() => setSelectedTags([])} className="text-xs font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground hover:underline">
                             Limpar
                           </button>
                         )}
@@ -628,8 +688,8 @@ function KBExplorerContent() {
 
                 {/* Área Principal: Ações, Hero, Busca e Tabela */}
                 <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
-                  <ScrollArea className="flex-1">
-                    <div className="pt-6 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+                    <div className="pt-6 pb-32 space-y-6">
 
                       {/* Ações + Atalho de integração */}
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -665,7 +725,7 @@ function KBExplorerContent() {
 
                       {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
                       {failedDocs.length > 0 && (
-                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-3">
                             <span className="flex items-center gap-2 text-xs font-semibold text-destructive">
                               <AlertTriangle className="h-3.5 w-3.5" />
@@ -694,8 +754,8 @@ function KBExplorerContent() {
                       <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                           <div className="max-w-2xl space-y-2.5">
-                            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary font-semibold">
-                              <BookOpen className="h-3.5 w-3.5" />
+                            <div className="inline-flex items-center gap-2 font-mono text-xs tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground font-semibold">
+                              <ModuleIcon module="knowledge" className="h-3.5 w-3.5" />
                               Wiki Space
                             </div>
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
@@ -706,21 +766,21 @@ function KBExplorerContent() {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs backdrop-blur-sm">
+                          <div className="grid w-full grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs sm:w-auto sm:gap-4">
                             <div className="text-right">
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.length || 0}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                Artigos ativos
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
+                                {STATUS_COUNT_LABEL[statusView]}
                               </span>
                             </div>
                             <div className="h-7 w-[1px] bg-border/80" />
                             <div className="text-right">
-                              <span className="block font-mono text-xl font-bold text-primary leading-none">
+                              <span className="block font-mono text-xl font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground leading-none">
                                 {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 MB usados
                               </span>
                             </div>
@@ -729,7 +789,7 @@ function KBExplorerContent() {
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.filter(d => d.tdnId).length || 0}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 Do TDN
                               </span>
                             </div>
@@ -739,6 +799,25 @@ function KBExplorerContent() {
 
                       {/* Busca + filtros ativos + ações em lote */}
                       <div className="space-y-3">
+                        <div role="group" aria-label="Estado dos artigos" className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                          {STATUS_VIEWS.map(view => {
+                            const active = statusView === view.id;
+                            return (
+                              <button
+                                key={view.id}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => changeStatusView(view.id)}
+                                className={cn(
+                                  'h-9 rounded-lg px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+                                  active ? 'bg-card font-semibold text-foreground shadow-xs' : 'font-medium text-muted-foreground hover:text-foreground',
+                                )}
+                              >
+                                {view.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="relative flex-1 sm:max-w-md">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -751,7 +830,7 @@ function KBExplorerContent() {
                           </div>
 
                           {selectedIds.size > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in duration-300">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Button size="sm" className="gap-2" onClick={handleSyncMultiple} disabled={isSyncing}>
                                 {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
                               </Button>
@@ -806,6 +885,7 @@ function KBExplorerContent() {
                                 <tr className="bg-muted/40 border-b border-border">
                                   <th className="px-4 py-3 text-left w-12">
                                     <Checkbox
+                                      aria-label="Selecionar todos os artigos"
                                       checked={selectedIds.size === finalDocs.length && finalDocs.length > 0}
                                       onCheckedChange={toggleSelectAll}
                                     />
@@ -825,6 +905,7 @@ function KBExplorerContent() {
                                     <tr key={docItem.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors group">
                                       <td className="px-4 py-3">
                                         <Checkbox
+                                          aria-label={`Selecionar ${docItem.title}`}
                                           checked={selectedIds.has(docItem.id)}
                                           onCheckedChange={() => toggleSelect(docItem.id)}
                                         />
@@ -833,11 +914,17 @@ function KBExplorerContent() {
                                         <div className="flex flex-col gap-1">
                                           <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
                                             {docItem.tdnId ? (
-                                              <FileUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                                              <FileUp className="h-3.5 w-3.5 text-primary [.theme-totvs:not(.dark)_&]:text-foreground shrink-0" />
                                             ) : (
                                               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                             )}
                                             {docItem.title}
+                                            {docItem.status === 'draft' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Rascunho</span>
+                                            )}
+                                            {docItem.status === 'archived' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Arquivado</span>
+                                            )}
                                           </span>
                                           {docItem.tags && docItem.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
@@ -880,6 +967,11 @@ function KBExplorerContent() {
                                           </Button>
                                           {docItem.canEdit ? (
                                             <>
+                                              {docItem.status === 'archived' && (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => unarchive(docItem, false)} disabled={isUnarchiving} title="Restaurar para publicado" aria-label={`Restaurar ${docItem.title}`}>
+                                                  <ArchiveRestore className="h-4 w-4" />
+                                                </Button>
+                                              )}
                                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar" aria-label={`Editar ${docItem.title}`}>
                                                 <Edit className="h-4 w-4" />
                                               </Button>
@@ -898,7 +990,7 @@ function KBExplorerContent() {
                                     <td colSpan={6} className="py-20 text-center">
                                       <div className="flex flex-col items-center justify-center gap-2">
                                         <ShieldAlert className="h-8 w-8 text-muted-foreground/50" />
-                                        <span className="text-xs text-muted-foreground">Nenhum documento encontrado nesta busca</span>
+                                        <span className="text-xs text-muted-foreground">{EMPTY_LABEL[statusView]}</span>
                                       </div>
                                     </td>
                                   </tr>
@@ -938,21 +1030,23 @@ function KBExplorerContent() {
       />
 
       {/* Modal Formato de Download */}
-      <Dialog open={isDownloadFormatOpen} onOpenChange={setIsDownloadFormatOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-foreground">
-              Exportar artigo
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Escolha o formato do arquivo para guardar uma cópia.
-            </DialogDescription>
-          </DialogHeader>
-
+      <Modal
+        open={isDownloadFormatOpen}
+        onOpenChange={setIsDownloadFormatOpen}
+        icon={Download}
+        title="Exportar artigo"
+        description="Escolha o formato do arquivo para guardar uma cópia."
+        footer={
+          <>
+            <ModalButton onClick={() => setIsDownloadFormatOpen(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={executeDownload}>Baixar</ModalButton>
+          </>
+        }
+      >
           <RadioGroup
             value={selectedFormat}
             onValueChange={(val: any) => setSelectedFormat(val)}
-            className="gap-3 py-2"
+            className="gap-3"
           >
             {([
               ['md', 'Markdown (.md)', 'Para colar em outros documentos.'],
@@ -975,17 +1069,7 @@ function KBExplorerContent() {
               </Label>
             ))}
           </RadioGroup>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDownloadFormatOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={executeDownload}>
-              Baixar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </Modal>
     </div>
   );
 }

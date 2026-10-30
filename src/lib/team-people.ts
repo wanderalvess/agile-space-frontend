@@ -8,6 +8,9 @@ export interface TeamPersonSource {
   email?: string;
   jiraAccountId?: string;
   avatarUrl?: string;
+  /** Id da conta quando a pessoa já está ligada a uma (squad_members: `claimedByUid`). */
+  claimedByUid?: string;
+  userId?: string;
   /** squad_members guarda o cargo em `role`; o cadastro do projeto, em `roleName`. */
   role?: string;
   roleName?: string;
@@ -20,6 +23,8 @@ export interface TeamPerson {
   jiraAccountId?: string;
   avatarUrl?: string;
   role?: string;
+  /** Id da conta, quando a pessoa está ligada a uma: com ele aparece a foto que ela enviou. */
+  userId?: string;
 }
 
 const normName = (s?: string) =>
@@ -57,6 +62,7 @@ export function mergeTeamPeople(primary: TeamPersonSource[] = [], secondary: Tea
       existing.avatarUrl = existing.avatarUrl || source.avatarUrl;
       existing.role = existing.role || source.role || source.roleName;
       existing.email = existing.email || source.email;
+      existing.userId = existing.userId || source.claimedByUid || source.userId;
       existing.jiraAccountId = existing.jiraAccountId || source.jiraAccountId;
       identityKeys(existing).forEach((k) => index.set(k, found));
       continue;
@@ -68,6 +74,7 @@ export function mergeTeamPeople(primary: TeamPersonSource[] = [], secondary: Tea
       jiraAccountId: source.jiraAccountId,
       avatarUrl: source.avatarUrl,
       role: source.role || source.roleName,
+      userId: source.claimedByUid || source.userId,
     };
     people.push(person);
     keys.forEach((k) => index.set(k, people.length - 1));

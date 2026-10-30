@@ -117,6 +117,10 @@ describe('shortSeatName', () => {
     expect(shortSeatName('  Bruno ')).toBe('Bruno');
     expect(shortSeatName('Maximiliano-Constantino')).toBe('Maximiliano-Constantino');
   });
+  it('a inicial vem de uma parte que começa com letra, nunca de "(PO)"', () => {
+    expect(shortSeatName('João Pedro (PO)')).toBe('João P.');
+    expect(shortSeatName('Maria Fernanda de Albuquerque Cavalcanti')).toBe('Maria C.');
+  });
 });
 
 describe('carta do assento', () => {

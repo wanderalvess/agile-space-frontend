@@ -111,7 +111,7 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
                 )}
               >
                 {f.label}
-                {f.id === 'PENDING' && requests.pendingCount !== null && <span className="text-xs tabular-nums opacity-70">{requests.pendingCount}</span>}
+                {f.id === 'PENDING' && requests.pendingCount !== null && <span className="text-xs font-normal tabular-nums">{requests.pendingCount}</span>}
               </button>
             );
           })}
@@ -129,7 +129,7 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
             {items.map((req) => (
               <ApprovalListRow
                 key={req.id}
-                leading={<InitialsAvatar name={req.requester.name} email={req.requester.email} className="h-[38px] w-[38px] text-sm" />}
+                leading={<InitialsAvatar name={req.requester.name} email={req.requester.email} userId={req.requester.id} className="h-[38px] w-[38px] text-sm" />}
                 who={requesterName(req)}
                 kind={req.requestedRoleName ? `${KIND_LABEL[req.kind]} · ${req.requestedRoleName}` : KIND_LABEL[req.kind]}
                 detail={requestDetail(req)}

@@ -88,7 +88,6 @@ export function SummaryWelcome({ squadId, syncState, syncError, myRole, squadMem
   }, [syncState]);
 
   const hasOwnName = !!project?.name && project.name.toUpperCase() !== squadId.toUpperCase();
-  const teamName = hasOwnName ? project!.name : squadId;
   const members = useMemo(() => mergeTeamPeople(squadMembers ?? [], project?.members ?? []), [squadMembers, project?.members]);
   const meta = [project?.segmentName, project?.tribeName, project?.locality].filter(Boolean).join(' · ');
   const peopleLabel = `${members.length} ${members.length === 1 ? 'pessoa' : 'pessoas'} no time`;
@@ -98,7 +97,7 @@ export function SummaryWelcome({ squadId, syncState, syncError, myRole, squadMem
       {/* Quem é a squad (o nome aparece uma vez; a chave só quando é diferente dele) */}
       <section className={cn(PAGE_CARD, 'flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6')}>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <h2 className="truncate text-2xl font-bold tracking-tight text-foreground">{teamName}</h2>
+          <h2 className="truncate text-2xl font-bold tracking-tight text-foreground">Visão geral da squad</h2>
           <p className="text-sm text-muted-foreground">{jiraLine(syncState)}</p>
           {(hasOwnName || meta || myRole) && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
@@ -115,7 +114,7 @@ export function SummaryWelcome({ squadId, syncState, syncError, myRole, squadMem
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <div className="flex -space-x-2.5" role="img" aria-label={peopleLabel}>
             {members.slice(0, 6).map((m, i) => (
-              <InitialsAvatar key={`${m.key}-${i}`} name={m.displayName} src={m.avatarUrl} className="h-9 w-9 border-2 border-card text-xs" />
+              <InitialsAvatar key={`${m.key}-${i}`} name={m.displayName} userId={m.userId} src={m.avatarUrl} className="h-9 w-9 border-2 border-card text-xs" />
             ))}
             {members.length > 6 && (
               <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-semibold text-muted-foreground">

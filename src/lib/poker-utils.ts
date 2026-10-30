@@ -1,4 +1,5 @@
-import { DECKS, Participant, Vote, DeckType, Role, GlobalRole, IssueType, TshirtEquivalent, TSHIRT_UNIT_HOURS, VotingRound, Issue } from './types';
+import { DECKS, ROLES, Participant, Vote, DeckType, Role, GlobalRole, IssueType, TshirtEquivalent, TSHIRT_UNIT_HOURS, VotingRound, Issue } from './types';
+import { CARGO_DEV, CARGO_QA, canonicalCargo } from './cargo';
 
 /**
  * Configurações que uma sala NOVA já nasce com ligadas. Antes tudo nascia
@@ -6,8 +7,7 @@ import { DECKS, Participant, Vote, DeckType, Role, GlobalRole, IssueType, Tshirt
  * garimpar os toggles — na prática, quase ninguém ligava.
  *
  * Só entram aqui recursos que acrescentam informação ou uma ação a mais.
- * Automação (auto-revelar, auto-consenso) e mudança de regra (voto da gestão,
- * revelação anônima) continuam fora: essas precisam de decisão explícita.
+ * Automação (auto-revelar, auto-consenso) e mudança de regra (revelação anônima) continuam fora: essas precisam de decisão explícita.
  *
  * Vale apenas na criação — salas já existentes não são tocadas.
  */
@@ -38,20 +38,21 @@ export const DEFAULT_ROOM_SETTINGS = {
  * volta ligado; o resto volta desligado.
  */
 export const CEREMONY_TOGGLE_KEYS = [
-  'allowManagementToVote', 'confidenceVote', 'groomingFlag', 'autoConsensus', 'reactions', 'referenceStory',
+  'confidenceVote', 'groomingFlag', 'autoConsensus', 'reactions', 'referenceStory',
   'roundNudge', 'cancelTask', 'parkTask', 'autoReveal', 'blindVotes', 'anonymousReveal', 'outlierPrompt',
   'showDistribution', 'suggestRevote', 'groupVotesByRole', 'autoTimer', 'turnNotification', 'decisionNotes',
   'refinementNotes', 'perTopicTime', 'showVelocity',
 ] as const;
 
 /** Patch de configurações que devolve a sala ao padrão (não mexe em escala nem equivalência de camisetas). */
-export function buildDefaultSettingsPatch(): Record<string, boolean | number | string | { warn: number; high: number }> {
+export function buildDefaultSettingsPatch(): Record<string, boolean | number | string | string[] | { warn: number; high: number }> {
   const defaults = DEFAULT_ROOM_SETTINGS as Record<string, boolean>;
-  const patch: Record<string, boolean | number | string | { warn: number; high: number }> = {};
+  const patch: Record<string, boolean | number | string | string[] | { warn: number; high: number }> = {};
   for (const key of CEREMONY_TOGGLE_KEYS) patch[key] = !!defaults[key];
   patch.maxRounds = 3;
   patch.roundingMode = 'up';
   patch.divergenceThresholds = { warn: 2, high: 5 };
+  patch.votingCargos = [...DEFAULT_VOTING_CARGOS];
   return patch;
 }
 
@@ -298,10 +299,11 @@ export function getParticipantCategory(participant: { role: Role; globalRole?: G
   if (participant.role === 'spectator') return null;
 
   // 1. Fonte Primária: GlobalRole (Perfil Profissional)
-  const gRole = participant.globalRole;
+  const gRole = canonicalCargo(participant.globalRole);
   if (gRole) {
-    if (gRole === 'Developer' || gRole.includes('Desenvolvedor')) return 'Developer';
-    if (gRole === 'QA' || gRole.includes('Analista de QA')) return 'QA';
+    // Exato pelo canônico; o "contém" abaixo só mantém o que já era dito para títulos livres (ex.: "Desenvolvedor Backend").
+    if (gRole === CARGO_DEV || gRole.includes('Desenvolvedor')) return 'Developer';
+    if (gRole === CARGO_QA || gRole.includes('Analista de QA')) return 'QA';
     if (gRole === 'UX' || gRole.includes('UI-UX')) return 'UX';
     if (gRole === 'Designer') return 'Designer';
     
@@ -353,18 +355,13 @@ export function isParticipantPresent(
 }
 
 /**
- * Fonte única de verdade para "este participante pode votar?".
- * Espectador nunca vota; gestão só vota se o facilitador liberar.
- * Usado tanto pelo gate do Controls quanto pelo denominador de progresso,
- * evitando as duas listas de MANAGEMENT_ROLES divergentes de antes.
- */
-/**
  * Revelação automática: só existe com `autoReveal` ligado de propósito (=== true; sala sem a opção,
  * antiga ou nova, nunca revela sozinha) e só no cliente do facilitador. Revela quando todos os
  * votantes elegíveis ONLINE já votaram na tarefa ativa; quem está offline não trava a rodada.
+ * Observadores (cargo que não vota nesta sala, sem cargo, espectador) não entram na conta.
  */
 export function shouldAutoReveal(input: {
-  settings?: { autoReveal?: boolean; allowManagementToVote?: boolean } | null;
+  settings?: VotingSettings & { autoReveal?: boolean } | null;
   isFacilitator: boolean;
   votesRevealed?: boolean;
   activeIssueId?: string | null;
@@ -376,45 +373,99 @@ export function shouldAutoReveal(input: {
   if (settings?.autoReveal !== true || !isFacilitator) return false;
   if (votesRevealed || !activeIssueId) return false;
   if (votes.length === 0) return false;
-  const eligible = participants.filter((p) => canParticipantVote(p, settings.allowManagementToVote) && onlineIds.has(p.id));
+  const cargos = votingCargosOf(settings);
+  const eligible = participants.filter((p) => canParticipantVote(p, cargos) && onlineIds.has(p.id));
   if (eligible.length === 0) return false;
   const votedIds = new Set(votes.filter((v) => !v.issueId || v.issueId === activeIssueId).map((v) => v.participantId));
   return eligible.every((p) => votedIds.has(p.id));
 }
 
-export function canParticipantVote(
-  participant: { role: Role; globalRole?: GlobalRole },
-  allowManagementToVote = false
-): boolean {
-  if (participant.role === 'spectator') return false;
-  if (getParticipantCategory(participant) === 'Management') return allowManagementToVote;
-  return true;
+/**
+ * Cargos que votam por padrão numa sala: só desenvolvimento e QA. Os demais entram como observadores
+ * (o facilitador escolhe outros em "Quem vota").
+ */
+export const DEFAULT_VOTING_CARGOS: readonly GlobalRole[] = [CARGO_DEV, CARGO_QA];
+
+/**
+ * Cargos oferecidos em "Quem vota": a mesma lista de cargos da administração (ROLES), menos
+ * "Stakeholder / Observador" — esse cargo entra na sala sempre como espectador, então marcá-lo não teria efeito.
+ */
+export const VOTING_CARGO_OPTIONS: readonly GlobalRole[] = ROLES.filter((r) => r !== 'Stakeholder / Observador');
+
+/** Cargos que `getParticipantCategory` trata como gestão (usado só para ler salas antigas com "Gestão pode votar"). */
+const LEGACY_MANAGEMENT_CARGOS: readonly GlobalRole[] = ROLES.filter(
+  (r) => getParticipantCategory({ role: 'dev', globalRole: r }) === 'Management'
+);
+
+export type VotingSettings = {
+  /** Cargos que votam nesta sala. Ausente = padrão (dev e QA). */
+  votingCargos?: readonly string[] | null;
+  /** Antigo "Gestão pode votar": só é lido em salas criadas antes de `votingCargos`; a interface não grava mais. */
+  allowManagementToVote?: boolean;
+};
+
+const normalizeCargo = (c?: string | null) => canonicalCargo(c).toLowerCase();
+
+/**
+ * Política de voto da sala: a lista de cargos que votam. Sala com `votingCargos` usa a lista (vazia é tratada como
+ * ausente, para a sala nunca ficar sem votantes); sala antiga usa o padrão e, se tinha "Gestão pode votar" ligado,
+ * soma os cargos de gestão — o comportamento delas não muda.
+ */
+export function votingCargosOf(settings?: VotingSettings | null): readonly string[] {
+  const own = settings?.votingCargos;
+  if (Array.isArray(own) && own.length > 0) {
+    // Salas antigas guardam as grafias de antes ("Developer", "QA"): cada entrada vira o cargo canônico.
+    const canonical = [...new Set(own.map((c) => canonicalCargo(c)).filter(Boolean))];
+    if (canonical.length > 0) return canonical;
+  }
+  return settings?.allowManagementToVote === true
+    ? [...DEFAULT_VOTING_CARGOS, ...LEGACY_MANAGEMENT_CARGOS]
+    : DEFAULT_VOTING_CARGOS;
+}
+
+/** O cargo está na lista de quem vota? (sem diferenciar maiúsculas/minúsculas; sem cargo nunca está) */
+export function isVotingCargo(cargo: string | null | undefined, votingCargos: readonly string[] = DEFAULT_VOTING_CARGOS): boolean {
+  const c = normalizeCargo(cargo);
+  return !!c && votingCargos.some((v) => normalizeCargo(v) === c);
 }
 
 /**
- * Votos que contam para as métricas de resultado (consenso, média, piso, teto).
- * Mantém só categorias técnicas — exclui gestão (Management) e espectadores
- * (categoria null). Alinha o card de resumo do Results e o stats persistido
- * em handleReveal com o detalhamento por papel e com calculateRoleEfforts,
- * que já ignoram gestão. Usa a identidade viva do participante e, se ele já
+ * Fonte única de verdade para "este participante pode votar?".
+ * Vota quem tem cargo (o da administração, gravado em `globalRole`) dentro dos cargos que votam na sala e não está
+ * marcado como espectador. Todos os demais — inclusive quem está sem cargo — são observadores: veem a mesa, não
+ * recebem baralho e não entram no "x de y votaram", na revelação automática nem nas estatísticas.
+ * Usado pelo gate do Controls, pelo denominador de progresso, pela mesa, pelas estatísticas etc.
+ */
+export function canParticipantVote(
+  participant: { role: Role; globalRole?: GlobalRole },
+  votingCargos: readonly string[] = DEFAULT_VOTING_CARGOS
+): boolean {
+  if (participant.role === 'spectator') return false;
+  return isVotingCargo(participant.globalRole, votingCargos);
+}
+
+/** Por que alguém só observa: sem cargo na administração ou cargo que não vota nesta sala (dica da mesa e da lista). */
+export function observerHintOf(participant: { globalRole?: string | null }): string {
+  return participant.globalRole?.trim() ? 'cargo não vota nesta sala' : 'sem cargo na administração';
+}
+
+/**
+ * Votos que contam para as métricas de resultado (consenso, média, piso, teto): só os de quem vota nesta sala
+ * (`canParticipantVote`). Observador e espectador nunca contam. Usa a identidade viva do participante e, se ele já
  * saiu, o fallback congelado no próprio voto ("votos são fatos").
  */
 export function getEligibleStatsVotes(
   votes: Vote[],
   participants: Participant[],
-  allowManagementToVote = false
+  votingCargos: readonly string[] = DEFAULT_VOTING_CARGOS
 ): Vote[] {
   const participantMap = new Map(participants.map(p => [p.id, p]));
   return votes.filter(vote => {
     const p = participantMap.get(vote.participantId);
-    const category = p
-      ? getParticipantCategory(p)
-      : (vote.participantRole
-          ? getParticipantCategory({ role: vote.participantRole, globalRole: vote.participantGlobalRole })
-          : null);
-    if (category === null) return false;               // espectador nunca conta
-    if (category === 'Management') return allowManagementToVote; // gestão só quando liberada
-    return true;
+    const identity = p
+      ? p
+      : (vote.participantRole ? { role: vote.participantRole, globalRole: vote.participantGlobalRole } : null);
+    return !!identity && canParticipantVote(identity, votingCargos);
   });
 }
 

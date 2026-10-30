@@ -19,6 +19,7 @@ export function RoomQr({ url, size = 112, className }: { url: string; size?: num
     return () => { alive = false; };
   }, [url, size]);
 
+  // Intencional: bg-white no QR; leitores de câmera exigem módulo escuro sobre fundo claro em qualquer tema.
   const box = cn('shrink-0 rounded-[10px] bg-white p-2 shadow-[0_0_24px_hsl(var(--primary)/0.2)] [.theme-leitura_&]:shadow-none', className);
   if (!src) {
     return <div style={{ width: size, height: size }} className={cn(box, 'motion-safe:animate-pulse')} aria-hidden="true" />;

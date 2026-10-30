@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from '@/lib/cargo';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, EyeOff, Lock, Check } from 'lucide-react';
 import { DeckType, Participant } from '@/lib/types';
@@ -19,7 +20,8 @@ interface ControlsProps {
   currentUserVote: string | null;
   votesRevealed: boolean;
   currentUser: Participant;
-  allowManagementToVote?: boolean;
+  // Cargos que votam na sala (votingCargosOf). Ausente = padrão (dev e QA).
+  votingCargos?: readonly string[];
   selectiveRevotingRole?: string | null;
   isTheaterMode?: boolean;
   // Sessão ainda não iniciada pelo facilitador: o baralho fica bloqueado.
@@ -29,8 +31,8 @@ interface ControlsProps {
   confidenceEnabled?: boolean;
   onSetConfidence?: (confidence: 'low' | 'medium' | 'high') => void;
   currentUserConfidence?: 'low' | 'medium' | 'high' | null;
-  // Facilitador de gestão: atalho para liberar o próprio voto (e o da gestão) sem abrir as configurações.
-  onAllowManagementVote?: () => void;
+  // Facilitador cujo cargo não vota: atalho para incluir o próprio cargo em "Quem vota" sem abrir as configurações.
+  onAllowMyCargoVote?: () => void;
   // Horas máximas do baralho "Horas reais" (ausente = baralho completo).
   maxHours?: number | null;
 }
@@ -44,7 +46,7 @@ const CONFIDENCE_OPTIONS = [
 export const POKER_PHRASES = {
   geral: [
     "Qualidade não é evento, é hábito (tipo café ☕).",
-    "Feito é melhor que perfeito… mas dá pra caprichar né.",
+    "Feito é melhor que perfeito… mas dá para caprichar né.",
     "Se complicou demais, provavelmente tem um jeito mais simples.",
     "Código simples hoje, menos dor de cabeça amanhã.",
     "Gente alinhada resolve mais que ferramenta cara.",
@@ -125,13 +127,13 @@ export function Controls({
   currentUserVote,
   votesRevealed,
   currentUser,
-  allowManagementToVote = false,
+  votingCargos,
   selectiveRevotingRole = null,
   isTheaterMode = false,
   isSessionNotStarted = false,
   confidenceEnabled = false,
   onSetConfidence,
-  onAllowManagementVote,
+  onAllowMyCargoVote,
   currentUserConfidence = null,
   maxHours,
 }: ControlsProps) {
@@ -175,8 +177,8 @@ export function Controls({
 
   // Gate único (poker-utils.canParticipantVote) para botão e denominador.
   const canVote = useMemo(
-    () => canParticipantVote(currentUser, allowManagementToVote),
-    [currentUser, allowManagementToVote]
+    () => canParticipantVote(currentUser, votingCargos),
+    [currentUser, votingCargos]
   );
 
   // Revotação seletiva é por CATEGORIA técnica (Developer/QA/UX/Designer).
@@ -285,16 +287,21 @@ export function Controls({
     return <DeckNotice icon={Lock} title="O baralho abre quando o refinamento começar" />;
   }
 
-  // Não-votante (gestão sem liberação / observador): aviso no lugar do baralho.
+  // Não-votante (cargo que não vota nesta sala, sem cargo ou espectador): aviso no lugar do baralho.
   if (!canVote) {
+    const cargo = canonicalCargo(currentUser.globalRole);
+    const hint = currentUser.role === 'spectator'
+      ? 'Você entrou como espectador desta sala.'
+      : cargo
+        ? `O cargo ${cargo} não vota nesta sala.`
+        : `Você está sem cargo na administração, por isso entra como observador.`;
     return (
-      <DeckNotice icon={EyeOff} title="Gestão acompanha sem votar">
-        {onAllowManagementVote ? (
-          <Button onClick={onAllowManagementVote} className="h-10 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground room-glow hover:bg-primary/90">
-            Votar também
+      <DeckNotice icon={EyeOff} title="Você acompanha como observador">
+        <span className="text-xs text-muted-foreground">{hint}</span>
+        {onAllowMyCargoVote && cargo && currentUser.role !== 'spectator' && (
+          <Button onClick={onAllowMyCargoVote} className="h-11 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground room-glow hover:bg-primary/90 sm:h-10">
+            Votar também ({cargo})
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">O facilitador pode liberar o voto da gestão nas configurações.</span>
         )}
       </DeckNotice>
     );
@@ -315,7 +322,7 @@ export function Controls({
       <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="flex min-w-0 flex-1 items-center gap-x-4">
           <h2 className="m-0 shrink-0 text-[15px] font-semibold" title={`Digite o valor${specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido`}>Seu baralho</h2>
-          {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] italic text-muted-foreground md:block">{activePhrase}</p>}
+          {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] text-muted-foreground md:block">{activePhrase}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
           {confidenceEnabled && onSetConfidence && (

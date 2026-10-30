@@ -186,6 +186,23 @@ export function filterMyLinks(links: MyLink[], query: string): MyLink[] {
   return links.filter((l) => normalize([l.name, l.id, l.role, ...l.roles.map((r) => r.name), l.tribe ?? '', l.segment ?? ''].join(' ')).includes(q));
 }
 
+const COMPACT_ORIGINS: Record<string, string> = {
+  'Importado do Jira': 'Jira',
+  Convite: 'convite',
+  Manual: 'manual',
+  Aprovado: 'pedido',
+  Reivindicado: 'pedido',
+  Migrado: 'migrado',
+};
+
+/** Origem em uma palavra para a lista compacta ("Jira", "convite", "manual", "pedido"); `null` se desconhecida. */
+export function compactOrigin(link: Pick<MyLink, 'roles' | 'origin'>): string | null {
+  const labels = link.roles.map((r) => r.origin).filter((o): o is string => !!o);
+  if (labels.length === 0 && link.origin) labels.push(link.origin);
+  const short = [...new Set(labels.map((o) => COMPACT_ORIGINS[o] ?? o.toLowerCase()))];
+  return short.length > 0 ? short.join(' / ') : null;
+}
+
 /** Rótulo do tipo de vínculo. */
 export function linkKindLabel(link: Pick<MyLink, 'leadership'>): 'Liderança' | 'Contribuidor' {
   return link.leadership ? 'Liderança' : 'Contribuidor';

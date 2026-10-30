@@ -45,7 +45,7 @@ const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard
   ssr: false,
   loading: () => <LoadingSkeleton variant="cards" rows={3} label="Carregando o quadro" />,
 });
-const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then((m) => m.SquadPlansTimeline), {
+const CronogramaView = dynamic(() => import('@/components/squad/cronograma/CronogramaView').then((m) => m.CronogramaView), {
   ssr: false,
   loading: () => <LoadingSkeleton variant="table" label="Carregando o cronograma" />,
 });
@@ -60,7 +60,7 @@ const LABEL = 'hidden xl:inline';
 export function SquadHub() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { userProfile, isInitializing } = useUserContext();
+  const { userProfile, isInitializing, isLeadership: isSquadLead } = useUserContext();
   const { toast } = useToast();
 
   const location = resolveHubLocation(searchParams.get('tab'), searchParams.get('view'));
@@ -78,7 +78,8 @@ export function SquadHub() {
   const hasSquad = !!rawSquadId && rawSquadId !== 'Sem Time';
   const squadId = hasSquad ? rawSquadId : '';
   const role = userProfile?.role as string | undefined;
-  const isLeadership = !!role && (SQUAD_ADMIN_ROLES as string[]).includes(role);
+  // Liderança = cargo de gestão OU bandeira de liderança no vínculo da squad ativa (é o que o servidor usa).
+  const isLeadership = (!!role && (SQUAD_ADMIN_ROLES as string[]).includes(role)) || !!isSquadLead;
   const isLeadershipViewer = !!role && (SQUAD_LEADERSHIP_VIEW_ROLES as string[]).includes(role);
   const isPeopleAdmin = !!role && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(role);
   const { canManageTeam } = useCanManageTeam(squadId);
@@ -285,7 +286,7 @@ export function SquadHub() {
           <span className={LABEL}>Pessoas</span>
         </ModalButton>
       )}
-      <ModalButton className={ACTION} onClick={() => setIsSettingsOpen(true)} title="Configurar a squad (projeto e conexão com o Jira)" aria-label="Configurar a squad">
+      <ModalButton className={ACTION} onClick={() => setIsSettingsOpen(true)} title={isLeadership ? 'Configurar a squad (projeto e conexão com o Jira)' : 'Conectar o seu Jira (a configuração da squad é da liderança)'} aria-label="Configurar a squad">
         <Settings2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         <span className={LABEL}>Configurar</span>
       </ModalButton>
@@ -313,7 +314,7 @@ export function SquadHub() {
       ) : !hasSquad ? (
         <EmptyState
           title="Você ainda não está em uma squad"
-          description="Entre em um time pra ver sprint, quadro, cronograma e métricas aqui."
+          description="Entre em um time para ver sprint, quadro, cronograma e métricas aqui."
           actions={
             <ModalButton variant="primary" onClick={() => router.push('/onboarding')}>
               Escolher meu time
@@ -328,7 +329,7 @@ export function SquadHub() {
             onChange={(next) => goTo(next)}
             label="Seções da squad"
             idPrefix="hub"
-            className="overflow-x-auto px-0"
+            className="overflow-y-hidden overflow-x-auto px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             tabClassName="shrink-0 px-1 max-sm:h-11"
           />
 
@@ -342,6 +343,7 @@ export function SquadHub() {
                 userRole={role}
                 sync={summarySync}
                 canManageTeam={canManageTeam && isPeopleAdmin}
+                canImportJira={canManageTeam}
                 canOpenPeople={isPeopleAdmin}
                 canSyncNow={viewingSprintId === null && !isSyncing}
                 onSyncNow={() => handleSync()}
@@ -359,7 +361,13 @@ export function SquadHub() {
             )}
 
             {tab === 'cronograma' && (
-              <SquadPlansTimeline jiraConnected={jiraConnected} onConnectJira={() => setIsSettingsOpen(true)} onSync={() => handleSync()} />
+              <CronogramaView
+                squadId={squadId}
+                jiraConnected={jiraConnected}
+                onConnectJira={() => setIsSettingsOpen(true)}
+                onSync={() => handleSync()}
+                canConfigure={isLeadership}
+              />
             )}
 
             {tab === 'metricas' && (

@@ -22,9 +22,13 @@ export interface AuthResponse {
   email: string;
   name: string;
   role: string;
+  /** Cargo de negócio da conta (o mesmo que a administração edita). Não é permissão. */
+  jobTitle?: string;
   authProvider: string;
   jiraAccountId?: string;
   avatarSeed?: string;
+  /** Foto enviada pela pessoa: caminho `/api/users/{id}/photo?v=...` (leitura exige Bearer). `null`/ausente = sem foto enviada. */
+  photoUrl?: string | null;
   activeProjectId?: string;
   activeProjectName?: string;
   activeProjectRole?: string;

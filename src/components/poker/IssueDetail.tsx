@@ -106,18 +106,18 @@ export function IssueDetail({ issue, isOpen, onClose, closeLabel = 'Fechar' }: I
 
         <aside className="flex shrink-0 flex-col gap-5 border-t border-border bg-muted/40 p-5 md:w-[260px] md:border-l md:border-t-0">
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-bold text-muted-foreground">Responsável</span>
+            <span className="text-xs font-bold text-muted-foreground">Responsável</span>
             <span className="flex items-center gap-2 text-sm font-medium">
               {issue.assignee ? <><PersonAvatar name={issue.assignee} size="sm" /> {issue.assignee}</> : 'Não atribuído'}
             </span>
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-bold text-muted-foreground">Última atualização</span>
+            <span className="text-xs font-bold text-muted-foreground">Última atualização</span>
             <span className="text-sm font-medium tabular-nums">{updatedLabel}</span>
           </div>
           {issue.labels && issue.labels.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold text-muted-foreground">Marcadores</span>
+              <span className="text-xs font-bold text-muted-foreground">Marcadores</span>
               <div className="flex flex-wrap gap-1.5">
                 {issue.labels.map((label) => (
                   <span key={label} className="inline-flex h-[22px] items-center rounded-md border border-border bg-card px-2 text-xs">{label}</span>

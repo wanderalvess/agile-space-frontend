@@ -9,13 +9,50 @@ export interface Invite {
   roleName: string;
   email?: string | null;
   invitedBy: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  /** EXHAUSTED só existe em convite de equipe (derivado no servidor): o limite de pessoas foi atingido. */
+  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED' | 'EXHAUSTED';
   createdAt: string;
   expiresAt: string;
   acceptedAt?: string | null;
   acceptedByUserId?: string | null;
   /** Só na página do convite: nome legível da squad (sem projeto cadastrado, vem vazio e fica a chave). */
   squadName?: string | null;
+  /** Convite de equipe: um link para várias pessoas (papel fixo, sem e-mail). */
+  multiUse?: boolean;
+  /** Vagas restantes; null/ausente = sem limite (ou convite individual). */
+  remainingUses?: number | null;
+  /** Só para quem gerencia a squad: teto e quantas pessoas já entraram. */
+  maxUses?: number | null;
+  usesCount?: number;
+  revokedAt?: string | null;
+  /** Convite de equipe e a conta logada já faz parte da squad ou já usou este link: nada é consumido. */
+  alreadyMember?: boolean | null;
+}
+
+/** Pré-visualização do convite para quem ainda não entrou (GET /public/invites/{token}, sem sessão). */
+export interface InvitePreview {
+  squadId: string;
+  /** Nome legível da squad; vazio quando só existe a chave. */
+  squadName?: string | null;
+  roleName: string;
+  status: Invite['status'];
+  expiresAt: string;
+  /** E-mail do destinatário mascarado (c••••@dominio), só em convite endereçado. */
+  emailMasked?: string | null;
+  multiUse?: boolean;
+  /** Vagas restantes; null = sem limite. */
+  remainingUses?: number | null;
+}
+
+export interface InviteRedemption {
+  userId: string;
+  name: string | null;
+  joinedAt: string;
+}
+
+/** O limite de pessoas do convite de equipe foi atingido (HTTP 409 no aceite). */
+export function isExhaustedError(err: unknown): err is InviteApiError {
+  return err instanceof InviteApiError && err.status === 409;
 }
 
 /** Código que o backend deve mandar (403) quando o convite é de um e-mail e a pessoa entrou com outro. */
@@ -48,7 +85,15 @@ export function isOtherEmailError(err: unknown): err is InviteApiError {
   return err instanceof InviteApiError && err.status === 403 && err.code === INVITE_OTHER_EMAIL;
 }
 
+/** O servidor limitou as requisições (HTTP 429): não quer dizer que o convite é inválido. */
+export function isRateLimitError(err: unknown): err is InviteApiError {
+  return err instanceof InviteApiError && err.status === 429;
+}
+
+export const RATE_LIMIT_MESSAGE = 'Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.';
+
 function friendlyInviteMessage(status: number, serverMessage: string): string {
+  if (status === 429) return RATE_LIMIT_MESSAGE;
   if (serverMessage && !/^(Bad Request|Forbidden|Not Found|Unauthorized)$/i.test(serverMessage)) return serverMessage;
   if (status === 404) return 'Convite não encontrado. Confira o link com quem te convidou.';
   if (status === 403) return 'Você não tem permissão para esta ação de convite.';
@@ -95,6 +140,19 @@ export const inviteApi = {
     });
   },
 
+  /** Convite de equipe (link para várias pessoas). maxUses: número, ou null = sem limite (só ADMIN). */
+  async createTeamInvite(squadId: string, roleName: string, maxUses: number | null, validityDays: number): Promise<Invite> {
+    return req<Invite>(`/squads/${squadId}/invites/team`, {
+      method: 'POST',
+      body: JSON.stringify({ roleName, maxUses, validityDays }),
+    });
+  },
+
+  /** Quem entrou por um convite de equipe (nome e data). */
+  async listRedemptions(squadId: string, id: string): Promise<InviteRedemption[]> {
+    return req<InviteRedemption[]>(`/squads/${squadId}/invites/${encodeURIComponent(id)}/redemptions`);
+  },
+
   async listInvites(squadId: string): Promise<Invite[]> {
     return req<Invite[]>(`/squads/${squadId}/invites`);
   },
@@ -105,6 +163,13 @@ export const inviteApi = {
 
   async getInvite(token: string): Promise<Invite> {
     return req<Invite>(`/invites/${encodeURIComponent(token)}`);
+  },
+
+  /** Sem sessão: serve a página do convite e o aviso do login. 404 = link que não existe. */
+  async getPreview(token: string): Promise<InvitePreview> {
+    const res = await fetch(`${API_BASE_URL}/public/invites/${encodeURIComponent(token)}`);
+    if (!res.ok) throw await inviteErrorFrom(res);
+    return res.json();
   },
 
   buildInviteLink(token: string): string {

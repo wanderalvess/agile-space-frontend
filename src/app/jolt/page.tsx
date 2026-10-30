@@ -1,197 +1,236 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Code2,
-  FileJson,
-  PenLine,
-  Workflow,
-  Wand2,
-} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, BookOpen, Check, Clock, FileText, Lock, PenLine, Wand2, type LucideIcon } from 'lucide-react';
 import { PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Kbd } from '@/components/room-kit';
+import { FOCUS_RING, OUTLINE_BUTTON } from '@/components/room-kit/tokens';
+import { cn } from '@/lib/utils';
+import { SHORTCUT_LABEL } from '@/lib/jolt-shortcuts';
+import { formatRecent, readLayouts, recentLayouts, type SavedLayout } from '@/lib/jolt-storage';
+import { GuestBanner, LoginRequiredDialog, useJoltIdentity } from '@/components/jolt/JoltBits';
+import { JoltHowItWorks } from '@/components/jolt/JoltHowItWorks';
+import { JoltNav, joltHeaderProps } from '@/components/jolt/JoltNav';
 
 interface Mode {
   href: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
   tag: string;
   title: string;
   summary: string;
-  useWhen: string[];
-  input: string;
-  output: string;
-  extras: string[];
+  when: string[];
+  give: string;
+  get: string;
+  sample: string;
   cta: string;
+  keys: { k: string; d: string }[];
 }
 
 const MODES: Mode[] = [
   {
     href: '/jolt/sandbox',
-    icon: <PenLine className="h-5 w-5 text-primary" />,
+    icon: PenLine,
     tag: 'Você escreve a spec',
-    title: 'Jolt Sandbox',
-    summary: 'Cole o JSON de entrada, escreva a especificação Jolt e veja o resultado ao lado, na hora. É o laboratório para testar e depurar.',
-    useWhen: [
-      'Você já conhece a sintaxe do Jolt ou tem uma spec pronta.',
-      'Precisa ajustar ou depurar uma transformação que está dando errado.',
-      'Quer conferir se o resultado em JavaScript bate com o da produção (Java).',
+    title: 'Sandbox',
+    summary: 'Cole o JSON de entrada, escreva a spec e veja a saída ao lado. É o lugar para testar, depurar e guardar layouts.',
+    when: [
+      'Você já conhece a sintaxe ou tem uma spec pronta.',
+      'Uma transformação está dando errado e precisa de ajuste.',
+      'Quer testar a spec com JSONs reais antes de levar para a rota.',
     ],
-    input: 'JSON de entrada + spec Jolt',
-    output: 'JSON transformado',
-    extras: [
-      'Três motores: JavaScript (instantâneo, no navegador), Java (oficial Bazaarvoice, no backend) e Comparar (roda os dois e aponta diferenças).',
-      'Salva e recarrega layouts de trabalho.',
-    ],
+    give: 'JSON de entrada e spec',
+    get: 'JSON transformado',
+    sample: '{ "pedido": { "numero": "idPedido",\n              "total": "valorTotal" } }',
     cta: 'Abrir Sandbox',
+    keys: [{ k: SHORTCUT_LABEL.executar, d: 'executa' }, { k: SHORTCUT_LABEL.salvar, d: 'salva' }],
   },
   {
     href: '/jolt/gerador',
-    icon: <Wand2 className="h-5 w-5 text-primary" />,
+    icon: Wand2,
     tag: 'Você dá o exemplo',
-    title: 'Gerador de Spec',
-    summary: 'Cole a entrada da API de origem e a saída que a API de destino espera. O gerador descobre de onde vem cada campo e monta a spec, validada no motor Java.',
-    useWhen: [
-      'Você tem um registro de exemplo e sabe como ele deve chegar no destino.',
-      'Quer começar uma rota nova sem escrever spec à mão.',
-      'Quer provar que a spec gera exatamente a saída do contrato.',
+    title: 'Gerador de spec',
+    summary: 'Cole a entrada da API de origem e a saída que o destino espera. O portal descobre de onde vem cada campo e monta a spec.',
+    when: [
+      'Você tem um registro de exemplo e sabe como ele deve chegar.',
+      'Vai começar uma rota nova sem escrever spec à mão.',
+      'Quer provar que a spec gera a saída do contrato.',
     ],
-    input: 'JSON de entrada + saída esperada',
-    output: 'Spec Jolt validada (abre na Sandbox)',
-    extras: [
-      'Mostra a regra de cada campo (cópia, só dígitos, concatenação, de-para, fixo) e pede confirmação só do que é ambíguo.',
-      'Roda a spec gerada no motor Java e compara campo a campo com a saída esperada.',
-    ],
+    give: 'Entrada e saída esperada',
+    get: 'Spec conferida, pronta para a Sandbox',
+    sample: 'entrada  { "numero": 458213 }\nsaída    { "idPedido": 458213 }\nregra    idPedido  copia  pedido.numero',
     cta: 'Abrir Gerador',
+    keys: [{ k: '3 passos', d: 'exemplos, regras, spec' }],
   },
 ];
 
-const FLOW = [
-  { title: 'Dê o exemplo', text: 'No Gerador, cole a entrada e a saída esperada.' },
-  { title: 'Confirme', text: 'Ajuste só os campos ambíguos; a spec é gerada e validada no Java.' },
-  { title: 'Refine', text: 'Na Sandbox, ajuste regras e teste com JSONs reais.' },
-  { title: 'Confirme no Java', text: 'Use o modo Comparar para garantir que produção terá o mesmo resultado.' },
-];
-
-const OPERATIONS = [
-  { name: 'shift', label: 'Mover e renomear', text: 'Copia valores da entrada para a saída, mudando nome ou posição.', spec: '{ "nome": "cliente.nome" }' },
-  { name: 'default', label: 'Valores padrão', text: 'Preenche campos que não vieram na entrada.', spec: '{ "status": "ativo" }' },
-  { name: 'remove', label: 'Remover', text: 'Tira da saída as propriedades indesejadas.', spec: '{ "senha": "" }' },
-  { name: 'sort', label: 'Ordenar', text: 'Ordena as chaves para uma saída previsível, útil em testes.', spec: '"sort"' },
-];
-
 function ModeCard({ mode }: { mode: Mode }) {
+  const Icon = mode.icon;
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden rounded-[2.5rem] border border-border bg-card/60 p-7 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:shadow-2xl dark:shadow-none">
-      <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl transition-transform duration-700 group-hover:scale-125 dark:bg-primary/10" />
-      <div className="relative z-10 flex items-center justify-between">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">{mode.icon}</div>
-        <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground">
-          {mode.tag}
+    <article className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition-colors duration-base hover:border-primary/50">
+      <div className="flex items-center gap-3">
+        <span aria-hidden="true" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+          <Icon className="h-[22px] w-[22px]" strokeWidth={1.5} />
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] text-muted-foreground">{mode.tag}</span>
+          <h2 className="text-[22px] font-bold leading-tight text-foreground">{mode.title}</h2>
+        </div>
+      </div>
+      <p className="text-[15px] leading-relaxed text-muted-foreground">{mode.summary}</p>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-bold tracking-wide text-muted-foreground">Quando usar</h3>
+          <ul className="flex flex-col gap-2">
+            {mode.when.map((w) => (
+              <li key={w} className="flex gap-2 text-sm leading-snug text-foreground">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={1.8} aria-hidden="true" />
+                {w}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-bold tracking-wide text-muted-foreground">O que entrega</h3>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-[13px]">
+            <dt className="text-muted-foreground">Você dá</dt>
+            <dd className="font-semibold text-foreground">{mode.give}</dd>
+            <dt className="text-muted-foreground">Você recebe</dt>
+            <dd className="font-semibold text-foreground">{mode.get}</dd>
+          </dl>
+          <pre aria-label="Exemplo" className="overflow-auto rounded-xl bg-muted px-3.5 py-3 font-code text-xs leading-relaxed text-foreground">{mode.sample}</pre>
+        </div>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <Button asChild className="h-10 rounded-[10px] px-4 font-bold">
+          <Link href={mode.href}>
+            {mode.cta}
+            <ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </Link>
+        </Button>
+        <span className="inline-flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
+          {mode.keys.map((k) => (
+            <span key={k.k} className="inline-flex items-center gap-1.5">
+              <Kbd>{k.k}</Kbd>
+              {k.d}
+            </span>
+          ))}
         </span>
       </div>
-      <h2 className="relative z-10 mt-4 font-headline text-2xl font-black uppercase tracking-tight text-foreground transition-colors group-hover:text-primary">
-        {mode.title}
-      </h2>
-      <p className="relative z-10 mt-2 text-[13px] font-medium leading-relaxed text-muted-foreground">{mode.summary}</p>
+    </article>
+  );
+}
 
-      <div className="relative z-10 mt-5 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-background/60 p-3 text-xs">
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você entrega</span>
-        <span className="font-semibold text-foreground">{mode.input}</span>
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você recebe</span>
-        <span className="font-semibold text-foreground">{mode.output}</span>
-      </div>
-
-      <h3 className="relative z-10 mt-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Use quando</h3>
-      <ul className="relative z-10 mt-2 space-y-1.5">
-        {mode.useWhen.map(item => (
-          <li key={item} className="flex gap-2 text-[13px] font-medium leading-snug text-foreground">
-            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden /> {item}
+function RecentLayouts({ layouts, total }: { layouts: SavedLayout[]; total: number }) {
+  return (
+    <>
+      <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        {layouts.map((l) => (
+          <li key={l.id} className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors duration-base hover:border-primary/50">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-[15px] font-bold text-foreground" title={l.name}>{l.name || 'Layout sem nome'}</span>
+              <span className="truncate font-code text-xs text-muted-foreground" title={l.apiUrl}>{l.apiUrl || 'Sem URL de origem'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                {formatRecent(l.updatedAt)}
+              </span>
+              <Link
+                href={`/jolt/sandbox?layout=${encodeURIComponent(l.id)}`}
+                aria-label={`Abrir ${l.name || 'layout sem nome'}`}
+                className={cn('inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-semibold', OUTLINE_BUTTON, FOCUS_RING)}
+              >
+                Abrir
+              </Link>
+            </div>
           </li>
         ))}
       </ul>
-
-      <ul className="relative z-10 mb-6 mt-4 space-y-1.5 border-t border-border/60 pt-4">
-        {mode.extras.map(item => (
-          <li key={item} className="text-xs font-medium leading-snug text-muted-foreground">{item}</li>
-        ))}
-      </ul>
-
-      <Button asChild className="relative z-10 mt-auto h-10 w-full rounded-xl border-none bg-primary text-xs font-extrabold uppercase tracking-wider text-primary-foreground hover:bg-orange-600">
-        <Link href={mode.href}>
-          {mode.cta} <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-        </Link>
-      </Button>
-    </Card>
+      {total > layouts.length && <p className="sr-only">Mostrando os {layouts.length} mais recentes de {total}.</p>}
+    </>
   );
 }
 
 export default function JoltHubPage() {
+  const router = useRouter();
+  const id = useJoltIdentity();
+  const [howOpen, setHowOpen] = useState(false);
+  const [layouts, setLayouts] = useState<SavedLayout[] | null>(null);
+
+  useEffect(() => {
+    if (id.isLoading) return;
+    setLayouts(id.userId ? readLayouts(id.userId) : []);
+  }, [id.isLoading, id.userId]);
+
+  const recent = layouts ? recentLayouts(layouts, 4) : [];
+
   return (
-    <PageShell documentTitle="Jolt">
+    <PageShell documentTitle="Jolt" header={joltHeaderProps(id.isGuest)}>
+      <JoltNav active="inicio" />
       <PageHeader
         title="Jolt"
         module="jolt"
-        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Jolt' }]}
-        subtitle="O Jolt descreve, em uma especificação JSON, como converter um JSON de entrada em outro formato. Aqui há dois jeitos de chegar lá: escrever a spec você mesmo ou desenhar o mapa e deixar a spec ser gerada."
+        subtitle="Converta o JSON de uma API no formato que outra espera."
+        actions={
+          <Button variant="outline" onClick={() => setHowOpen(true)} className="h-10 gap-2 rounded-[10px] px-4 font-semibold">
+            <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            Como funciona
+          </Button>
+        }
       />
 
-      <div className="space-y-10">
-    <section aria-label="Modos" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {MODES.map(mode => (
-        <ModeCard key={mode.href} mode={mode} />
-      ))}
-    </section>
+      {id.isGuest && (
+        <GuestBanner onLogin={id.askLogin}>
+          <strong>Entre para executar.</strong> Você pode ver os modos e ler o guia sem entrar. Executar, gerar e salvar layouts pedem login.
+        </GuestBanner>
+      )}
 
-    <section aria-label="Fluxo recomendado" className="space-y-4">
-      <div>
-        <h2 className="font-headline text-xl font-black uppercase tracking-tight">Os dois juntos funcionam melhor</h2>
-        <p className="text-sm font-medium text-muted-foreground">Quem está começando costuma seguir este caminho.</p>
-      </div>
-      <ol className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        {FLOW.map((step, i) => (
-          <li key={step.title} className="relative rounded-2xl border border-border bg-card p-4">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{i + 1}</span>
-            <h3 className="mt-3 text-sm font-black uppercase tracking-tight">{step.title}</h3>
-            <p className="mt-1 text-xs font-medium leading-relaxed text-muted-foreground">{step.text}</p>
-            {i < FLOW.length - 1 && <ArrowRight className="absolute -right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground md:block" aria-hidden />}
-          </li>
+      <section aria-label="Modos" className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {MODES.map((m) => (
+          <ModeCard key={m.href} mode={m} />
         ))}
-      </ol>
-    </section>
+      </section>
 
-    <section aria-label="Referência das operações" className="space-y-4">
-      <div>
-        <h2 className="font-headline text-xl font-black uppercase tracking-tight">As quatro operações do Jolt</h2>
-        <p className="text-sm font-medium text-muted-foreground">Toda spec combina estas operações, aplicadas em ordem.</p>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {OPERATIONS.map(op => (
-          <Card key={op.name} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2">
-              <Code2 className="h-4 w-4 text-primary" aria-hidden />
-              <span className="font-code text-sm font-bold">{op.name}</span>
+      <section aria-labelledby="recentes-titulo" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="recentes-titulo" className="text-lg font-bold text-foreground">Seus layouts recentes</h2>
+          {layouts && layouts.length > recent.length && (
+            <span className="text-[13px] text-muted-foreground">Mostrando os {recent.length} mais recentes de {layouts.length}</span>
+          )}
+        </div>
+
+        {id.isGuest && (
+          <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-8">
+            <span aria-hidden="true" className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-muted text-muted-foreground"><Lock className="h-[22px] w-[22px]" strokeWidth={1.5} /></span>
+            <div className="flex min-w-[260px] flex-1 flex-col gap-1">
+              <strong className="text-base text-foreground">Entre para ver os seus layouts</strong>
+              <span className="text-sm leading-relaxed text-muted-foreground">Os layouts salvos ficam ligados ao seu usuário neste navegador.</span>
             </div>
-            <h3 className="text-xs font-black uppercase tracking-wider">{op.label}</h3>
-            <p className="text-xs font-medium leading-relaxed text-muted-foreground">{op.text}</p>
-            <code className="mt-auto rounded-lg bg-muted px-2 py-1.5 font-code text-xs text-foreground">{op.spec}</code>
-          </Card>
-        ))}
-      </div>
-    </section>
+            <Button variant="outline" onClick={id.askLogin} className="h-10 rounded-[10px] px-4 font-semibold">Entrar</Button>
+          </div>
+        )}
 
-    <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-xs font-medium text-muted-foreground">
-      <FileJson className="h-4 w-4 shrink-0" aria-hidden />
-      <span>Precisa só formatar, validar ou converter JSON?</span>
-      <Link href="/devtools/json" className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
-        <Workflow className="h-3.5 w-3.5" aria-hidden /> Use o JSON Studio no DevTools
-      </Link>
-    </section>
-      </div>
+        {!id.isGuest && layouts && layouts.length === 0 && (
+          <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-8">
+            <span aria-hidden="true" className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-muted text-muted-foreground"><FileText className="h-[22px] w-[22px]" strokeWidth={1.5} /></span>
+            <div className="flex min-w-[260px] flex-1 flex-col gap-1">
+              <strong className="text-base text-foreground">Nenhum layout salvo ainda</strong>
+              <span className="text-sm leading-relaxed text-muted-foreground">
+                Na Sandbox, aperte <Kbd>{SHORTCUT_LABEL.salvar}</Kbd> para guardar a spec e a última entrada. Os layouts ficam neste navegador, ligados ao seu usuário.
+              </span>
+            </div>
+            <Button onClick={() => router.push('/jolt/sandbox')} className="h-10 rounded-[10px] px-4 font-bold">Abrir Sandbox</Button>
+          </div>
+        )}
+
+        {!id.isGuest && layouts && layouts.length > 0 && <RecentLayouts layouts={recent} total={layouts.length} />}
+      </section>
+
+      <JoltHowItWorks open={howOpen} onOpenChange={setHowOpen} />
+      <LoginRequiredDialog open={id.loginOpen} onOpenChange={(o) => (o ? id.askLogin() : id.closeLogin())} onLogin={id.goLogin} />
     </PageShell>
   );
 }

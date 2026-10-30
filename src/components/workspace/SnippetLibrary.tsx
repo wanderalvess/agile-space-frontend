@@ -209,14 +209,14 @@ export function SnippetLibrary({ openNew, onOpenNewHandled }: SnippetLibraryProp
                   <IconButton size="sm" icon={Trash2} label={`Excluir snippet ${snippet.title}`} onClick={() => setToDelete(snippet)} className="hover:text-red-700 dark:hover:text-red-300" />
                 </div>
               </header>
-              <div className="relative overflow-hidden rounded-xl border border-border bg-slate-950 p-3.5 font-code text-xs text-slate-300">
+              <div className="relative overflow-hidden rounded-xl border border-border bg-muted p-3.5 font-code text-xs text-foreground">
                 <pre className="m-0 max-h-40 overflow-hidden pr-9 whitespace-pre-wrap break-all leading-snug [mask-image:linear-gradient(to_bottom,black_70%,transparent_100%)]">{snippet.content}</pre>
                 <button
                   type="button"
                   onClick={() => handleCopyCode(snippet.content)}
                   aria-label={`Copiar código de ${snippet.title}`}
                   title="Copiar código"
-                  className="absolute right-2.5 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute right-2.5 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 text-foreground transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Copy className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
                 </button>
@@ -266,6 +266,7 @@ export function SnippetLibrary({ openNew, onOpenNewHandled }: SnippetLibraryProp
               Código fonte
               <span className="font-semibold normal-case tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Editor Monaco</span>
             </span>
+            {/* Intencional: o Monaco usa o tema vs-dark fixo, então o contêiner e o texto de carregamento ficam escuros nos dois modos. */}
             <div className="min-h-[320px] flex-1 overflow-hidden rounded-xl border border-border bg-slate-950 p-2">
               <Editor
                 height="100%"

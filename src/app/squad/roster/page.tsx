@@ -4,7 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 
-import { useAuth } from '@/context/AuthContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useUserContext } from '@/context/UserContext';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import { useSquadStore } from '@/store/useSquadStore';
@@ -55,8 +55,7 @@ function RosterContent() {
 
   // O cabeçalho do portal troca a squad ativa. Se a troca acontece com ?squadId= na URL, a página seguiria na
   // squad antiga com o cabeçalho mostrando a nova: solta o parâmetro e a página acompanha a squad ativa.
-  const { session } = useAuth();
-  const activeProjectId = session?.activeProjectId;
+  const { squadId: activeProjectId } = useActiveSquad();
   const lastActiveProject = useRef(activeProjectId);
   const hasSquadParam = !!searchParams.get('squadId');
   useEffect(() => {
@@ -183,7 +182,7 @@ function RosterContent() {
   if (approverOnly) {
     return (
       <PageShell documentTitle="Pedidos de vínculo">
-        <PageHeader title="Pedidos de vínculo" breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Pedidos de vínculo' }]} />
+        <PageHeader title="Pedidos de vínculo" module="roster" breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Pedidos de vínculo' }]} />
         {requestsPanel}
       </PageShell>
     );
@@ -229,6 +228,7 @@ function RosterContent() {
         <div role={canApprove ? 'tabpanel' : undefined} id="roster-panel-time" aria-labelledby={canApprove ? 'roster-tab-time' : undefined} className="flex flex-col gap-5">
         <PendingInvites
           state={invites.state}
+          squadId={squadId}
           invites={invites.pending}
           error={invites.error}
           onCopy={invites.copyLink}
@@ -281,6 +281,8 @@ function RosterContent() {
         onOpenChange={setInviteOpen}
         squadId={squadId}
         create={invites.create}
+        createTeam={invites.createTeam}
+        canUnlimited={isAdminRole}
         copyLink={invites.copyLink}
         onCreated={invites.refresh}
       />

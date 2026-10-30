@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Bell, CalendarDays, ListChecks, Megaphone, Wrench, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarDays, ListChecks, Megaphone, MessageSquare, Wrench, type LucideIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ const ICONS: Record<NonNullable<HomeNotification['icon']>, LucideIcon> = {
   alert: AlertTriangle,
   calendar: CalendarDays,
   list: ListChecks,
+  message: MessageSquare,
 };
 
 function NotificationRow({ n, now }: { n: HomeNotification; now: Date }) {
@@ -44,7 +45,7 @@ function NotificationRow({ n, now }: { n: HomeNotification; now: Date }) {
           <strong className="font-semibold">{n.who}</strong>
           {n.text ? <span className="text-muted-foreground"> {n.text}</span> : null}
         </span>
-        {n.createdAt && <span className="text-[11px] text-muted-foreground">{formatRelative(n.createdAt, now)}</span>}
+        {n.createdAt && <span className="text-xs text-muted-foreground">{formatRelative(n.createdAt, now)}</span>}
         {n.cta && (
           <Link
             href={n.cta.href}
@@ -95,7 +96,7 @@ export function NotificationCenter() {
           {unreadTotal > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[11px] font-bold text-primary-foreground"
+              className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-xs font-bold text-primary-foreground"
             >
               {unreadTotal > 9 ? '9+' : unreadTotal}
             </span>
@@ -114,7 +115,7 @@ export function NotificationCenter() {
                 >
                   {t.label}
                   {unread[t.id] > 0 && (
-                    <span className={cn('inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-bold', TINT_TEXT)}>
+                    <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1 text-xs font-bold', TINT_TEXT)}>
                       {unread[t.id]}
                     </span>
                   )}

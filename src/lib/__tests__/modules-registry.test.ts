@@ -76,11 +76,11 @@ describe('registro de módulos', () => {
 });
 
 describe('cartões da Home', () => {
-  it('são 12 em 4 grupos, na ordem de sempre', () => {
+  it('são 11 em 4 grupos, na ordem de sempre (a Central de qualidade virou filtro do DevTools)', () => {
     const groups = homeModuleGroups();
     expect(groups.map((g) => g.id)).toEqual(HOME_GROUP_ORDER);
     expect(groups.flatMap((g) => g.items.map((m) => m.href))).toEqual([
-      '/jolt', '/devtools', '/qa',
+      '/jolt', '/devtools',
       '/squad?tab=resumo', '/workspace', '/sprint-planner',
       '/health-check', '/brainstorming', '/action-plan',
       '/knowledge/kb', '/prompt-hub', '/support',
@@ -118,6 +118,10 @@ describe('moduleForPath', () => {
     expect(moduleForPath('/squad/dashboards/member')?.key).toBe('squad');
     expect(moduleForPath('/knowledge/chat/abc')?.key).toBe('knowledge');
     expect(moduleForPath('/room/123')?.key).toBe('poker');
+  });
+  it('/qa continua casando com o DevTools (a rota só redireciona)', () => {
+    expect(moduleForPath('/qa')?.key).toBe('devtools');
+    expect(MODULES.some((m) => m.href === '/qa')).toBe(false);
   });
   it('a Home só casa na raiz', () => {
     expect(moduleForPath('/')?.key).toBe('home');

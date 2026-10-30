@@ -8,20 +8,24 @@ import { ROLE_STYLES, roleToneOf } from './tokens';
 
 export function PersonAvatar({
   name,
+  userId,
   size = 'md',
   highlight = false,
   className,
 }: {
   name: string;
+  /** Id da conta: com ele aparece a foto que a pessoa enviou (senão, iniciais). */
+  userId?: string | null;
   size?: 'sm' | 'md' | 'lg';
   /** Anel de destaque (a própria pessoa). */
   highlight?: boolean;
   className?: string;
 }) {
-  const box = size === 'sm' ? 'h-6 w-6 text-[10px]' : size === 'lg' ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-[11px]';
+  const box = size === 'sm' ? 'h-6 w-6 text-xs' : size === 'lg' ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-xs';
   return (
     <InitialsAvatar
       name={name}
+      userId={userId}
       className={cn(box, highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-card', className)}
     />
   );
@@ -57,6 +61,8 @@ export function PresenceIndicator({ status, label }: { status: PresenceStatus; l
 
 export interface PresenceItem {
   id: string;
+  /** Id da CONTA, quando difere de `id` (ex.: voto de quem saiu, cujo item tem id sintético). Padrão: `id`. */
+  userId?: string;
   name: string;
   /** Texto do papel exibido ao lado do nome ("DEV", "QA", "PO · facilitadora"). */
   roleLabel: string;
@@ -65,6 +71,8 @@ export interface PresenceItem {
   /** Online agora. Sem o campo (`undefined`) a sala não sabe: sem ponto de presença e sem "ausente". */
   online?: boolean;
   status?: PresenceStatus;
+  /** Texto do estado (dica e leitor de tela) quando precisa dizer mais que o padrão, ex.: "Observando · cargo não vota nesta sala". */
+  statusLabel?: string;
   isYou?: boolean;
   isHost?: boolean;
   /** Voto de quem já saiu da sala: aparece esmaecido, sem ações. */
@@ -104,6 +112,8 @@ export interface PresenceListProps {
   items: PresenceItem[];
   /** Agrupa por papel (ordem e rótulos dados). Sem isso, lista única. */
   groupOrder?: readonly { id: string; label: string }[];
+  /** Grupo de quem não casa com nenhuma categoria. Padrão: "Outros". */
+  fallbackGroup?: { id: string; label: string };
   renderActions?: (item: PresenceItem) => React.ReactNode;
   emptyLabel?: string;
   className?: string;
@@ -113,8 +123,8 @@ export interface PresenceListProps {
  * Lista de presença: avatar, nome, papel, online/ausente e estado (pensando,
  * votou, espectador, organizador). Agrupada por papel quando `groupOrder` vem.
  */
-export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'Ninguém na sala ainda', className }: PresenceListProps) {
-  const groups = groupOrder ? groupPresence(items, groupOrder) : [{ id: 'all', label: '', items }];
+export function PresenceList({ items, groupOrder, fallbackGroup, renderActions, emptyLabel = 'Ninguém na sala ainda', className }: PresenceListProps) {
+  const groups = groupOrder ? groupPresence(items, groupOrder, fallbackGroup) : [{ id: 'all', label: '', items }];
 
   if (items.length === 0) {
     return <p className="px-4 py-8 text-center text-sm text-muted-foreground">{emptyLabel}</p>;
@@ -127,7 +137,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
           {g.label && (
             <h3 className="flex items-center gap-2 px-2 pb-1 pt-1 text-xs font-semibold text-muted-foreground">
               {g.label}
-              <span className="tabular-nums text-muted-foreground/70">{g.items.length}</span>
+              <span className="tabular-nums text-muted-foreground">{g.items.length}</span>
             </h3>
           )}
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
@@ -140,7 +150,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                 )}
               >
                 <span className="relative">
-                  <PersonAvatar name={p.name} highlight={p.isYou} />
+                  <PersonAvatar name={p.name} userId={p.userId ?? p.id} highlight={p.isYou} />
                   {p.online !== undefined && (
                     <span
                       aria-hidden="true"
@@ -163,7 +173,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                     {p.ghost && <span className="font-normal text-muted-foreground"> · saiu da sala</span>}
                   </span>
                 </span>
-                {p.status && <PresenceIndicator status={p.status} />}
+                {p.status && <PresenceIndicator status={p.status} label={p.statusLabel} />}
                 {renderActions?.(p)}
               </li>
             ))}

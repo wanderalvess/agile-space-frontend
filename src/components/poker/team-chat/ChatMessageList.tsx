@@ -60,7 +60,7 @@ export function ChatMessageList({
 
         return (
           <div key={msg.id} className={cn('group flex w-full gap-2.5', isOwn && 'flex-row-reverse', startsGroup && i > 0 && 'mt-2.5')}>
-            {!isOwn && (startsGroup ? <PersonAvatar name={msg.senderName} size="md" className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
+            {!isOwn && (startsGroup ? <PersonAvatar name={msg.senderName} userId={msg.senderId} size="md" className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
             <div className={cn('flex min-w-0 max-w-[85%] flex-col gap-1', isOwn ? 'items-end' : 'items-start')}>
               {startsGroup && (
                 <span className="flex items-center gap-1.5 px-0.5 text-xs text-muted-foreground">

@@ -54,10 +54,12 @@ export type SprintOption = { label: string; value: string };
 export function buildSprintOptions(args: {
   currentSprintId: string;
   currentSprintName?: string;
-  history?: SquadSprintHistoryEntry[];
+  history?: SquadSprintHistoryEntry[] | null;
   issues: { sprintId?: string | null; sprintName?: string | null }[];
 }): SprintOption[] {
-  const { currentSprintId, currentSprintName, history = [], issues } = args;
+  const { currentSprintId, currentSprintName, issues } = args;
+  // O backend manda `null` quando a squad ainda não tem histórico; o valor padrão de desestruturação só cobre `undefined`.
+  const history = args.history ?? [];
   const options: SprintOption[] = [];
   const has = (value: string) => options.some((o) => o.value === value);
 

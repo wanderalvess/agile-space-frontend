@@ -3,7 +3,7 @@
  * o que dá pra chamar de fora com uma API key, sem sessão de usuário.
  *
  * Fonte de verdade compartilhada entre a referência completa
- * (components/manual/IntegrationsSection.tsx, renderizada em /manual#integracoes)
+ * (tópico "Integrações e API" do Manual, app/manual/content/integracoes.ts, em /manual/integracoes)
  * e o atalho por módulo (components/shared/ModuleIntegrationDialog.tsx, aberto
  * de dentro de /knowledge/kb, /prompt-hub, /squad e /room). Editar aqui atualiza
  * os dois — não duplicar endpoint/tool direto no JSX.
@@ -197,7 +197,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/items/{id}',
         summary: 'Um prompt/iniciativa pelo id.',
-        returns: 'prompt completo, ou 404 (mesmo status pra inexistente ou privado)',
+        returns: 'prompt completo, ou 404 (mesmo status para inexistente ou privado)',
         scope: 'PROMPTHUB_READ',
       },
       {
@@ -212,7 +212,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/collections/{id}',
         summary: 'Uma coleção pública pelo id, com os prompts (públicos) embutidos.',
-        returns: 'coleção + items[], ou 404 (mesmo status pra inexistente ou privada)',
+        returns: 'coleção + items[], ou 404 (mesmo status para inexistente ou privada)',
         scope: 'PROMPTHUB_READ',
       },
       {

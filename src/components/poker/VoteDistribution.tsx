@@ -11,7 +11,7 @@ interface VoteDistributionProps {
   votes: Vote[];
   participants: Participant[];
   deck: DeckType;
-  allowManagementToVote?: boolean;
+  votingCargos?: readonly string[];
 }
 
 /**
@@ -19,9 +19,9 @@ interface VoteDistributionProps {
  * métricas). Ordena as barras pela ordem do baralho para leitura natural e
  * marca o(s) valor(es) mais votado(s). Revela bimodalidade que a média esconde.
  */
-export function VoteDistribution({ votes, participants, deck, allowManagementToVote = false }: VoteDistributionProps) {
+export function VoteDistribution({ votes, participants, deck, votingCargos }: VoteDistributionProps) {
   const bars = useMemo(() => {
-    const eligible = getEligibleStatsVotes(votes, participants, allowManagementToVote);
+    const eligible = getEligibleStatsVotes(votes, participants, votingCargos);
     if (eligible.length === 0) return [];
 
     const counts = new Map<string, number>();
@@ -35,7 +35,7 @@ export function VoteDistribution({ votes, participants, deck, allowManagementToV
 
     const max = Math.max(...values.map(v => counts.get(v) || 0), 1);
     return values.map(v => ({ value: v, count: counts.get(v) || 0, max, total: eligible.length }));
-  }, [votes, participants, deck, allowManagementToVote]);
+  }, [votes, participants, deck, votingCargos]);
 
   if (bars.length === 0) return null;
 

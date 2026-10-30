@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { clearJustSignedUp, markJustSignedUp } from '@/lib/team-welcome';
-import { loginContextFrom, signUpToastDescription } from '@/lib/login-context';
+import { loginContextFrom, loginModeFrom, signUpToastDescription } from '@/lib/login-context';
+import { inviteApi, type InvitePreview } from '@/lib/invite-api';
+import { clearPendingInvite, savePendingInvite } from '@/lib/pending-invite';
+import { resolveCargo, SEM_CARGO } from '@/lib/cargo';
 import {
   errorMessage,
   getFieldErrors,
@@ -33,7 +37,9 @@ export function useLoginFlow() {
   const { toast } = useToast();
   const { login, register } = useAuth();
 
-  const [mode, setMode] = useState<LoginMode>('login');
+  const searchParams = useSearchParams();
+  // `?mode=register` (botão "Criar conta" da página do convite) abre já na aba Cadastrar.
+  const [mode, setMode] = useState<LoginMode>(() => loginModeFrom(searchParams?.get('mode')));
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
@@ -50,9 +56,33 @@ export function useLoginFlow() {
   const [passwordFocusToken, setPasswordFocusToken] = useState(0);
 
   // Chegou por um link (convite, sala): o cartão diz para onde a pessoa volta depois de entrar.
-  // Lido do endereço só no navegador (no servidor fica vazio), sem estado extra nem divergência na hidratação.
-  const search = useSyncExternalStore(noopSubscribe, () => window.location.search, () => '');
-  const linkContext = useMemo(() => loginContextFrom(new URLSearchParams(search).get('returnUrl')), [search]);
+  // Lido da URL do Next (reage à navegação do AuthGuard, que troca /invite/x por /login?returnUrl=...).
+  const returnUrl = searchParams?.get('returnUrl') ?? null;
+  const linkContext = useMemo(() => loginContextFrom(returnUrl), [returnUrl]);
+
+  // Convite: busca a squad e quem convidou (rota pública) para o aviso dizer "para a squad X". Falha = aviso genérico.
+  const inviteToken = linkContext?.inviteToken ?? null;
+  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
+  useEffect(() => {
+    if (!inviteToken) return;
+    let cancelled = false;
+    savePendingInvite(inviteToken);
+    inviteApi
+      .getPreview(inviteToken)
+      .then((p) => {
+        if (cancelled) return;
+        setInvitePreview(p);
+        if (p.status !== 'PENDING') clearPendingInvite();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setInvitePreview(null);
+        clearPendingInvite();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken]);
 
   // Lembra apenas o e-mail (nunca a senha) para não digitar a cada login.
   const savedEmail = useSyncExternalStore(noopSubscribe, readSavedEmail, () => '');
@@ -113,7 +143,10 @@ export function useLoginFlow() {
       }
       toast({
         title: `Bem-vindo, ${session.name}!`,
-        description: `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${session.activeProjectRole || 'Membro'})`,
+        description:
+          linkContext?.kind === 'invite'
+            ? 'Abrindo o convite…'
+            : `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${resolveCargo(session.jobTitle) || SEM_CARGO})`,
       });
     } catch (err) {
       // A mensagem vem do servidor, inclusive a do limite de tentativas (429).
@@ -211,6 +244,7 @@ export function useLoginFlow() {
     hasSavedEmail: savedEmail !== '',
     passwordFocusToken,
     linkContext,
+    invitePreview,
     handleLogin,
     handleRegister,
     handleForgot,

@@ -23,10 +23,12 @@ export function FieldLabel({ icon: Icon, label, color = 'text-muted-foreground' 
 }
 
 export function TextField({
-  id, label, icon, value, onChange, placeholder, labelColor, multiline = false, minRows = 3,
+  id, label, icon, value, onChange, placeholder, labelColor, multiline = false, minRows = 3, note,
 }: {
   id: string; label: string; icon: React.ElementType; value: string;
   onChange: (v: string) => void; placeholder: string;
+  /** Linha entre o rótulo e o campo (ex.: de onde veio o texto importado do Jira). */
+  note?: React.ReactNode;
   /** Cor do rótulo (token do tom: erro para o problema, sucesso para a solução, marca para os critérios). */
   labelColor?: string;
   multiline?: boolean; minRows?: number;
@@ -41,6 +43,7 @@ export function TextField({
       <label htmlFor={id} className="contents">
         <FieldLabel icon={icon} label={label} color={labelColor} />
       </label>
+      {note}
       {multiline ? (
         <ControlledTextarea id={id} value={value} onChange={onChange} placeholder={placeholder} rows={minRows} className={cn(baseClass, 'resize-none py-2.5')} />
       ) : (

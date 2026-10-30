@@ -41,12 +41,32 @@ beforeEach(() => {
   setSession(1);
 });
 
+describe('AppHeader minimal (convite para visitante)', () => {
+  it('mostra só a marca e o Entrar, sem menu de módulos nem busca', () => {
+    render(<AppHeader minimal signInHref="/login?returnUrl=%2Finvite%2Fabc" />);
+    expect(screen.queryByRole('navigation', { name: 'Principal' })).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByLabelText('Notificações')).toBeNull();
+    expect(screen.queryByText('Rituais')).toBeNull();
+    expect(screen.getByLabelText(/Portal Tech V&D, página inicial/)).toBeTruthy();
+    const entrar = screen.getByRole('link', { name: 'Entrar' });
+    expect(entrar.getAttribute('href')).toBe('/login?returnUrl=%2Finvite%2Fabc');
+  });
+
+  it('sem minimal o cabeçalho continua completo', () => {
+    render(<AppHeader />);
+    expect(screen.getByRole('navigation', { name: 'Principal' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Entrar' })).toBeNull();
+  });
+});
+
 describe('AppHeader', () => {
-  it('traz a navegação curta: Home, Squad, Meu espaço, Rituais e Admin (admin)', () => {
+  it('traz a navegação curta: Home, Squad, Planejamento, Meu espaço, Rituais e Admin (admin)', () => {
     render(<AppHeader />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     const names = within(nav).getAllByRole('link').map((a) => a.textContent);
-    expect(names).toEqual(['Home', 'Squad', 'Meu espaço', 'Admin']);
+    expect(names).toEqual(['Home', 'Squad', 'Planejamento', 'Meu espaço', 'Admin']);
     expect(within(nav).getByRole('button', { name: /Rituais/ })).toBeTruthy();
   });
 
@@ -61,7 +81,15 @@ describe('AppHeader', () => {
     render(<AppHeader />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
     expect(within(nav).getByRole('link', { name: 'Squad' }).getAttribute('aria-current')).toBe('page');
-    expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBeNull();
+    expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBe(null);
+  });
+
+  it('marca Planejamento no Sprint Planner e no plano', () => {
+    pathname = '/sprint-planner/p1';
+    render(<AppHeader />);
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    expect(within(nav).getByRole('link', { name: 'Planejamento' }).getAttribute('href')).toBe('/sprint-planner');
+    expect(within(nav).getByRole('link', { name: 'Planejamento' }).getAttribute('aria-current')).toBe('page');
   });
 
   it('um vínculo só: o nome da squad é rótulo, sem seletor', () => {

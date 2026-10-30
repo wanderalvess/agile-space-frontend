@@ -11,7 +11,7 @@ export const THEME_MODES: { id: ThemeMode; name: string; icon: LucideIcon; activ
 
 export const THEME_VARIANTS: { id: ThemeVariant; name: string; icon: LucideIcon; color: string }[] = [
   { id: 'midnight', name: 'Midnight Tech', icon: Terminal, color: 'text-blue-500' },
-  { id: 'totvs', name: 'TOTVS', icon: Hexagon, color: 'text-cyan-500' },
+  { id: 'totvs', name: 'Corporativo', icon: Hexagon, color: 'text-cyan-500' },
   { id: 'leitura', name: 'Leitura confortável', icon: BookOpen, color: 'text-slate-500' },
   { id: 'default', name: 'Espaço Clássico', icon: Orbit, color: 'text-orange-500' },
   { id: 'nebula', name: 'Nebulosa Cósmica', icon: Sparkles, color: 'text-violet-500' },

@@ -59,7 +59,7 @@ function Field({ id, label, value, onChange, placeholder, note, inputMode }: {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id} className="flex items-center justify-between">
-        <Caption className="text-[10px]">{label}</Caption>
+        <Caption className="text-xs">{label}</Caption>
         {missing && <span className={cn('text-xs font-semibold', TONES.warn.text)}>preencha</span>}
       </Label>
       <Input
@@ -155,7 +155,7 @@ export function ImportPreview({ project, isMe, busy, onBack, onConfirm, blocked,
           )}
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-2xl font-bold tracking-tight">{fields.name.trim() || project.name || project.id}</h2>
-            <span className="inline-flex h-[22px] items-center rounded-full border border-border px-2.5 font-code text-[11px] font-semibold text-muted-foreground">{project.id}</span>
+            <span className="inline-flex h-[22px] items-center rounded-full border border-border px-2.5 font-code text-xs font-semibold text-muted-foreground">{project.id}</span>
           </div>
           <p className="text-[13px] text-muted-foreground">Confira, ajuste o que precisar e escolha quem entra. Nada é gravado antes de confirmar.</p>
         </div>
@@ -198,7 +198,7 @@ export function ImportPreview({ project, isMe, busy, onBack, onConfirm, blocked,
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
               <Users aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.5} /> Pessoas da squad
-              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal', TONES.brand.chip)}>
+              <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold normal-case tracking-normal', TONES.brand.chip)}>
                 {selectedCount} de {project.members.length}
               </span>
             </h3>
@@ -248,12 +248,12 @@ export function ImportPreview({ project, isMe, busy, onBack, onConfirm, blocked,
                   return (
                     <li key={key} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 sm:flex-nowrap', !st?.selected && 'opacity-55', (me || st?.linkToMe) && 'bg-primary/5')}>
                       <Checkbox checked={!!st?.selected} onCheckedChange={(v) => patch(key, { selected: v === true })} aria-label={`Importar ${m.displayName}`} />
-                      <MemberAvatar name={m.displayName} src={m.avatarUrl} className="h-[34px] w-[34px] text-[11px]" />
+                      <MemberAvatar name={m.displayName} src={m.avatarUrl} className="h-[34px] w-[34px] text-xs" />
                       <div className="min-w-0 flex-1 basis-36">
                         <div className="flex items-center gap-2 text-sm font-semibold">
                           <span className="truncate">{m.displayName}</span>
                           {(me || st?.linkToMe) && (
-                            <span className="inline-flex h-4 shrink-0 items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">Você</span>
+                            <span className="inline-flex h-4 shrink-0 items-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground">Você</span>
                           )}
                         </div>
                         {m.email && <div className="truncate text-xs text-muted-foreground">{m.email}</div>}
@@ -265,7 +265,7 @@ export function ImportPreview({ project, isMe, busy, onBack, onConfirm, blocked,
                           size="sm"
                           variant={st?.linkToMe ? 'default' : 'outline'}
                           onClick={() => markMe(key)}
-                          className="h-7 shrink-0 gap-1 rounded-[10px] px-2.5 text-[11px] font-semibold"
+                          className="h-7 shrink-0 gap-1 rounded-[10px] px-2.5 text-xs font-semibold"
                           aria-pressed={!!st?.linkToMe}
                         >
                           {st?.linkToMe ? <Check aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} /> : <UserCheck aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} />} Sou eu

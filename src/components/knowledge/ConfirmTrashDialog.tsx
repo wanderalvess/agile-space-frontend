@@ -1,17 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { cn } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/room-kit';
 
 /** O que vai para a lixeira: um artigo (pelo título) ou vários de uma vez. */
 export type TrashTarget =
@@ -39,37 +30,20 @@ function describeTarget(target: TrashTarget): string {
  */
 export function ConfirmTrashDialog({ target, loading = false, onCancel, onConfirm }: ConfirmTrashDialogProps) {
   return (
-    <AlertDialog
+    <ConfirmDialog
       open={target !== null}
       onOpenChange={(next) => {
         if (!next && !loading) onCancel();
       }}
-    >
-      <AlertDialogContent className="sm:max-w-[440px]">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-bold text-foreground">Mover para a lixeira?</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm leading-relaxed">
-            {target ? describeTarget(target) : null} Você pode restaurar depois na lixeira.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="gap-2 sm:gap-0">
-          <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={loading}
-            onClick={(e) => {
-              // Não deixa o Radix fechar sozinho: a tela fecha quando a operação termina.
-              e.preventDefault();
-              onConfirm();
-            }}
-            className={cn(
-              'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-              'focus-visible:ring-destructive',
-            )}
-          >
-            {loading ? 'Movendo…' : 'Mover para a lixeira'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      tone="danger"
+      icon={Trash2}
+      title="Mover para a lixeira?"
+      description={`${target ? describeTarget(target) : ''} Você pode restaurar depois na lixeira.`.trim()}
+      confirmLabel="Mover para a lixeira"
+      loading={loading}
+      loadingLabel="Movendo…"
+      keepOpenOnConfirm
+      onConfirm={onConfirm}
+    />
   );
 }

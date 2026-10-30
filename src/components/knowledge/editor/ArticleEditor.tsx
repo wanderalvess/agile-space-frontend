@@ -357,6 +357,7 @@ export function ArticleEditor() {
               </div>
             ) : (
               <>
+                <h1 className="sr-only">Editor de artigo</h1>
                 <div className={cn('flex flex-col gap-5', mode === 'read' && 'hidden')}>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor={titleId} className="sr-only">

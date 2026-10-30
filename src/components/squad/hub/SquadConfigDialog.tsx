@@ -7,9 +7,8 @@
 
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Settings2, XCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { defaultSyncJql, resolveSyncJql } from '@/lib/squad-hub';
@@ -102,18 +101,24 @@ export function SquadConfigDialog({ open, onOpenChange, squadId, config, isLeade
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] gap-3 overflow-y-auto rounded-[2rem] border border-border bg-card p-6 text-card-foreground sm:max-w-xl">
-        <DialogHeader className="space-y-1.5 text-left">
-          <DialogTitle className="flex items-center gap-2.5 text-2xl font-bold leading-none tracking-tight">
-            <Settings2 className="h-5 w-5 text-primary" strokeWidth={1.5} aria-hidden="true" /> Configurar a squad
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Conecte o Jira e diga de onde vêm as issues da sprint de <strong className="text-foreground">{squadId}</strong>. O essencial está logo abaixo; o resto fica em Opções avançadas.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-5 pt-1">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      icon={Settings2}
+      title="Configurar a squad"
+      description={
+        <>
+          Conecte o Jira e diga de onde vêm as issues da sprint de <strong className="text-foreground">{squadId}</strong>. O essencial está logo abaixo; o resto fica em Opções avançadas.
+        </>
+      }
+      footer={
+        <>
+          <ModalButton onClick={() => onOpenChange(false)}>Cancelar</ModalButton>
+          <ModalButton variant="primary" onClick={handleSave}>Salvar configuração</ModalButton>
+        </>
+      }
+    >
+        <div className="space-y-5">
           <section className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
             <h3 className="text-sm font-bold">1. Conexão com o Jira</h3>
             <div className="space-y-1.5">
@@ -199,17 +204,7 @@ export function SquadConfigDialog({ open, onOpenChange, squadId, config, isLeade
               </details>
             </>
           )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-sm font-semibold text-muted-foreground">
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} className="h-11 rounded-xl px-6 text-sm font-bold">
-              Salvar configuração
-            </Button>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

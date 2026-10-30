@@ -11,8 +11,8 @@ import { Caption, ListBox, Spinner, StepCard, StepHeading, WIDE_CTA } from './ui
 function Fact({ label, value }: { label: string; value?: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-border bg-muted/40 px-3 py-2">
-      <Caption className="text-[10px]">{label}</Caption>
-      <div className={cn('truncate text-sm font-semibold', !value && 'italic text-muted-foreground/70')} title={value || undefined}>
+      <Caption className="text-xs">{label}</Caption>
+      <div className={cn('truncate text-sm font-semibold', !value && 'text-muted-foreground')} title={value || undefined}>
         {value || 'não informado'}
       </div>
     </div>

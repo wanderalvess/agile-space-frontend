@@ -143,7 +143,7 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
           setSyncedProject(preview);
           setBusy(null);
           if (!isBatch(cur)) {
-            toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme pra importar.' });
+            toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme para importar.' });
           }
           return;
         } catch (err: any) {

@@ -48,13 +48,13 @@ describe('PDF de crescimento', () => {
     expect(kpis[2]).toMatchObject({ title: 'TEMPO DE USO', value: 'Em breve' });
   });
 
-  it('gera uma página A4 com texto real, ranking com Showcase e sem o laranja fixo', () => {
+  it('gera uma página A4 com texto real, ranking com Review e sem o laranja fixo', () => {
     const doc = buildGrowthPdf(computeGrowth(stats), NOW);
     expect(doc.getNumberOfPages()).toBe(1);
     const raw = doc.output();
     expect(raw.startsWith('%PDF-')).toBe(true);
     // acentos saem em Latin-1 no PDF; confere os textos que são ASCII puro
-    for (const text of ['PORTAL TECH V&D', 'SCRUM POKER', 'SHOWCASE', 'RETROSPECTIVAS']) expect(raw).toContain(text);
+    for (const text of ['PORTAL TECH V&D', 'SCRUM POKER', 'REVIEW', 'RETROSPECTIVA']) expect(raw).toContain(text);
     // laranja do tema (#FF6A00 = 1 0.4157 0 rg) não pode aparecer; o azul-escuro da marca sim (0 0.1333 0.2 rg)
     expect(raw).not.toMatch(/1 0\.41\d+ 0 rg/);
     expect(PDF_BRAND_RGB).toEqual([0, 34, 51]);

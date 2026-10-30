@@ -88,7 +88,7 @@ export function RituaisCard({ config, loading }: { config: SquadConfig | null; l
         <p className="text-[13px] text-muted-foreground">
           {fromGoogle ? 'Os rituais desta squad vêm da agenda do Google de cada pessoa.' : 'Nenhum ritual cadastrado para esta squad.'}
         </p>
-        <Link href="/squad?tab=resumo" className={cn('text-[13px] font-bold hover:underline', BRAND_TEXT)}>
+        <Link href="/squad?tab=resumo" className={cn('text-[13px] font-bold hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center', BRAND_TEXT)}>
           {fromGoogle ? 'Ver próxima cerimônia no Painel' : 'Configurar rituais no Painel'}
         </Link>
       </div>
@@ -254,7 +254,7 @@ export function AgileMasterView({ core }: RoleViewProps) {
         <p className="text-sm text-muted-foreground">
           As ações combinadas nas retrospectivas ficam no Plano de ação, cada uma com responsável e prazo.
         </p>
-        <Link href="/action-plan" className={cn('inline-flex items-center gap-1.5 self-start text-sm font-bold hover:underline', BRAND_TEXT)}>
+        <Link href="/action-plan" className={cn('inline-flex items-center gap-1.5 self-start text-sm font-bold hover:underline max-sm:min-h-11', BRAND_TEXT)}>
           Abrir o Plano de ação
           <ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </Link>
@@ -298,7 +298,7 @@ export function PeopleLeadView({ data }: RoleViewProps) {
               {shown.map((m) => (
                 <li key={m.jiraAccountId || m.dbId} className="flex items-center justify-between gap-2 border-b border-border pb-2 text-[13px] last:border-b-0 last:pb-0">
                   <span className="flex min-w-0 items-center gap-2">
-                    <InitialsAvatar name={m.displayName} email={m.email} className="h-7 w-7 text-xs" />
+                    <InitialsAvatar name={m.displayName} email={m.email} userId={m.claimedByUid} className="h-7 w-7 text-xs" />
                     <span className="truncate font-semibold text-foreground">{m.displayName || m.jiraAccountId}</span>
                   </span>
                   <StatusChip className="shrink-0">{m.role || 'Membro'}</StatusChip>

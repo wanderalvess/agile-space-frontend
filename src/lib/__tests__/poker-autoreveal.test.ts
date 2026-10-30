@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_ROOM_SETTINGS, buildDefaultSettingsPatch, shouldAutoReveal } from '../poker-utils';
 import type { Participant } from '../types';
 
-const dev = (id: string): Participant => ({ id, nickname: id, role: 'dev', globalRole: 'Desenvolvedor' } as unknown as Participant);
+const dev = (id: string): Participant => ({ id, nickname: id, role: 'dev', globalRole: 'Developer' } as unknown as Participant);
 const spectator = (id: string): Participant => ({ id, nickname: id, role: 'spectator' } as unknown as Participant);
 
 const base = {

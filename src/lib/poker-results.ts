@@ -4,6 +4,7 @@ import {
   calculateRoleEfforts,
   formatEstimateCopy,
   formatRoleForCopy,
+  DEFAULT_VOTING_CARGOS,
   getEligibleStatsVotes,
   getParticipantCategory,
   resolveTshirtHours,
@@ -46,12 +47,12 @@ export function summarizeRound(
   votes: Vote[],
   participants: Participant[],
   deck: DeckType,
-  options: { allowManagementToVote?: boolean; tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>; roundingMode?: RoundingMode } = {}
+  options: { votingCargos?: readonly string[]; tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>; roundingMode?: RoundingMode } = {}
 ): RoundSummary {
-  const { allowManagementToVote = false, tshirtEquivalents, roundingMode = 'up' } = options;
+  const { votingCargos = DEFAULT_VOTING_CARGOS, tshirtEquivalents, roundingMode = 'up' } = options;
 
-  // Consenso/média/piso/teto só sobre votos técnicos — gestão e espectador não entram.
-  const eligibleVotes = getEligibleStatsVotes(votes, participants, allowManagementToVote);
+  // Consenso/média/piso/teto só sobre os votos de quem vota na sala — observador e espectador não entram.
+  const eligibleVotes = getEligibleStatsVotes(votes, participants, votingCargos);
   const allVoteValues = eligibleVotes.map(v => v.value);
   const numericVotes = allVoteValues.filter((v): v is string => v !== null && !isNaN(Number(v))).map(Number);
   const consensus = allVoteValues.length > 1 && new Set(allVoteValues).size === 1;
@@ -59,7 +60,7 @@ export function summarizeRound(
   let avg = 'N/A', min = 'N/A', max = 'N/A';
   let tshirtNumeric = false;
 
-  const efforts = calculateRoleEfforts(votes, participants, deck, tshirtEquivalents, roundingMode);
+  const efforts = calculateRoleEfforts(eligibleVotes, participants, deck, tshirtEquivalents, roundingMode);
 
   if (allVoteValues.length > 0) {
     if (deck === 'tshirt') {
@@ -98,7 +99,7 @@ export function summarizeRound(
   // Resultado por papel.
   const participantMap = new Map(participants.map(p => [p.id, p]));
   const raw: Record<string, string[]> = {};
-  votes.forEach(vote => {
+  eligibleVotes.forEach(vote => {
     const participant = participantMap.get(vote.participantId);
     let category: TechnicalCategory | 'Management' | null = null;
     if (participant) category = getParticipantCategory(participant);

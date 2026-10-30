@@ -52,7 +52,7 @@ function CommentCell({ comment, who }: { comment?: string | null; who: React.Rea
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {comment ? (
-        <p className={cn('text-[13px] italic leading-snug text-foreground', !open && 'line-clamp-2')}>“{comment}”</p>
+        <p className={cn('text-[13px] leading-snug text-foreground', !open && 'line-clamp-2')}>“{comment}”</p>
       ) : (
         <p className="text-[13px] text-muted-foreground">Sem comentário</p>
       )}
@@ -380,7 +380,7 @@ export function FeedbackManager() {
               <StatusChip tone={scoreTone(pendingDelete.score)}>{pendingDelete.score === -1 ? 'Sugestão' : pendingDelete.score}</StatusChip>
               <span className="text-[13px] font-semibold text-foreground">{pendingDelete.toolName}</span>
             </div>
-            <p className="text-[13px] italic text-muted-foreground">{pendingDelete.comment ? `“${pendingDelete.comment}”` : 'Sem comentário'}</p>
+            <p className="text-[13px] text-muted-foreground">{pendingDelete.comment ? `“${pendingDelete.comment}”` : 'Sem comentário'}</p>
           </div>
         )}
       </ConfirmDialog>

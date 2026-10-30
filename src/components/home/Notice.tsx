@@ -81,11 +81,11 @@ export function Notice({
         ) : (
           <>
             <p className="flex flex-wrap items-center gap-x-2">
-              {label && <span className={cn('text-[11px] font-bold uppercase tracking-wider', LABEL_COLOR[variant])}>{label}</span>}
+              {label && <span className={cn('text-xs font-bold uppercase tracking-wider', LABEL_COLOR[variant])}>{label}</span>}
               <span className="text-sm font-bold">{title}</span>
             </p>
             {text && <p className="text-[13px] leading-relaxed text-muted-foreground">{text}</p>}
-            {meta && <p className="text-[11px] text-muted-foreground">{meta}</p>}
+            {meta && <p className="text-xs text-muted-foreground">{meta}</p>}
             {renderAction('mt-1 self-start sm:hidden')}
           </>
         )}

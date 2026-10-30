@@ -18,7 +18,7 @@ function ModuleRow({ module, match }: { module: HomeModule; match: boolean }) {
           <span className="flex items-center gap-1.5 text-sm font-semibold">
             {module.title}
             {module.soon && (
-              <span className="inline-flex h-[18px] items-center rounded-[5px] border border-dashed border-border px-1.5 text-[10px] font-bold uppercase text-muted-foreground">
+              <span className="inline-flex h-[18px] items-center rounded-[5px] border border-dashed border-border px-1.5 text-xs font-bold uppercase text-muted-foreground">
                 Em breve
               </span>
             )}
@@ -33,7 +33,7 @@ function ModuleRow({ module, match }: { module: HomeModule; match: boolean }) {
               key={l.href + l.label}
               href={l.href}
               className={cn(
-                'rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
+                'rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3.5',
                 FOCUS_RING,
               )}
             >
@@ -59,7 +59,7 @@ export function ModuleGrid({ query }: { query: string }) {
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         {MODULE_GROUPS.map((group) => (
           <div key={group.id} className={cn(CARD, 'flex flex-col gap-1.5 p-4')}>
-            <h3 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{group.label}</h3>
+            <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">{group.label}</h3>
             {group.items.map((m) => (
               <ModuleRow key={m.id} module={m} match={matchesQuery(query, m.title, m.description)} />
             ))}

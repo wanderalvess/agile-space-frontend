@@ -170,3 +170,29 @@ describe('exportação e modelo', () => {
     expect(r.rows[0]).toMatchObject({ displayName: 'Ana Souza', importedCapacity: 5.5, status: 'new' });
   });
 });
+
+describe('pessoas duplicadas na planilha', () => {
+  const csv = (lines: string[]) => ['JiraAccountId;Nome;Email;Funcao;Horas', ...lines].join('\n');
+
+  it('a mesma pessoa em duas linhas (e-mail com caixa/espaço diferentes) entra uma vez só', () => {
+    const r = ok(parseRosterImport(csv([';Dani Rossi;Dani@X.com;Developer;6', ';Dani Rossi; dani@x.com ;Developer;6']), [], 6));
+    expect(r.rows).toHaveLength(1);
+    expect(r.skipped).toBe(1);
+  });
+
+  it('homônimos com e-mails diferentes continuam duas pessoas', () => {
+    const r = ok(parseRosterImport(csv([';João Silva;joao1@x.com;Developer;6', ';João Silva;joao2@x.com;Developer;6']), [], 6));
+    expect(r.rows).toHaveLength(2);
+  });
+
+  it('reimportar quem já está na squad reaproveita o ID existente e grava o e-mail normalizado', () => {
+    const r = ok(parseRosterImport(csv([';Ana Ribeiro; ANA.RIBEIRO@totvs.com.br ;Developer;5,5']), team, 6));
+    expect(r.rows[0]).toMatchObject({ status: 'unchanged', matchedBy: 'email', jiraAccountId: 'ana.ribeiro' });
+    expect(buildImportMembers(r.rows, 'S', 6, () => 6)[0]).toMatchObject({ jiraAccountId: 'ana.ribeiro', email: 'ana.ribeiro@totvs.com.br' });
+  });
+
+  it('quem é novo ganha o e-mail em minúsculas como ID (a mesma chave do cadastro manual)', () => {
+    const r = ok(parseRosterImport(csv([';Eva Prado; EVA@X.com ;QA;6']), [], 6));
+    expect(buildImportMembers(r.rows, 'S', 6, () => 6)[0]).toMatchObject({ jiraAccountId: 'eva@x.com', email: 'eva@x.com' });
+  });
+});

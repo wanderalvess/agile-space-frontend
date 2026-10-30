@@ -158,7 +158,7 @@ export function IdeaCard({
           ) : author.kind === 'unknown' ? (
             <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">?</span>
           ) : (
-            <PersonAvatar name={idea.authorName || (idea.authorId && view.names.get(idea.authorId)) || author.label} size="sm" />
+            <PersonAvatar name={idea.authorName || (idea.authorId && view.names.get(idea.authorId)) || author.label} userId={idea.authorId} size="sm" />
           )}
           <span className="truncate text-xs font-semibold text-muted-foreground">{author.label}</span>
         </span>
@@ -211,7 +211,7 @@ export function IdeaCard({
         )}
         {actionsExtra}
         {edited && (
-          <span title={edited.title} className="ml-auto truncate text-xs italic text-muted-foreground">{edited.label}</span>
+          <span title={edited.title} className="ml-auto truncate text-xs text-muted-foreground">{edited.label}</span>
         )}
       </footer>
     </article>

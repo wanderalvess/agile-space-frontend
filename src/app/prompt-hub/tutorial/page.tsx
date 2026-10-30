@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
-  Check,
-  Copy,
   ExternalLink,
   FolderTree,
   Layers,
@@ -18,51 +16,17 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, PageShell } from '@/components/page';
-import { cn, openExternalUrl } from '@/lib/utils';
+import { openExternalUrl } from '@/lib/utils';
+import { CodeBlock as SharedCodeBlock } from '@/components/shared/CodeBlock';
+import { TUTORIAL_SECTIONS } from '../tutorial-sections';
 
-const SECTIONS = [
-  { id: 'o-que-e', label: 'O que é uma skill' },
-  { id: 'quando-usar', label: 'Quando criar uma' },
-  { id: 'anatomia', label: 'Anatomia de uma skill' },
-  { id: 'passo-a-passo', label: 'Passo a passo' },
-  { id: 'frontmatter', label: 'Regras do frontmatter' },
-  { id: 'description', label: 'Escrevendo a description' },
-  { id: 'liberdade', label: 'Grau de liberdade' },
-  { id: 'arquivos', label: 'Quando dividir em arquivos' },
-  { id: 'workflows', label: 'Workflows e validação' },
-  { id: 'antipadroes', label: 'Anti-padrões' },
-  { id: 'checklist', label: 'Checklist final' },
-  { id: 'onde-instalar', label: 'Onde instalar e subir' },
-  { id: 'padroes-empresa', label: 'Padrões da empresa' }
-];
+const SECTIONS = TUTORIAL_SECTIONS;
 
+/** Bloco de código do portal (com botão de copiar) e a legenda do tutorial. */
 function CodeBlock({ code, caption }: { code: string; caption?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* área de transferência indisponível — o texto continua selecionável */
-    }
-  };
-
   return (
     <figure className="space-y-1.5">
-      <div className="group relative">
-        <pre className="overflow-x-auto rounded-lg border border-border bg-muted/50 p-4 font-code text-[13px] leading-relaxed text-foreground">
-          {code}
-        </pre>
-        <button
-          onClick={handleCopy}
-          className="absolute right-2 top-2 rounded-md border border-border bg-card p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100"
-          title="Copiar"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
-      </div>
+      <SharedCodeBlock code={code} />
       {caption && <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>}
     </figure>
   );
@@ -104,14 +68,14 @@ function Comparison({
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
           <ThumbsUp className="h-4 w-4" />
           {goodLabel}
         </p>
         <div className="text-sm leading-relaxed text-foreground">{good}</div>
       </div>
       <div className="space-y-2 rounded-lg border border-rose-500/30 bg-rose-500/5 p-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-rose-700 dark:text-rose-400">
+        <p className="flex items-center gap-2 text-sm font-medium text-rose-700 dark:text-rose-300">
           <ThumbsDown className="h-4 w-4" />
           {badLabel}
         </p>
@@ -213,7 +177,7 @@ export default function SkillTutorialPage() {
             />
             <p className="text-sm leading-relaxed text-muted-foreground">
               Regra prática da documentação: parta do princípio de que o modelo já é inteligente.
-              Só entre na skill o contexto que ele <em>não</em> tem como saber.
+              Só entre na skill o contexto que ele <strong className="font-semibold text-foreground">não</strong> tem como saber.
             </p>
           </Section>
 
@@ -307,7 +271,7 @@ arquivo.ts:42 — descrição do problema. Correção sugerida.`}
             </p>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] border-collapse text-sm">
+              <table className="w-full min-w-0 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
                     <th className="py-2 pr-4 font-medium text-muted-foreground">Campo</th>
@@ -441,7 +405,7 @@ arquivo.ts:42 — descrição do problema. Correção sugerida.`}
             />
 
             <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
               <p className="text-sm leading-relaxed text-foreground">
                 <strong>Referências devem ter um nível só de profundidade.</strong> Se o SKILL.md
                 aponta para <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">avancado.md</code>, que aponta para{' '}
@@ -533,10 +497,10 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
                 'Testada em uma sessão limpa, com tarefa real',
                 'Alguém do time leu e entendeu sem explicação extra'
               ].map(item => (
-                <label key={item} className="flex items-start gap-2.5 text-sm text-foreground">
+                <label key={item} className="flex min-h-6 items-start gap-2.5 py-0.5 text-sm text-foreground">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+                    className="h-6 w-6 shrink-0 rounded border-border accent-primary"
                   />
                   <span className="leading-relaxed">{item}</span>
                 </label>
@@ -558,7 +522,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
                   <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">.claude/skills/</code> dentro da raiz do repositório, para o time inteiro.
                 </li>
                 <li>
-                  <strong>claude.ai:</strong> upload de um arquivo .zip em Configurações &gt; Recursos. É
+                  <strong>claude.ai:</strong> envio de um arquivo .zip em Configurações &gt; Recursos. É
                   individual para cada conta.
                 </li>
                 <li>
@@ -575,7 +539,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
 
                 <div className="space-y-4 pt-1">
                   <div className="rounded-md border border-border/80 bg-muted/30 p-3.5 space-y-1.5">
-                    <p className="font-medium text-foreground">1. Pelo Navegador (Upload de Pasta em Lote)</p>
+                    <p className="font-medium text-foreground">1. Pelo Navegador (envio de pasta em lote)</p>
                     <p className="text-xs text-muted-foreground leading-normal">
                       No topo do <strong>Prompt Hub</strong>, clique no botão <strong>Importar pasta</strong>. Selecione o diretório onde suas skills estão salvas (ex: <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">.agents/skills</code>). O sistema varre automaticamente todos os subdiretórios em busca de arquivos <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">SKILL.md</code>, valida o frontmatter YAML, exibe o preview do que será criado ou atualizado e permite o envio em massa com 1 clique.
                     </p>
@@ -606,7 +570,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
     "type": "skill",
     "visibility": "public"
   }'`}
-                      caption="Exemplo de upload de skill via curl"
+                      caption="Exemplo de envio de skill via curl"
                     />
                     <p className="text-xs text-muted-foreground">
                       O backend extrai automaticamente o <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">name</code> e a <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">description</code> do frontmatter caso omitidos e realiza <strong>upsert idempotente</strong> por título.
@@ -616,7 +580,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
               </div>
 
               <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
                 <p>
                   <strong>Skill é código que roda com as suas permissões.</strong> Trate instalar uma
                   skill de terceiros como instalar um programa: leia o SKILL.md e todos os scripts

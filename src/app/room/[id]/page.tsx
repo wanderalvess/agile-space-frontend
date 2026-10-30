@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { JIRA_PUBLISH_EVENT } from '@/app/room/jira-publish-api';
+import { canonicalCargo } from '@/lib/cargo';
 import { useState, useEffect, useMemo, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DeckType, Participant, Role, Room, Vote, VotingRound, Issue, GlobalRole, ConfidenceLevel } from '@/lib/types';
@@ -17,7 +18,7 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantPresent, roundEstimate, resolveRoundingMode, shouldAutoReveal } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantPresent, roundEstimate, resolveRoundingMode, shouldAutoReveal, votingCargosOf } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { createPresenceSession, withPresenceParam } from '@/lib/room-presence';
@@ -25,6 +26,10 @@ import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
+import { rememberOpenedRoom } from '@/hooks/useToolHistory';
+import { removeLocalRoomMeta } from '@/lib/health-check-lobby';
+import { ConfirmDialog } from '@/components/room-kit';
+import { Trash2 } from 'lucide-react';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -125,6 +130,40 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     setFeedbackSignal(Date.now());
   }, []);
 
+  // Excluir a sala (menu da sala): quem criou ou admin; o servidor confere de novo e recusa os demais.
+  const [deleteRoomOpen, setDeleteRoomOpen] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
+  const canDeleteRoom = !!session?.id && !!roomData && (roomData.creatorId === session.id || userProfile?.role === 'admin');
+  const confirmDeleteRoom = useCallback(async () => {
+    setDeletingRoom(true);
+    try {
+      await pokerApi.deleteRoom(roomId);
+      removeLocalRoomMeta(roomId, typeof window === 'undefined' ? undefined : window.localStorage);
+      toast({ title: 'Sala excluída', description: 'A sala e o histórico dela foram apagados.' });
+      router.push('/room');
+    } catch (err: any) {
+      toast({ title: 'Não foi possível excluir a sala', description: err?.message, variant: 'destructive' });
+      setDeletingRoom(false);
+    }
+  }, [roomId, router, toast]);
+  const deleteRoomDialog = (
+    <ConfirmDialog
+      open={deleteRoomOpen}
+      onOpenChange={(open) => { if (!open && !deletingRoom) setDeleteRoomOpen(false); }}
+      tone="danger"
+      icon={Trash2}
+      title="Excluir a sala?"
+      description={<>A sala <strong className="text-foreground">{roomData?.title || 'Sem título'}</strong> sai para todos, com os votos, o histórico de rodadas e o chat. Não dá para desfazer.</>}
+      cancelLabel="Cancelar"
+      confirmLabel="Excluir sala"
+      loading={deletingRoom}
+      loadingLabel="Excluindo…"
+      keepOpenOnConfirm
+      onConfirm={() => { void confirmDeleteRoom(); }}
+    />
+  );
+  const onDeleteRoom = canDeleteRoom ? () => setDeleteRoomOpen(true) : undefined;
+
   const handleOpenRetro = useCallback(async () => {
     const activeIssue = roomData?.issuesQueue?.find(i => i.id === roomData.activeIssueId) || roomData?.issuesQueue?.[0];
     const issueProjectKey = activeIssue?.key?.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
@@ -178,6 +217,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       // Uma recarga mais nova já saiu: esta resposta é velha.
       if (seq !== reloadSeqRef.current) return;
       applyRoom(room);
+      // Quem entrou por link (ou abriu uma sala já encerrada) também fica com o atalho em "Abertas neste navegador".
+      if (room?.id) {
+        rememberOpenedRoom(
+          { roomId: room.id, type: 'poker', title: room.title || 'Sem título', team: room.team || '', createdBy: room.creatorId, createdAt: room.createdAt || new Date().toISOString() },
+          typeof window === 'undefined' ? undefined : window.localStorage,
+        );
+      }
       setParticipants(partsList);
       setVotes(votesList);
       setVotingRounds(roundsList);
@@ -354,6 +400,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
           case 'ROOM_DELETED':
             // Quem criou a sala a excluiu: não há mais o que mostrar aqui.
+            removeLocalRoomMeta(roomId, typeof window === 'undefined' ? undefined : window.localStorage);
             toast({ title: 'Sala excluída', description: 'Quem criou a sala a excluiu. Voltando para o Poker.' });
             router.push('/room');
             break;
@@ -443,8 +490,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   // 3. IDENTIDADE GLOBAL E REGISTRO AUTOMÁTICO
   const mapGlobalToPokerRole = (role: GlobalRole | undefined): Role => {
-    switch (role) {
-      case 'QA':
+    switch (canonicalCargo(role)) {
       case 'Analista de QA':
         return 'qa';
       case 'Agile Master':
@@ -462,7 +508,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       case 'Designer':
       case 'UX':
       case 'Designer / UI-UX':
-      case 'Developer':
       case 'Desenvolvedor(a)':
       default:
         return 'dev';
@@ -485,8 +530,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             roomId: roomId,
             nickname: userProfile.name,
             email: userProfile.email || '',
-            role: mapGlobalToPokerRole(userProfile.role),
-            globalRole: userProfile.role,
+            role: mapGlobalToPokerRole(userProfile.cargo as GlobalRole),
+            // O cargo da administração (lib/cargo.ts): o mesmo em todas as telas.
+            globalRole: (userProfile.cargo || undefined) as GlobalRole | undefined,
             isFacilitator: session.id === roomData.creatorId,
           };
           await pokerApi.joinRoom(roomId, newParticipant);
@@ -516,12 +562,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     if (
       lastSyncedProfileRef.current && 
       lastSyncedProfileRef.current.name === userProfile.name && 
-      lastSyncedProfileRef.current.role === userProfile.role &&
+      lastSyncedProfileRef.current.role === (userProfile.cargo || '') &&
       lastSyncedProfileRef.current.email === (userProfile.email || '')
     ) return;
 
     const needsNameUpdate = currentUser.nickname !== userProfile.name;
-    const needsRoleUpdate = currentUser.globalRole !== userProfile.role;
+    const needsRoleUpdate = (currentUser.globalRole || '') !== (userProfile.cargo || '');
     const needsEmailUpdate = (currentUser.email || '') !== (userProfile.email || '');
 
     if (needsNameUpdate || needsRoleUpdate || needsEmailUpdate) {
@@ -529,12 +575,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       if (needsNameUpdate) updates.nickname = userProfile.name;
       if (needsEmailUpdate) updates.email = userProfile.email || '';
       if (needsRoleUpdate) {
-        updates.globalRole = userProfile.role;
-        updates.role = mapGlobalToPokerRole(userProfile.role);
+        updates.globalRole = (userProfile.cargo || undefined) as GlobalRole | undefined;
+        updates.role = mapGlobalToPokerRole(userProfile.cargo as GlobalRole);
       }
       lastSyncedProfileRef.current = { 
         name: userProfile.name, 
-        role: userProfile.role,
+        role: userProfile.cargo || '',
         email: userProfile.email || ''
       };
       pokerApi.joinRoom(roomId, updates).catch(err => {
@@ -545,7 +591,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     } else {
       lastSyncedProfileRef.current = { 
         name: userProfile.name, 
-        role: userProfile.role,
+        role: userProfile.cargo || '',
         email: userProfile.email || ''
       };
     }
@@ -724,7 +770,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // se a gravação falhar, em vez de a tela mostrar um voto que o servidor nunca recebeu.
   const handleVote = useCallback((voteValue: string) => {
     if (!currentUser || !roomData) return;
-    if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
+    if (!canParticipantVote(currentUser, votingCargosOf(roomData.settings))) return;
     if (roomData.votesRevealed) return;
 
     const previous = votes.find(v => v.participantId === currentUser.id);
@@ -844,7 +890,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       const roundVotes = finalVotes.filter(v => !v.issueId || !roomData.activeIssueId || v.issueId === roomData.activeIssueId);
 
       const rounding = resolveRoundingMode(roomData.settings?.roundingMode);
-      const statsVotes = getEligibleStatsVotes(roundVotes, participants, roomData.settings?.allowManagementToVote);
+      const statsVotes = getEligibleStatsVotes(roundVotes, participants, votingCargosOf(roomData.settings));
       const allVoteValues = statsVotes.map(v => v.value);
       const numericVotes = allVoteValues.filter((v): v is string => v !== null && !isNaN(Number(v))).map(Number);
       const stats: VotingRound['stats'] = { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false };
@@ -1393,7 +1439,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       // a sala inteira a partir do roomData da closure (estado pre-adiamento) e
       // desfaria o update que acabou de ser salvo.
       pokerApi.clearVotes(roomId).catch(notifyError);
-      toast({ title: 'Tarefa adiada', description: 'Volta pro fim da fila para revisitar.' });
+      toast({ title: 'Tarefa adiada', description: 'Volta para o fim da fila para revisitar.' });
     }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
@@ -1612,7 +1658,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // Sala assíncrona: um voto por (participante, tarefa). O servidor monta o id room_participant_issue.
   const handleAsyncVote = useCallback((issueId: string, voteValue: string) => {
     if (!currentUser || !roomData) return;
-    if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
+    if (!canParticipantVote(currentUser, votingCargosOf(roomData.settings))) return;
     if ((roomData.revealedIssues || []).includes(issueId)) return;
 
     const isMine = (v: Vote) => v.participantId === currentUser.id && v.issueId === issueId;
@@ -1816,9 +1862,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       console.error("Erro ao assumir controle:", error);
       toast({
         title: "Erro ao assumir controle",
-        description: error instanceof Error && !(error instanceof RoomConflictError)
-          ? error.message
-          : "Não foi possível completar a operação. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
+        // Nunca o texto técnico do servidor ("Falha ao salvar a sala (HTTP 403...)").
+        description: error instanceof Error && /HTTP 403/.test(error.message)
+          ? "O organizador ainda está na sala. Só dá para assumir o controle quando ele estiver ausente; peça a ele para repassar."
+          : "Não foi possível assumir o controle agora. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
         variant: "destructive"
       });
     }
@@ -1985,7 +2032,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   if (roomData.mode === 'async') {
     return (
+      <>
       <AsyncPokerRoom
+        onDeleteRoom={onDeleteRoom}
         roomId={roomId}
         currentUser={currentUser}
         participants={participants || []}
@@ -2016,12 +2065,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onOpenFeedback={stableOpenFeedback}
         onOpenRetro={stableOpenRetro}
       />
+      {deleteRoomDialog}
+      </>
     );
   }
 
   return (
     <>
       <PokerRoom
+        onDeleteRoom={onDeleteRoom}
         roomId={roomId}
         currentUser={currentUser}
         participants={participants || []}
@@ -2088,6 +2140,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onSendMessage={stableSendMessage}
         onDeleteMessage={stableDeleteMessage}
       />
+      {deleteRoomDialog}
       <FeedbackWidget
         toolName="Scrum Poker"
         triggerVariant="none"

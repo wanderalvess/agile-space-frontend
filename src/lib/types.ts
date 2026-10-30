@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from './cargo';
 import {
   Code,
   Bug,
@@ -22,8 +23,6 @@ export type GlobalRole =
   | 'People Lead'
   | 'Tribe Lead'
   | 'Agile Coach'
-  | 'Developer'
-  | 'QA'
   | 'Designer'
   | 'UX'
   | 'SME'
@@ -47,9 +46,7 @@ export const ROLES: GlobalRole[] = [
   'People Lead',
   'Tribe Lead',
   'Agile Coach',
-  'Developer',
   'Desenvolvedor(a)',
-  'QA',
   'Analista de QA',
   'Designer',
   'UX',
@@ -65,8 +62,8 @@ export const ROLES: GlobalRole[] = [
  * entra por sync real do Jira ou vínculo manual de admin, nunca autodeclarado.
  */
 export const CONTRIBUTOR_ROLES: GlobalRole[] = [
-  'Developer', 'Desenvolvedor(a)',
-  'QA', 'Analista de QA',
+  'Desenvolvedor(a)',
+  'Analista de QA',
   'Designer',
   'UX',
   'SME',
@@ -96,23 +93,24 @@ export function isLegacyLeadRole(roleInput?: string | null): boolean {
 }
 
 export function normalizeRole(roleInput?: string): GlobalRole {
-  if (!roleInput) return 'Developer';
+  if (!roleInput) return 'Desenvolvedor(a)';
   const r = roleInput.trim();
   
-  const exact = ROLES.find(item => item.toLowerCase() === r.toLowerCase());
+  const canonical = canonicalCargo(r);
+  const exact = ROLES.find(item => item.toLowerCase() === canonical.toLowerCase());
   if (exact) return exact;
 
   const lower = r.toLowerCase();
   if (lower === 'admin') return 'Agile Master';
   if (lower === 'lead' || lower === 'tech lead' || lower.includes('tech lead')) return 'Tech Lead';
-  if (lower === 'user' || lower === 'member' || lower === 'developer' || lower === 'dev') return 'Developer';
+  if (lower === 'user' || lower === 'member') return 'Desenvolvedor(a)';
   if (lower.includes('scrum master')) return 'Scrum Master';
   if (lower.includes('scrum') || lower.includes('agile master')) return 'Agile Master';
   if (lower.includes('po') || lower.includes('product owner')) return 'Product Owner';
-  if (lower.includes('qa')) return 'QA';
+  if (lower.includes('qa')) return 'Analista de QA';
   if (lower.includes('design')) return 'Designer';
 
-  return 'Developer';
+  return 'Desenvolvedor(a)';
 }
 
 export const SQUADS: string[] = [];
@@ -124,12 +122,16 @@ export interface UserProfile {
   /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
    *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
   jobTitle?: GlobalRole;
+  /** Cargo para exibir (ver lib/cargo.ts): `jobTitle`, senão o papel na squad ativa. Vazio se não houver. */
+  cargo?: string;
   /** Squad ativa, DERIVADA dos vínculos (sessão validada). Só leitura: o cliente não grava mais `squadId` do usuário. */
   squadId: string;
   isGuest: boolean;
   email?: string;
   /** Semente do avatar ilustrado antigo. Não é mais exibida nem editada; o backend ainda guarda o valor. */
   avatarSeed?: string;
+  /** Foto enviada pela pessoa (caminho `/api/users/{id}/photo?v=...`), vinda da sessão. */
+  photoUrl?: string | null;
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
   jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira
@@ -229,6 +231,10 @@ export type Room = {
     deckType: DeckType;
   } | null;
   settings?: {
+    // Cargos (da administração) que votam nesta sala; os demais entram como observadores. Ausente = padrão (dev e
+    // QA). Lido por votingCargosOf (poker-utils), que também trata o campo antigo abaixo.
+    votingCargos?: string[];
+    // Antigo "Gestão pode votar". Só lido para salas criadas antes de `votingCargos`; a interface não grava mais.
     allowManagementToVote?: boolean;
     // Revela automaticamente quando todos os votantes elegíveis já votaram.
     autoReveal?: boolean;
@@ -927,7 +933,7 @@ export type SquadConfig = {
   // sem depender de heurística de texto. Ordem do array = ordem da fase no
   // workflow (ex: Codificação -> Code Review -> Teste QA -> Execução TI).
   // undefined/[] = cai no fallback de heurística por tipo (ver
-  // getDisciplineColorAndLabel em SquadPlansTimeline.tsx).
+  // resolveWorkflowPhase em lib/cronograma/phases.ts).
   phases?: SquadWorkflowPhase[];
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
@@ -1038,7 +1044,7 @@ export type SquadIssueSnapshot = {
   targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
   // true = targetStart/targetEnd vieram de campo de data real do Jira; false/
   // undefined = caiu no fallback (dueDate, ou created/updated) — ver
-  // squadIssueToPlansTask. Sem isso, a cascata de atraso do Plans não sabe
+  // toCronoTask (lib/cronograma/task.ts). Sem isso, a cascata de atraso do Plans não sabe
   // distinguir "prazo real estourado" de "chute em cima de data inventada".
   datesAreInferred?: boolean;
   // Posição no array fields.subtasks da issue pai (ordem de rank do Jira) —

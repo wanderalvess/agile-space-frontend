@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
+import { moduleIcon } from '@/lib/modules-registry';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users, WalletCards } from 'lucide-react';
+import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
@@ -80,7 +81,7 @@ function SessionListCard({
           </li>
         ) : failed && rooms.length === 0 ? (
           <li aria-live="polite" className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-            <IconTile icon={WalletCards} tone="neutral" />
+            <IconTile icon={moduleIcon('poker')} tone="neutral" />
             <p className="text-sm text-muted-foreground">Não foi possível carregar as sessões.</p>
             {onRetry && (
               <button
@@ -101,7 +102,7 @@ function SessionListCard({
           </li>
         ) : rooms.length === 0 ? (
           <li className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
-            <IconTile icon={WalletCards} tone="neutral" />
+            <IconTile icon={moduleIcon('poker')} tone="neutral" />
             <p className="text-sm text-muted-foreground">{totalCount > 0 ? 'Nenhuma sessão neste filtro' : emptyLabel}</p>
           </li>
         ) : (
@@ -154,7 +155,7 @@ export default function PokerHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { requestIdentity } = useUserContext();
+  const { requestIdentity, userProfile } = useUserContext();
   const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -168,7 +169,7 @@ export default function PokerHubPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [joinId, setJoinId] = useState('');
   const [guideOpen, setGuideOpen] = useState(false);
-  const { history: localHistory, loading: loadingHistory } = useToolHistory('poker');
+  const { history: localHistory, loading: loadingHistory, removeRoom: removeLocalRoom } = useToolHistory('poker');
 
   const currentSquadId = activeSquadId;
 
@@ -208,13 +209,31 @@ export default function PokerHubPage() {
     }
   };
 
-  // A Home linka /room?nova=1: abre o diálogo uma vez e limpa o parâmetro da URL.
+  // A Home linka /room?nova=1: abre o diálogo assim que o perfil carrega (antes disso o pedido caía na janela de
+  // identidade e se perdia) e limpa o parâmetro da URL. Como na Retro.
+  const novaHandledRef = useRef(false);
   useEffect(() => {
+    if (novaHandledRef.current || !userProfile) return;
     if (!wantsNewSession(window.location.search)) return;
+    novaHandledRef.current = true;
     window.history.replaceState(null, '', stripNewSessionParam(window.location.pathname, window.location.search, window.location.hash));
-    openNewSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setIsSetupOpen(true);
+  }, [userProfile]);
+
+  // Atalhos deste navegador que o servidor não lista: confere cada um uma vez e tira o que já foi apagado (404).
+  const checkedLocalRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loadingRooms || roomsFailed || loadingHistory) return;
+    const listed = new Set(rooms.map((r) => r.id));
+    const pending = localHistory.filter((r) => !listed.has(r.roomId) && !checkedLocalRef.current.has(r.roomId)).slice(0, 10);
+    if (pending.length === 0) return;
+    pending.forEach((r) => checkedLocalRef.current.add(r.roomId));
+    void Promise.allSettled(pending.map((r) => pokerApi.getRoom(r.roomId))).then((settled) => {
+      settled.forEach((result, i) => {
+        if (result.status === 'rejected' && (result.reason as { status?: number } | undefined)?.status === 404) removeLocalRoom(pending[i].roomId);
+      });
+    });
+  }, [rooms, localHistory, loadingRooms, roomsFailed, loadingHistory, removeLocalRoom]);
 
   const confirmDeleteRoom = async () => {
     if (!roomToDelete) return;
@@ -222,6 +241,7 @@ export default function PokerHubPage() {
     try {
       await pokerApi.deleteRoom(roomToDelete.id);
       setRooms((prev) => prev.filter((r) => r.id !== roomToDelete.id));
+      removeLocalRoom(roomToDelete.id);
       toast({ title: 'Sala excluída', description: `"${roomToDelete.title || 'Sem título'}" e o histórico dela foram apagados.` });
       setRoomToDelete(null);
     } catch (err: any) {
@@ -305,12 +325,13 @@ export default function PokerHubPage() {
                 onClick={() => setFilter(f.id)}
                 className={cn(
                   'inline-flex h-8 items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors',
-                  active ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent/40',
+                  // Ativo: texto em foreground (o laranja sobre o tom laranja claro dava 4,39:1 no tema padrão claro); a borda e o fundo marcam a seleção.
+                  active ? 'border-primary/50 bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent/40',
                   FOCUS_RING
                 )}
               >
                 {f.label}
-                <span className="text-xs tabular-nums opacity-70">{countOf(f.id)}</span>
+                <span className="text-xs font-normal tabular-nums">{countOf(f.id)}</span>
               </button>
             );
           })}

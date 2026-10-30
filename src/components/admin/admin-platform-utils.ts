@@ -2,7 +2,7 @@
  * Regras puras das telas de plataforma do admin (Versões, Sincronização Jira, Crescimento,
  * Motor AI, Cerimônias). Ficam fora dos componentes para serem testadas sem montar a tela.
  */
-import type { ModuleKey } from '@/lib/modules-registry';
+import { moduleLabel, type ModuleKey } from '@/lib/modules-registry';
 
 /* ------------------------------------------------------------------ Versões */
 
@@ -216,12 +216,12 @@ const n = (v: number | null | undefined) => (typeof v === 'number' && Number.isF
 
 export function computeGrowth(stats: AdminStatsLike): GrowthMetrics {
   const modules = ([
-    { key: 'poker', label: 'Scrum Poker', module: 'poker', count: n(stats.totalPokerRooms) },
-    { key: 'retro', label: 'Retrospectivas', module: 'retro', count: n(stats.totalRetroBoards) },
-    { key: 'planner', label: 'Sprint Planner', module: 'sprint-planner', count: n(stats.totalSprintPlannings) },
-    { key: 'brainstorming', label: 'Brainstorming', module: 'brainstorming', count: n(stats.totalBrainstormingBoards) },
-    { key: 'health', label: 'Health Check', module: 'health', count: n(stats.totalHealthCheckBoards) },
-    { key: 'showcase', label: 'Showcase', module: 'showcase', count: n(stats.totalShowcaseSessions) },
+    { key: 'poker', label: moduleLabel('poker'), module: 'poker', count: n(stats.totalPokerRooms) },
+    { key: 'retro', label: moduleLabel('retro'), module: 'retro', count: n(stats.totalRetroBoards) },
+    { key: 'planner', label: moduleLabel('sprint-planner'), module: 'sprint-planner', count: n(stats.totalSprintPlannings) },
+    { key: 'brainstorming', label: moduleLabel('brainstorming'), module: 'brainstorming', count: n(stats.totalBrainstormingBoards) },
+    { key: 'health', label: moduleLabel('health'), module: 'health', count: n(stats.totalHealthCheckBoards) },
+    { key: 'showcase', label: moduleLabel('showcase'), module: 'showcase', count: n(stats.totalShowcaseSessions) },
   ] as GrowthModule[]).sort((a, b) => b.count - a.count);
   const interactions = modules.reduce((acc, m) => acc + m.count, 0);
   const users = n(stats.totalUsers);

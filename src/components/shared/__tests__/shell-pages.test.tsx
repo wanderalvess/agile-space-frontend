@@ -9,10 +9,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
   useRouter: () => ({ push, replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-  useParams: () => ({}),
+  useParams: () => ({ token: 'abc' }),
 }));
 vi.mock('../../../context/AuthContext', () => ({
-  useAuth: () => ({ session: { id: 'u1', name: 'Ana', accessibleProjects: [] }, isAuthenticated: true, isLoading: false, switchProject: vi.fn() }),
+  useAuth: () => ({ session: { id: 'u1', name: 'Ana', accessibleProjects: [] }, isAuthenticated: true, isLoading: false, switchProject: vi.fn(), acceptInvite: vi.fn(), logout: vi.fn() }),
 }));
 vi.mock('../../../context/UserContext', () => ({
   useUserContext: () => ({ userProfile: { role: 'user', name: 'Ana' }, isInitializing: false, requestIdentity: vi.fn() }),
@@ -27,12 +27,13 @@ vi.mock('../../../components/layout/ThemeToggle', () => ({ ThemeToggle: () => <b
 vi.mock('../../../components/feedback-widget', () => ({ FeedbackWidget: () => null }));
 vi.mock('../../../hooks/useToolHistory', () => ({ useToolHistory: () => ({ history: [], loading: false, removeRoom: vi.fn() }) }));
 vi.mock('../../../services/changelogApi', () => ({ changelogApi: { getPublishedReleases: async () => [] } }));
-vi.mock('../../../app/support/api', () => ({ supportApi: { listMine: async () => [], getReplies: async () => [], createTicket: vi.fn() } }));
-vi.mock('../../../components/knowledge/GovernanceGuide', () => ({ GovernanceGuide: () => null }));
+vi.mock('../../../app/support/api', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../../app/support/api')>()), supportApi: { listMine: async () => [], getReplies: async () => [], createTicket: vi.fn() } }));
 vi.mock('../../../components/devtools/DevToolsHub', () => ({ DevToolsHub: () => <div>hub de ferramentas</div> }));
 vi.mock('../../../components/knowledge/GlobalSearch', () => ({ GlobalSearch: () => null }));
+vi.mock('../../../components/onboarding/OnboardingFlow', () => ({ OnboardingFlow: () => <div>fluxo de entrada</div> }));
+vi.mock('../../../components/invite/InviteAcceptView', () => ({ InviteAcceptView: () => <div>tela do convite</div> }));
+vi.mock('../../../lib/invite-api', () => ({ inviteApi: { getInvite: () => new Promise(() => {}) } }));
 vi.mock('../../../components/knowledge/KnowledgeGuide', () => ({ KnowledgeGuide: () => null }));
-vi.mock('../../../app/manual/components/ManualSidebar', () => ({ ManualSidebar: () => <nav aria-label="Tópicos do manual" /> }));
 
 import { ToolHubLayout } from '../ToolHubLayout';
 import { DevToolsHubPage } from '../../../components/devtools/DevToolsHubPage';
@@ -44,8 +45,10 @@ import JoltHubPage from '../../../app/jolt/page';
 import ConfiguracoesPage from '../../../app/configuracoes/page';
 import SkillTutorialPage from '../../../app/prompt-hub/tutorial/page';
 import ManualLayout from '../../../app/manual/layout';
+import ManualIndexPage from '../../../app/manual/page';
 import KnowledgeLayout from '../../../app/knowledge/layout';
-import { Header } from '../../../components/layout/Header';
+import OnboardingPage from '../../../app/onboarding/page';
+import InvitePage from '../../../app/invite/[token]/page';
 
 function expectShell(h1: string | RegExp) {
   // Um cabeçalho do portal (AppHeader), um rodapé e um único h1.
@@ -94,17 +97,15 @@ describe('telas no PageShell', () => {
     expect(screen.queryByText('Sessões recentes')).toBeNull();
   });
 
-  it('DevTools e Central de qualidade usam o nome do registro', () => {
-    const { unmount } = render(<DevToolsHubPage module="devtools" subtitle="Ferramentas." />);
+  it('DevTools usa o nome do registro e traz o botão do Guia', () => {
+    render(<DevToolsHubPage subtitle="Ferramentas." />);
     expectShell('DevTools');
-    unmount();
-    render(<DevToolsHubPage module="qa" subtitle="Testes." collection="qa" />);
-    expectShell('Central de qualidade');
+    expect(screen.getByRole('button', { name: 'Abrir o guia do DevTools' })).toBeTruthy();
   });
 
   it('ferramenta do DevTools: trilha, ações do corpo e a gaveta "Como usar"', () => {
     render(
-      <DevToolPage toolId="json" actions={<button>Limpar</button>}>
+      <DevToolPage toolId="regex-lab" actions={<button>Limpar</button>}>
         <div>área da ferramenta</div>
       </DevToolPage>,
     );
@@ -131,7 +132,7 @@ describe('telas no PageShell', () => {
   it('Suporte', async () => {
     render(<SupportPage />);
     expectShell('Suporte');
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Nova Solicitação/ })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Nova solicitação/ })).toBeTruthy());
   });
 
   it('Jolt (hub dos dois modos)', () => {
@@ -150,17 +151,16 @@ describe('telas no PageShell', () => {
     expectShell('Como criar uma skill');
   });
 
-  it('Manual: layout com índice e conteúdo, sem fixar o título da aba (cada tópico tem o seu)', () => {
-    document.title = 'Poker | Manual';
+  it('Manual: casca do portal com o índice, sem fixar o título da aba (cada tópico tem o seu)', () => {
+    document.title = 'Poker - Manual | Portal Tech V&D';
     render(
       <ManualLayout>
-        <p>conteúdo do tópico</p>
+        <ManualIndexPage />
       </ManualLayout>,
     );
     expectShell('Manual');
-    expect(screen.getByText('conteúdo do tópico')).toBeTruthy();
-    expect(screen.getAllByRole('navigation', { name: 'Tópicos do manual' }).length).toBeGreaterThan(0);
-    expect(document.title).toBe('Poker | Manual');
+    expect(screen.getByRole('navigation', { name: 'Categorias do manual' })).toBeTruthy();
+    expect(screen.getByRole('searchbox', { name: /Buscar no manual/ })).toBeTruthy();
   });
 });
 
@@ -182,19 +182,20 @@ describe('Base de conhecimento', () => {
   });
 });
 
-describe('Header antigo do layout raiz', () => {
-  it.each(['/', '/jolt', '/jolt/sandbox', '/manual/poker', '/knowledge/kb', '/prompt-hub/colecoes', '/room', '/room/ABC', '/retro/xyz', '/changelog', '/governance', '/support', '/devtools/json', '/qa', '/configuracoes', '/squad/roster', '/action-plan/1'])(
-    'não aparece em %s (a tela traz o próprio cabeçalho)',
-    (path) => {
-      pathname = path;
-      const { container } = render(<Header />);
-      expect(container.querySelector('header')).toBeNull();
-    },
-  );
+describe('telas de entrada (/onboarding e /invite)', () => {
+  it('/onboarding: um cabeçalho do portal sem seletor de squad, o fluxo e o rodapé', () => {
+    render(<OnboardingPage />);
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+    expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
+    expect(screen.getByText('fluxo de entrada')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Trocar de squad/i })).toBeNull();
+    expect(document.title).toBe('Entrar na squad | Portal Tech V&D');
+  });
 
-  it.each(['/onboarding', '/invite/abc'])('continua só nas telas de entrada: %s', (path) => {
-    pathname = path;
-    const { container } = render(<Header />);
-    expect(container.querySelector('header')).not.toBeNull();
+  it('/invite/[token]: um cabeçalho do portal, a tela do convite e o rodapé', () => {
+    render(<InvitePage />);
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+    expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
+    expect(screen.getByText('tela do convite')).toBeTruthy();
   });
 });

@@ -1,0 +1,114 @@
+{
+  "planId": "p2",
+  "status": "DISTRIBUICAO",
+  "syncedAt": null,
+  "canEditPlan": true,
+  "myAccountId": null,
+  "sprint": {
+    "startDate": "2026-11-02",
+    "endDate": "2026-11-13",
+    "holidays": [
+      {
+        "day": "2026-11-02",
+        "label": "Finados"
+      },
+      {
+        "day": "2026-11-15",
+        "label": null
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "itemId": "i9",
+      "parentKey": "K-9",
+      "title": null,
+      "devHours": 0,
+      "qaHours": 0,
+      "subtasks": [
+        {
+          "key": "K-9-1",
+          "title": "t",
+          "typeId": "t1",
+          "typeName": "Reunião",
+          "cls": "FORA",
+          "codeReview": false,
+          "estimateH": 4.5,
+          "remainingH": 0,
+          "countedH": 4.5,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": null,
+          "minStartDate": null,
+          "canClaim": false,
+          "canEditDates": false,
+          "status": null
+        },
+        {
+          "key": "K-9-2",
+          "title": "t",
+          "typeId": null,
+          "typeName": null,
+          "cls": "SEM",
+          "codeReview": false,
+          "estimateH": 4.5,
+          "remainingH": 0,
+          "countedH": 4.5,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": null,
+          "minStartDate": null,
+          "canClaim": false,
+          "canEditDates": false,
+          "status": null
+        },
+        {
+          "key": "K-9-3",
+          "title": "t",
+          "typeId": "t1",
+          "typeName": "Tipo",
+          "cls": "QA",
+          "codeReview": false,
+          "estimateH": 4.5,
+          "remainingH": 0,
+          "countedH": 4.5,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": "K-9-4",
+          "minStartDate": null,
+          "canClaim": true,
+          "canEditDates": false,
+          "status": null
+        }
+      ]
+    }
+  ],
+  "people": [
+    {
+      "accountId": "acc-x",
+      "name": "Xavier",
+      "role": "DEV",
+      "capacityHours": 0.0,
+      "allocatedHours": 0.0,
+      "freeHours": 0.0,
+      "pct": null,
+      "zone": "SEM_CAPACIDADE",
+      "state": "SEM_CAPACIDADE",
+      "absences": []
+    }
+  ],
+  "warnings": [
+    {
+      "code": "PERSON_OVER_CAPACITY",
+      "message": "m",
+      "subtaskKey": null,
+      "accountId": "acc-x"
+    }
+  ]
+}

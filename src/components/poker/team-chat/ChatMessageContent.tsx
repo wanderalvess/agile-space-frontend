@@ -33,8 +33,8 @@ function InlineText({ value, isOwn }: { value: string; isOwn: boolean }) {
         if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
           return (
             <code key={i} className={cn(
-              'px-1 py-0.5 rounded font-mono text-[11px]',
-              isOwn ? 'bg-black/15' : 'bg-muted'
+              'px-1 py-0.5 rounded font-mono text-xs',
+              isOwn ? 'bg-primary-foreground/20' : 'bg-muted'
             )}>
               {part.slice(1, -1)}
             </code>
@@ -69,18 +69,18 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   return (
     <div className="my-1 max-w-full overflow-hidden rounded-[10px] border border-border bg-background text-foreground">
       <div className="flex items-center justify-between border-b border-border bg-muted/60 px-2.5 py-1">
-        <span className="text-[11px] text-muted-foreground">{lang || 'código'}</span>
+        <span className="text-xs text-muted-foreground">{lang || 'código'}</span>
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 rounded text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="-my-1 -mr-1 flex min-h-6 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Copiar código"
         >
           {copied ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" strokeWidth={1.5} />}
           {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
-      <pre className="p-2.5 text-[11px] leading-relaxed font-mono overflow-x-auto whitespace-pre">
+      <pre className="p-2.5 text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre">
         <code>{code}</code>
       </pre>
     </div>

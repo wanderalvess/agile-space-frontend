@@ -2,6 +2,7 @@
  * Regras puras da sala da Retro: fases, colunas, votos, limites, arrastar, timer e reducers dos eventos do
  * WebSocket. Ficam fora dos componentes para serem testadas sem DOM e para a tela só orquestrar.
  */
+import { canonicalCargo } from '@/lib/cargo';
 import type { PhaseStep } from '@/components/room-kit/PhaseStepper';
 import {
   RETRO_TEMPLATES,
@@ -344,7 +345,7 @@ export function overlayPending(cards: readonly RetroCard[], pending: ReadonlyMap
 
 /** Cargo do perfil global -> papel dentro da retro. */
 export function mapGlobalToTeamRole(role: GlobalRole): TeamRole {
-  switch (role) {
+  switch (canonicalCargo(role)) {
     case 'Agile Master':
     case 'Scrum Master':
     case 'Scrum Master / Agile Coach':
@@ -358,14 +359,12 @@ export function mapGlobalToTeamRole(role: GlobalRole): TeamRole {
     case 'People Lead':
     case 'Tribe Lead':
       return 'PL';
-    case 'QA':
     case 'Analista de QA':
       return 'QA';
     case 'Designer':
     case 'UX':
     case 'Designer / UI-UX':
       return 'UX';
-    case 'Developer':
     case 'Desenvolvedor(a)':
       return 'DEV';
     case 'SME':

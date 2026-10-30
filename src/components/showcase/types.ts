@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
 import { TONES } from '@/components/room-kit/tokens';
+import type { FieldOrigin } from '@/services/jiraProvenance';
 
 export type Decision = 'open' | 'approved' | 'needs_adjustment' | 'rejected';
 export type PreparationStatus = 'todo' | 'doing' | 'review' | 'done';
@@ -75,6 +76,9 @@ export interface ShowcaseTask {
   metrics?: ImpactMetric[];
   // Só leitura: vem do backend (arquivos enviados no card). Entra e sai pelos endpoints de arquivo.
   attachments?: TaskFile[];
+  // De onde veio o texto de Problema, Solução e Critérios quando o card nasceu da importação do Jira, e o que o Jira tinha
+  // ("Restaurar do Jira"). Ausente em card manual e em card anterior à V92. importedBy/importedAt são do servidor.
+  origins?: FieldOrigin[];
   assignee: string; 
   url: string;
   evidence: Evidence; 
@@ -192,7 +196,7 @@ export const ISSUE_TYPES = [
  * escolhido para a apresentação (claro ou escuro), seja qual for o tema do portal.
  */
 export const DECISION = {
-  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-white/10 text-white/70', light: 'bg-slate-100 text-slate-600' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-foreground/10 text-muted-foreground', light: 'bg-muted text-muted-foreground' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   approved:         { label: 'Aprovado',   cls: TONES.success.chip, stageCls: { dark: 'bg-emerald-500/15 text-emerald-300', light: 'bg-emerald-100 text-emerald-800' }, icon: React.createElement(CheckCircle2, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   needs_adjustment: { label: 'Ajuste',     cls: TONES.warn.chip, stageCls: { dark: 'bg-amber-500/15 text-amber-300', light: 'bg-amber-100 text-amber-800' }, icon: React.createElement(AlertTriangle, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
   rejected:         { label: 'Rejeitado',  cls: TONES.danger.chip, stageCls: { dark: 'bg-red-500/15 text-red-300', light: 'bg-red-100 text-red-800' }, icon: React.createElement(Ban, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
@@ -222,17 +226,17 @@ export const DEFAULT_SHOWCASE_IMAGE = '/showcase/fundo-totvs.webp';
 export const PRESENTATION_PRESETS: PresentationPreset[] = [
   {
     id: 'totvs',
-    name: 'TOTVS (padrão)',
+    name: 'Sede (padrão)',
     category: 'dark',
     value: DEFAULT_SHOWCASE_IMAGE,
     preview: 'url',
-    description: 'Foto da sede TOTVS, padrão de toda Review nova',
+    description: 'Foto da sede, padrão de toda Review nova',
     isLight: false,
   },
   // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
   {
     id: 'totvs-azul',
-    name: 'Azul TOTVS',
+    name: 'Azul institucional',
     category: 'dark',
     value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)',
     preview: '#002233',
@@ -348,7 +352,7 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
  * A primeira é o padrão da empresa; as outras são fundos abstratos na paleta TOTVS.
  */
 export const PRESETS = [
-  { id: 'totvs-padrao', name: 'TOTVS', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
+  { id: 'totvs-padrao', name: 'Sede (padrão)', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
   { id: 'azul-profundo', name: 'Azul profundo', url: '/showcase/fundo-azul.svg', description: 'Azul escuro com halos de luz' },
   { id: 'grade-clara', name: 'Grade clara', url: '/showcase/fundo-grade.svg', description: 'Fundo claro com grade suave' },
   { id: 'ondas', name: 'Ondas', url: '/showcase/fundo-ondas.svg', description: 'Linhas fluidas em azul e verde' },

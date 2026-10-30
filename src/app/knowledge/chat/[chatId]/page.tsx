@@ -350,6 +350,7 @@ function ChatContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-background text-foreground">
+      <h1 className="sr-only">Assistente virtual</h1>
 
       {/* Barra lateral persistente com as conversas */}
       <aside className={cn(
@@ -362,7 +363,7 @@ function ChatContent({ chatId }: { chatId: string }) {
             variant="outline"
             className={cn("h-11 w-full gap-2 rounded-[10px] border-border bg-background text-sm font-semibold text-foreground hover:bg-muted", FOCUS)}
           >
-            <Plus className="h-4 w-4 text-primary" aria-hidden="true" /> Nova consulta
+            <Plus className="h-4 w-4 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" aria-hidden="true" /> Nova consulta
           </Button>
 
           <div className="mt-2 flex flex-1 flex-col overflow-hidden">
@@ -383,7 +384,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                       aria-current={chatId === conv.id ? 'page' : undefined}
                       className={cn("block w-full min-w-0 rounded-xl p-3 pr-10 text-left", FOCUS)}
                     >
-                      <span className={cn("block truncate text-sm font-semibold", chatId === conv.id ? "text-primary" : "text-foreground")}>
+                      <span className={cn("block truncate text-sm font-semibold", chatId === conv.id ? "text-primary [.theme-totvs:not(.dark)_&]:text-foreground" : "text-foreground")}>
                         {conv.title}
                       </span>
                       <span className="mt-0.5 block truncate text-[0.8125rem] text-muted-foreground">{getPreview(conv)}</span>
@@ -411,7 +412,7 @@ function ChatContent({ chatId }: { chatId: string }) {
               <Trash2 className="h-4 w-4" aria-hidden="true" /> Limpar conversa
             </Button>
             <div className="flex items-center gap-3 px-2">
-              <InitialsAvatar name={session?.name} className="h-8 w-8 text-xs" />
+              <InitialsAvatar name={session?.name} userId={session?.id} className="h-8 w-8 text-xs" />
               <span className="min-w-0 truncate text-sm font-medium text-foreground">{session?.name || 'Usuário'}</span>
             </div>
           </div>
@@ -435,7 +436,7 @@ function ChatContent({ chatId }: { chatId: string }) {
               </SheetHeader>
               <div className="flex h-full flex-col gap-6 p-6">
                 <Button onClick={createNewChat} variant="outline" className={cn("h-12 w-full gap-2 rounded-[10px] border-border bg-background text-sm font-semibold text-foreground hover:bg-muted", FOCUS)}>
-                  <Plus className="h-4 w-4 text-primary" aria-hidden="true" /> Nova consulta
+                  <Plus className="h-4 w-4 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" aria-hidden="true" /> Nova consulta
                 </Button>
                 <ScrollArea className="flex-1">
                   <ul className="space-y-1">
@@ -445,7 +446,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                           type="button"
                           onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
                           aria-current={chatId === conv.id ? 'page' : undefined}
-                          className={cn("block w-full rounded-xl p-3 text-left text-sm font-semibold", FOCUS, chatId === conv.id ? "border border-border bg-background text-primary" : "text-foreground hover:bg-muted/60")}
+                          className={cn("block w-full rounded-xl p-3 text-left text-sm font-semibold", FOCUS, chatId === conv.id ? "border border-border bg-background text-primary [.theme-totvs:not(.dark)_&]:text-foreground" : "text-foreground hover:bg-muted/60")}
                         >
                           {conv.title}
                         </button>
@@ -473,7 +474,7 @@ function ChatContent({ chatId }: { chatId: string }) {
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center space-y-6 py-16 text-center">
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card">
-                  <Bot className="h-10 w-10 text-primary" aria-hidden="true" />
+                  <Bot className="h-10 w-10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" aria-hidden="true" />
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-3xl font-bold tracking-tight text-foreground">O que vamos descobrir hoje?</h2>
@@ -512,7 +513,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                   aria-hidden="true"
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border",
-                    m.role === 'user' ? "bg-muted text-foreground" : "bg-card text-primary"
+                    m.role === 'user' ? "bg-muted text-foreground" : "bg-card text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
                   )}
                 >
                   {m.role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}

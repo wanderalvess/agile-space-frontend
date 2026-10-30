@@ -97,7 +97,7 @@ export function StatusChip({ tone, children }: { tone: 'live' | 'neutral' | 'don
   return (
     <span
       className={cn(
-        'inline-flex h-[22px] shrink-0 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-wide',
+        'inline-flex h-[22px] shrink-0 items-center rounded-full px-2 text-xs font-bold uppercase tracking-wide',
         tone === 'live' && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
         tone === 'done' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
         tone === 'brand' && cn(TINT_BG, TINT_TEXT),

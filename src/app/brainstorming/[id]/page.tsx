@@ -28,6 +28,7 @@ import { FeedbackWidget } from '@/components/feedback-widget';
 import { squadLabel as resolveSquadLabel, squadOptions } from '@/components/showcase/review-room-logic';
 import { BrainstormRoom } from '@/components/brainstorming/BrainstormRoom';
 import { BrainstormRoomState } from '@/components/brainstorming/BrainstormRoomState';
+import { SEM_CARGO } from '@/lib/cargo';
 import { effectiveFacilitatorId, isEndpointUnavailable, type CeremonyAction } from '@/components/brainstorming/brainstorm-ceremony';
 import {
   INITIAL_CONNECTION,
@@ -232,7 +233,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
     brainstormingApi.joinBoard(boardId, {
       nickname: userProfile.name,
-      role: userProfile.role || 'DEV',
+      // Cargo exibido no mural: o da administração (lib/cargo.ts).
+      role: userProfile.cargo || SEM_CARGO,
     } as any).then(joined => {
       setParticipants(prev => upsertById(prev, joined as any));
     }).catch(e => {

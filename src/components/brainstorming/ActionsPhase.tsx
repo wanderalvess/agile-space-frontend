@@ -212,7 +212,7 @@ function ActionCard({
             className="min-h-[88px] w-full resize-none rounded-[10px] border border-primary/50 bg-muted/40 p-2 text-[13px] font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         ) : hidden ? (
-          <p className="m-0 flex items-center gap-1.5 text-[13px] italic text-muted-foreground">
+          <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted-foreground">
             <Lock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {ideaText(idea)}
           </p>
         ) : !canEditText ? (

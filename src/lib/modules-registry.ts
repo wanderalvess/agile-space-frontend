@@ -18,7 +18,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  TestTube,
   UserCog,
   Users,
   Wrench,
@@ -50,7 +49,6 @@ export type ModuleKey =
   | 'action-plan'
   | 'jolt'
   | 'devtools'
-  | 'qa'
   | 'sprint-planner'
   | 'knowledge'
   | 'prompt-hub'
@@ -134,9 +132,8 @@ export const MODULES: readonly PortalModule[] = [
 
   // Ferramentas
   { key: 'jolt', label: 'Jolt', href: '/jolt', icon: Braces, group: 'ferramentas', description: 'Layouts e especificações', aliases: ['layouts', 'spec'], home: { group: 'quality', order: 1 } },
-  { key: 'devtools', label: 'DevTools', href: '/devtools', icon: Wrench, group: 'ferramentas', description: 'JSON, Base64, JWT, Regex, Diff e mais', aliases: ['ferramentas', 'json', 'regex', 'base64'], home: { group: 'quality', order: 2 } },
-  { key: 'qa', label: 'Central de qualidade', href: '/qa', icon: TestTube, group: 'ferramentas', description: 'Zephyr, massa de dados, BDD, automação e mocks', aliases: ['qa', 'qualidade', 'zephyr'], home: { group: 'quality', order: 3 } },
-  { key: 'sprint-planner', label: 'Planejador', href: '/sprint-planner', icon: CalendarDays, group: 'ferramentas', description: 'Capacidade e planejamento da sprint', aliases: ['planejamento', 'sprint planner'], soon: true, home: { group: 'flow', order: 3 } },
+  { key: 'devtools', label: 'DevTools', href: '/devtools', icon: Wrench, group: 'ferramentas', description: 'JSON, Base64, JWT, Regex, Diff, Zephyr, massa de dados e mais', aliases: ['ferramentas', 'json', 'regex', 'base64', 'qa', 'qualidade', 'central de qualidade', 'zephyr'], paths: ['/qa'], home: { group: 'quality', order: 2 } },
+  { key: 'sprint-planner', label: 'Planejamento', href: '/sprint-planner', icon: CalendarDays, group: 'ferramentas', description: 'Capacidade e planejamento da sprint', aliases: ['planejamento', 'sprint planner', 'capacidade'], home: { group: 'flow', order: 3 } },
 
   // Conhecimento
   { key: 'knowledge', label: 'Base de conhecimento', href: '/knowledge/kb', icon: Library, group: 'conhecimento', description: 'Wiki e base técnica', aliases: ['conhecimento', 'wiki', 'kb'], paths: ['/knowledge'], home: { group: 'support', order: 1 } },
@@ -244,10 +241,10 @@ export function homeModuleGroups(): Array<{ id: HomeGroupKey; label: string; ite
 }
 
 /** Itens da navegação principal do cabeçalho (curta de propósito: o resto está na busca e na Home). */
-export type PrimaryNavKey = 'home' | 'squad' | 'workspace' | 'rituais' | 'admin';
+export type PrimaryNavKey = 'home' | 'squad' | 'planejamento' | 'workspace' | 'rituais' | 'admin';
 
 /**
- * Qual item da navegação principal está ativo na rota. Painel, Squad e Time da squad contam como "Squad";
+ * Qual item da navegação principal está ativo na rota. Painel, Squad e Time da squad contam como "Squad"; o Sprint Planner é "Planejamento";
  * os módulos de sessão (e o Plano de ação) contam como "Rituais".
  */
 export function primaryNavFor(pathname: string): PrimaryNavKey | null {
@@ -255,6 +252,7 @@ export function primaryNavFor(pathname: string): PrimaryNavKey | null {
   if (!m) return null;
   if (m.key === 'home') return 'home';
   if (m.key === 'painel' || m.key === 'squad' || m.key === 'roster') return 'squad';
+  if (m.key === 'sprint-planner') return 'planejamento';
   if (m.key === 'workspace') return 'workspace';
   if (m.group === 'rituais') return 'rituais';
   if (m.key === 'admin') return 'admin';

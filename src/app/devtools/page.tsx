@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { DevToolsHubPage } from '@/components/devtools/DevToolsHubPage';
 
+// `useSearchParams` (o filtro `?grupo=`) exige Suspense na compilação estática.
 export default function DevToolsPage() {
   return (
-    <DevToolsHubPage
-      module="devtools"
-      subtitle="Ferramentas do dia a dia de desenvolvimento e qualidade, no navegador. O conteúdo não sai da sua máquina."
-    />
+    <Suspense fallback={null}>
+      <DevToolsHubPage />
+    </Suspense>
   );
 }

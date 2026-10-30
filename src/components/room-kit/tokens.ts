@@ -58,9 +58,9 @@ export const TONES: Record<Tone, ToneStyle> = {
     hairline: 'bg-gradient-to-r from-emerald-500 to-emerald-300',
   },
   warn: {
-    tile: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30',
-    text: 'text-amber-700 dark:text-amber-300',
-    chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    tile: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30',
+    text: 'text-amber-800 dark:text-amber-300',
+    chip: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
     hairline: 'bg-gradient-to-r from-amber-500 to-amber-300',
   },
   danger: {
@@ -79,8 +79,14 @@ export const TONES: Record<Tone, ToneStyle> = {
 
 /** Botão principal cheio com brilho do tema. */
 export const PRIMARY_BUTTON = 'bg-primary text-primary-foreground hover:bg-primary/90 room-glow';
+/* Intencional: text-white nos botões cheios abaixo, sempre sobre fundo saturado 600/700 (contraste AA nos 7 temas). */
 /** Botão de perigo (vermelho só em excluir e encerrar). */
 export const DANGER_BUTTON = 'bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-500';
+/** Botões cheios de sucesso e de atenção (texto claro sobre fundo 700, acima de 4,5:1). */
+export const SUCCESS_BUTTON = 'bg-emerald-700 text-white hover:bg-emerald-800 dark:hover:bg-emerald-600';
+export const WARN_BUTTON = 'bg-amber-700 text-white hover:bg-amber-800 dark:hover:bg-amber-600';
+/** Ao passar o mouse, vira vermelho cheio com texto claro (fechar/sair). */
+export const DANGER_HOVER = 'hover:border-red-700 hover:bg-red-700 hover:text-white';
 /** Botão secundário com contorno. */
 export const OUTLINE_BUTTON = 'border border-border bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground';
 /** Foco visível padrão para controles que não são <Button>. */

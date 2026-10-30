@@ -7,6 +7,7 @@ import { userApi } from '@/app/users/api';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/auth-client';
 import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { resolveCargo } from '@/lib/cargo';
 import type { MyMemberships } from '@/lib/memberships-api';
 import { deriveMustOnboard, findMembership, isLegacyOnly, leadershipOfActiveSquad, resolveActiveSquadId } from '@/lib/memberships';
 
@@ -14,7 +15,8 @@ interface UserContextType {
   userProfile: UserProfile | null;
   setGuestProfile: (name: string, role: GlobalRole, email?: string) => void;
   /** Atualiza o perfil da pessoa (nome, avatar). A squad ativa NÃO se grava aqui: vem dos vínculos e muda pelo `switchProject`. */
-  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>) => void;
+  /** `keepOpen`: grava sem fechar o modal de identidade (a ficha salva campo a campo, na hora). */
+  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => void;
   logout: () => void;
   isInitializing: boolean;
   isIdentityRequested: boolean;
@@ -100,6 +102,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       ...baseProfile,
       squadId: activeSquadId || baseProfile.squadId,
       role: (isAdminProfile ? 'admin' : activeMembershipRole || baseProfile.role) as GlobalRole,
+      cargo: resolveCargo(baseProfile.jobTitle),
     };
   }, [baseProfile, activeSquadId, activeMembershipRole]);
 
@@ -138,9 +141,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       email: session.email,
       role: (isSystemAdmin ? 'admin' : session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
       // Sem cache local aqui: a squad vem só da sessão (e dos vínculos, no memo `userProfile`).
+      jobTitle: (session.jobTitle || undefined) as GlobalRole | undefined,
       squadId: session.activeProjectId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
+      photoUrl: session.photoUrl ?? null,
       dailyHours: cachedForUser?.dailyHours,
     };
 
@@ -208,7 +213,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => {
     if (!userProfile) return;
 
     // id/email são a identidade autenticada (JWT) — não editáveis via este formulário. `squadId` (e o antigo `team`)
@@ -220,8 +225,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
     const newProfile = { ...userProfile, ...safeUpdates };
     setUserProfile((prev) => (prev ? { ...prev, ...safeUpdates } : prev));
-    setIsIdentityRequested(false);
-    setIsEditProfileOpen(false);
+    if (!options?.keepOpen) {
+      setIsIdentityRequested(false);
+      setIsEditProfileOpen(false);
+    }
     setIsPublicExploration(true);
     writeCachedProfile(newProfile.id, newProfile);
 

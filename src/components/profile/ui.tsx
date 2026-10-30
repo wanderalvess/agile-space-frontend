@@ -2,41 +2,8 @@
 
 import * as React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { FOCUS_RING, IconTile, type Tone } from '@/components/room-kit';
+import { FOCUS_RING } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
-
-/** Cartão de seção do modal "Minha identidade": placa de ícone, título curto, ação à direita e o conteúdo. */
-export function SectionCard({
-  icon,
-  tone = 'brand',
-  title,
-  titleId,
-  aside,
-  children,
-  className,
-}: {
-  icon: LucideIcon;
-  tone?: Tone;
-  title: string;
-  titleId?: string;
-  /** Chip ou botão à direita do título. */
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section aria-labelledby={titleId} className={cn('flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 text-card-foreground sm:p-5', className)}>
-      <header className="flex items-center gap-3">
-        <IconTile icon={icon} tone={tone} size="sm" />
-        <h3 id={titleId} className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-tight text-foreground">
-          {title}
-        </h3>
-        {aside}
-      </header>
-      {children}
-    </section>
-  );
-}
 
 /** Par rótulo + valor (conta do Jira, dados da pessoa). */
 export function DetailItem({ icon: Icon, label, value, mono, leading }: { icon: LucideIcon; label: string; value?: string; mono?: boolean; leading?: React.ReactNode }) {

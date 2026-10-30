@@ -1,7 +1,8 @@
 "use client";
 
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useEffect, useRef } from 'react';
-import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2, WalletCards } from 'lucide-react';
+import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2 } from 'lucide-react';
 import type { DeckType, Participant } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +108,7 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
 
 const STEP_CARD = 'relative flex h-full flex-col gap-3.5 rounded-[14px] border p-5 transition-colors duration-slow';
 const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
-const KEY = 'rounded border border-current/30 px-1.5 py-px text-[11px] tabular-nums opacity-70';
+const KEY = 'rounded border border-current/40 px-1.5 py-px text-xs tabular-nums';
 
 interface RoomWelcomeProps {
   deck: DeckType;
@@ -160,7 +161,7 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
       <div className="mt-2 flex flex-col items-center gap-3.5 text-center">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Sua sala está pronta</h2>
         <div className="flex items-center gap-2">
-          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
+          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
         </div>
         <ul className="m-0 flex list-none flex-wrap justify-center gap-x-[18px] gap-y-1 p-0 text-[13px] text-muted-foreground" aria-label="Progresso da sala">
@@ -188,10 +189,10 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
                 <div className="flex items-center">
                   {participants.slice(0, 5).map((p, i) => (
                     <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
-                      <PersonAvatar name={p.nickname} size="md" />
+                      <PersonAvatar name={p.nickname} userId={p.id} size="md" />
                     </span>
                   ))}
-                  {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-[11px] font-bold text-muted-foreground">+{participants.length - 5}</span>}
+                  {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 5}</span>}
                 </div>
                 <span className="text-[13px] leading-snug text-muted-foreground">
                   {participants.length > 1 ? `${participants.length} na sala · ${onlineCount} online` : 'Só você por aqui'}
@@ -263,7 +264,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
       <div className="mt-2 flex flex-col items-center gap-3.5">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Boas-vindas à sala</h2>
         <div className="flex items-center gap-2">
-          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
+          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
         </div>
       </div>
@@ -274,10 +275,10 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
             <div className="flex items-center">
               {participants.slice(0, 6).map((p, i) => (
                 <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
-                  <PersonAvatar name={p.nickname} size="lg" />
+                  <PersonAvatar name={p.nickname} userId={p.id} size="lg" />
                 </span>
               ))}
-              {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-[11px] font-bold text-muted-foreground">+{participants.length - 6}</span>}
+              {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 6}</span>}
             </div>
             <span className="text-[13px] text-muted-foreground">{participants.length} {participants.length === 1 ? 'pessoa na sala' : 'pessoas na sala'}</span>
           </div>
@@ -290,7 +291,7 @@ export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants,
         )}
         <div className="flex flex-wrap justify-center gap-1.5" aria-label="Cartas do baralho">
           {getDeckCards(deck, maxHours).map((face) => (
-            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
               {face === '☕' ? 'café' : face}
             </span>
           ))}
