@@ -309,7 +309,8 @@ export function RetroCard({
               disabled={!canEdit}
               onClick={(e) => { e.stopPropagation(); onToggleDone(card.id, !card.isDone); }}
               className={cn(
-                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors disabled:cursor-default',
+                // after:-inset-3 amplia a área de toque para 44 px sem mudar o desenho de 20 px.
+                "relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors after:absolute after:-inset-3 after:content-[''] disabled:cursor-default",
                 card.isDone ? 'border-primary bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-muted-foreground/50 hover:border-primary',
                 FOCUS_RING
               )}
