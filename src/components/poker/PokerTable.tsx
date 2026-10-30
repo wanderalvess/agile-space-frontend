@@ -250,7 +250,7 @@ export function PokerTable({
             <div data-table-felt="" data-table-center="" className={cn('relative z-[1] mx-auto flex min-h-[80px] w-full max-w-[560px] items-center justify-center gap-4 rounded-3xl border border-border bg-background px-4 py-3', FELT_SHADOW)}>
               {centerContent}
             </div>
-            <ul className="relative m-0 grid list-none gap-x-3 gap-y-4 p-0 pt-2 [grid-template-columns:repeat(auto-fill,minmax(92px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(116px,1fr))]">
+            <ul className="relative m-0 grid list-none gap-x-3 gap-y-4 p-0 pt-2 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(152px,1fr))]">
               {seats.map((p, i) => renderSeat(p, i))}
             </ul>
           </>

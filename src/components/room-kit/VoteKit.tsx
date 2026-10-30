@@ -210,7 +210,8 @@ export function VoteSeat({
       {isHost && <Crown aria-label="Organizador" className="h-3.5 w-3.5 shrink-0 text-amber-500" strokeWidth={1.5} />}
     </span>
   );
-  const roleLine = <span className={cn('max-w-full truncate text-xs font-bold leading-tight', ROLE_STYLES[roleToneOf(roleCategory)].text)}>{roleLabel}</span>;
+  // tracking-tight: "Desenvolvedor(a)", o cargo mais comum, passava 3 px da caixa do assento (132 px) e virava "Desenvolvedor…".
+  const roleLine = <span className={cn('max-w-full truncate text-xs font-bold leading-tight tracking-tight', ROLE_STYLES[roleToneOf(roleCategory)].text)} title={roleLabel}>{roleLabel}</span>;
 
   if (observer) {
     return (
