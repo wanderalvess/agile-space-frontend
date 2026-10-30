@@ -84,29 +84,31 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                 aria-haspopup="dialog"
                 className={cn(
                   CARD,
-                  'group relative flex h-full min-h-[300px] w-full flex-col gap-3 overflow-hidden rounded-[24px] p-6 text-left shadow-lg transition-[border-color,box-shadow] duration-300 hover:border-primary/50 hover:shadow-2xl dark:shadow-none',
+                  'group relative flex h-full min-h-[300px] w-full flex-col gap-2.5 overflow-hidden rounded-[24px] p-5 text-left shadow-lg transition-[border-color,box-shadow] duration-300 hover:border-primary/50 hover:shadow-2xl dark:shadow-none',
                   r.highlight && 'border-primary/40',
                   FOCUS_RING,
                 )}
               >
                 <span aria-hidden="true" className={cn('pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full motion-safe:transition-transform motion-safe:duration-700 motion-safe:group-hover:scale-125', ORB)} />
-                <span className="relative flex items-center justify-between">
-                  <span className="motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-110">
-                    <IconTile icon={TOOL_ICON[r.key]} size="lg" />
-                  </span>
-                  {liveNow && (
-                    <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">Ao vivo</span>
-                  )}
-                </span>
+                {/* Ícone ao lado do nome: devolve ~37 px de altura por cartão e deixa o botão de entrar dentro da tela em 1080p. */}
                 <span className="relative flex flex-col gap-1.5">
-                  <span className="flex items-center gap-1.5 text-xl font-bold leading-tight transition-colors group-hover:text-primary [.theme-totvs:not(.dark)_&]:group-hover:text-foreground">
-                    {r.title}
-                    <ArrowUpRight aria-hidden="true" className="h-4 w-4 -translate-x-0.5 translate-y-0.5 text-primary opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100" strokeWidth={1.75} />
+                  <span className="flex items-center gap-3">
+                    <span className="motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-110">
+                      <IconTile icon={TOOL_ICON[r.key]} size="lg" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-bold leading-tight transition-colors group-hover:text-primary 2xl:text-xl [.theme-totvs:not(.dark)_&]:group-hover:text-foreground">
+                      {r.title}
+                      {/* A setinha só aparece em tela larga: abaixo disso ela reservaria espaço e quebraria o nome em duas linhas. */}
+                      <ArrowUpRight aria-hidden="true" className="hidden h-4 w-4 shrink-0 -translate-x-0.5 translate-y-0.5 text-primary opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100 2xl:block" strokeWidth={1.75} />
+                    </span>
                   </span>
                   <span className="text-[13px] leading-relaxed text-muted-foreground">{r.description}</span>
                 </span>
                 <RitualArt ritual={r.key} />
                 <span className="relative mt-auto flex flex-wrap gap-1.5">
+                  {liveNow && (
+                    <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Ao vivo</span>
+                  )}
                   {facts.map((f) => (
                     <span key={f} className="inline-flex h-6 items-center rounded-full border border-border bg-muted/40 px-2.5 text-xs">
                       {f}

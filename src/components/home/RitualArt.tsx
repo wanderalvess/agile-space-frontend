@@ -55,7 +55,7 @@ const RETRO_COLUMNS = [
 
 function RetroArt() {
   return (
-    <span className="flex min-h-[92px] w-full max-w-[240px] gap-1.5">
+    <span className="flex min-h-[84px] w-full max-w-[240px] gap-1.5">
       {RETRO_COLUMNS.map((c, i) => (
         <span key={c.label} className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-1.5">
           <span className={cn('truncate text-xs font-bold leading-none', c.tone)}>{c.label}</span>
@@ -159,7 +159,7 @@ const ART: Record<RitualKey, () => React.JSX.Element> = {
 export function RitualArt({ ritual }: { ritual: RitualKey }) {
   const Art = ART[ritual];
   return (
-    <span aria-hidden="true" className="relative my-1 flex h-[108px] w-full items-center justify-center overflow-hidden">
+    <span aria-hidden="true" className="relative flex h-[92px] w-full items-center justify-center overflow-hidden">
       <MotionConfig reducedMotion="user">
         <Art />
       </MotionConfig>
