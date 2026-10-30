@@ -13,7 +13,7 @@ import { ExportDialog } from './ExportDialog';
 import { TopicTiming } from './TopicTiming';
 import { SessionVelocity } from './SessionVelocity';
 import { ReportDocumentHeader, ReportKpis } from './report/ReportOverview';
-import { ReportTaskTable } from './report/ReportTaskTable';
+import { ReportTaskTable, type JiraTaskStatus } from './report/ReportTaskTable';
 import { ReportHighlights } from './report/ReportHighlights';
 import { ReportResults } from './report/ReportResults';
 import { useReportPrint } from './report/useReportPrint';
@@ -48,7 +48,7 @@ interface Props {
   onRefreshHistory: () => void;
   onNewSession: () => void;
   /** Estimadas com chave do Jira: enviadas e prontas para enviar (abre a prévia de todas). */
-  jira?: { sent: number; pending: number; onSend: () => void } | null;
+  jira?: { sent: number; pending: number; onSend: () => void; statusByIssueId?: Record<string, JiraTaskStatus> } | null;
 }
 
 /**
@@ -211,7 +211,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
         <div role="tabpanel" id="report-panel-relatorio" aria-labelledby="report-tab-relatorio" className="flex flex-col gap-5">
           <ReportDocumentHeader report={report} />
           <ReportKpis report={report} />
-          <ReportTaskTable report={report} />
+          <ReportTaskTable report={report} jiraStatus={jira?.statusByIssueId} />
           <ReportHighlights report={report} />
 
           <div className="grid gap-4 lg:grid-cols-12">

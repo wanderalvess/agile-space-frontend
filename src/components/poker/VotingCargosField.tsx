@@ -4,9 +4,19 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { canonicalCargo } from '@/lib/cargo';
-import { DEFAULT_VOTING_CARGOS, VOTING_CARGO_OPTIONS, isVotingCargo } from '@/lib/poker-utils';
+import { DEFAULT_VOTING_CARGOS, VOTING_CARGO_OPTIONS, getParticipantCategory, isVotingCargo } from '@/lib/poker-utils';
+import { roleToneOf } from '@/components/room-kit/tokens';
+import type { GlobalRole } from '@/lib/types';
 
 const sameCargo = (a: string, b: string) => canonicalCargo(a).toLowerCase() === canonicalCargo(b).toLowerCase();
+
+/** Marcado: DEV em azul e QA em verde (as mesmas cores da mesa); os demais cargos na cor da marca. */
+const CHECKED_TONE: Record<string, string> = {
+  dev: 'border-blue-500/60 bg-blue-500/10 font-semibold text-blue-800 dark:text-blue-200',
+  qa: 'border-emerald-500/60 bg-emerald-500/10 font-semibold text-emerald-800 dark:text-emerald-200',
+};
+const CHECKED_DEFAULT = 'border-primary bg-primary/10 font-semibold text-foreground dark:bg-primary/15';
+const toneOfCargo = (cargo: string) => roleToneOf(getParticipantCategory({ role: 'organizador', globalRole: cargo as GlobalRole }));
 
 /** A lista de cargos que votam é igual à padrão (só Desenvolvedor(a) e Analista de QA)? Ordem e caixa não contam. */
 export function isDefaultVotingCargos(value: readonly string[]): boolean {
@@ -72,7 +82,7 @@ export function VotingCargosField({
               htmlFor={id}
               className={cn(
                 'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring sm:min-h-9',
-                checked ? 'border-primary bg-primary/10 font-semibold text-foreground dark:bg-primary/15' : 'border-border text-muted-foreground hover:bg-accent/40 hover:text-foreground'
+                checked ? CHECKED_TONE[toneOfCargo(cargo)] ?? CHECKED_DEFAULT : 'border-border text-muted-foreground hover:bg-accent/40 hover:text-foreground'
               )}
             >
               <input

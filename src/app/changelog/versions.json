@@ -16,7 +16,10 @@
       "Scrum Poker: encerrar a sessão mostra o que ficou sem estimar e pergunta, com dois botões, se encerra sem enviar ou enviando ao Jira as estimadas que faltam.",
       "Scrum Poker: o relatório final abre com um resumo visual da sessão e a faixa do Jira com quantas tarefas faltam enviar; a sugestão de abrir a retro saiu do relatório.",
       "Scrum Poker: o lobby destaca a sessão ao vivo para entrar direto, e a sala recém-criada mostra quem já chegou, o link com o botão de copiar e como a sessão está configurada.",
-      "Scrum Poker: o importador do Jira marca o que já está na fila e não importa de novo."
+      "Scrum Poker: o importador do Jira marca o que já está na fila e não importa de novo.",
+      "Scrum Poker: com a fila montada, quem facilita vê a tela \"Tudo pronto para começar\", com a primeira tarefa na mesa e o botão de iniciar.",
+      "Scrum Poker: em \"Quem vota\", Desenvolvedor(a) aparece em azul e Analista de QA em verde, as mesmas cores da mesa.",
+      "Scrum Poker: a tabela de tarefas do relatório ganhou a coluna Jira (enviada, com erro ou não enviada), só na tela."
     ]
   },
   {

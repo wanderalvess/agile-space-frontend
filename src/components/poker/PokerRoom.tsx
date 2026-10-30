@@ -804,6 +804,9 @@ const PokerRoomComponent = ({
       }
     : null;
   const canSaveRound = isCurrentUserFacilitator && votesRevealed && !!summary && !!activeIssueId && !isSessionFinished;
+  // "Pronto para começar": fila montada e sessão não iniciada. Quem facilita vê a tela de início (passos, mesa
+  // com a primeira tarefa e "Iniciar refinamento"); o time segue vendo a mesa com "Aguardando o facilitador".
+  const showReadyScreen = isCurrentUserFacilitator && !isInitialState && !isSessionFinished && !!activeIssueId && !sessionStartedAt && !!onStartSession;
 
   const taskActions = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
     <TaskActionsBar
@@ -939,7 +942,7 @@ const PokerRoomComponent = ({
             onOpenRetro={onOpenRetro}
             onDeleteRoom={onDeleteRoom}
             canReveal={votes.length > 0}
-            showReveal={showRevealButton}
+            showReveal={showRevealButton && !showReadyScreen}
             votedCount={votes.length}
             voterTotal={Math.max(eligibleVoters.length, votes.length)}
             onReveal={handleReveal}
@@ -971,7 +974,7 @@ const PokerRoomComponent = ({
 
           {/* Miolo rolável: os filhos não encolhem (sem isso a mesa, com overflow oculto, era espremida e cortada); só a mesa estica. */}
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:px-5 [&>*]:shrink-0">
-          {isInitialState ? (
+          {isInitialState || showReadyScreen ? (
             <div className="flex flex-1 items-start justify-center py-1">
               {isCurrentUserFacilitator ? (
                 <RoomWelcome
@@ -989,6 +992,12 @@ const PokerRoomComponent = ({
                   onShare={handleCopyLink}
                   onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
                   onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
+                  ready={showReadyScreen && activeIssue && onStartSession ? {
+                    firstKey: activeIssue.key,
+                    firstTitle: String(activeIssue.title || ''),
+                    queueCount: pendingQueueCount,
+                    onStart: onStartSession,
+                  } : null}
                 />
               ) : (
                 <RoomWaiting deck={deck} maxHours={settings?.maxHours} deckLabel={deckLabel} roomTeam={roomTeam} participants={participants} onlineIds={onlineIds} />
@@ -1009,7 +1018,7 @@ const PokerRoomComponent = ({
               settings={settings}
               onRefreshHistory={handleExportTasksToWorkspace}
               onNewSession={() => router.push('/room?nova=1')}
-              jira={isCurrentUserFacilitator ? { sent: jiraSentCount, pending: jiraPendingIssues.length, onSend: () => openJiraBatch(jiraPendingIssues) } : null}
+              jira={isCurrentUserFacilitator ? { sent: jiraSentCount, pending: jiraPendingIssues.length, onSend: () => openJiraBatch(jiraPendingIssues), statusByIssueId: jiraStatusByIssueId } : null}
             />
           ) : (
             <>
@@ -1128,7 +1137,7 @@ const PokerRoomComponent = ({
           )}
 
           {/* Baralho fixo embaixo: nunca cobre a mesa, que rola por cima dele se precisar. */}
-          {!isInitialState && !(isSessionFinished && stats) && !(votesRevealed && summary) && (
+          {!isInitialState && !showReadyScreen && !(isSessionFinished && stats) && !(votesRevealed && summary) && (
             <div className="shrink-0">
               {activeIssueId && currentUser.role !== 'spectator' ? (
                 <Controls
@@ -1157,7 +1166,7 @@ const PokerRoomComponent = ({
           )}
         </main>
 
-        {!isTheaterMode && notesEnabled && !isInitialState && !isSessionFinished && (
+        {!isTheaterMode && notesEnabled && !isInitialState && !showReadyScreen && !isSessionFinished && (
           <ResponsivePanel
             side="right"
             open={isNotesPanelOpen}
