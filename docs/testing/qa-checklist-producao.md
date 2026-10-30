@@ -1,4 +1,4 @@
-# Checklist de QA — validação pré-produção (Agile Space)
+# Checklist de QA — validação pré-produção (Portal Tech V&D)
 
 ## Automação (o que já roda sozinho)
 
