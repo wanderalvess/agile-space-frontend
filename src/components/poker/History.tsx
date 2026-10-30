@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Ban,
   FileText,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,10 @@ interface HistoryProps {
   // Fila da sessão: dá acesso ao `startedAt` do item (quando entrou na mesa),
   // que é o que permite separar "tempo do tópico" de "tempo de votação".
   issues?: Issue[];
+  // Publicação no Jira (só para tarefas importadas, com chave): abre a prévia do envio.
+  onPublishToJira?: (issue: Issue) => void;
+  // Estado do envio de cada tarefa (por id da tarefa), para o botão mostrar "Enviado"/"Erro".
+  jiraPublishStatusByIssueId?: Record<string, 'PENDING' | 'RUNNING' | 'DONE' | 'ERROR'>;
 }
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: 'baixa', medium: 'média', high: 'alta' };
@@ -61,7 +66,7 @@ function formatDuration(ms: number) {
   return rest >= 30 ? `${mins}min ${rest}s` : `${mins}min`;
 }
 
-export function History({ roomId, rounds, participants, issues }: HistoryProps) {
+export function History({ roomId, rounds, participants, issues, onPublishToJira, jiraPublishStatusByIssueId }: HistoryProps) {
   const { toast } = useToast();
   const participantMap = new Map(participants.map(p => [p.id, p]));
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null);
@@ -376,6 +381,23 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                               <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> Ver detalhes
                             </Button>
                           )}
+                          {onPublishToJira && issueOfRound(round)?.key && (() => {
+                            const issue = issueOfRound(round)!;
+                            const status = jiraPublishStatusByIssueId?.[issue.id];
+                            const label = status === 'DONE' ? 'Enviado ao Jira' : status === 'ERROR' ? 'Erro no envio' : status === 'RUNNING' || status === 'PENDING' ? 'Enviando…' : 'Enviar para o Jira';
+                            return (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onPublishToJira(issue)}
+                                disabled={status === 'DONE' || status === 'RUNNING' || status === 'PENDING'}
+                                className={cn('h-9 gap-2 rounded-lg text-[13px]', status === 'ERROR' && 'border-destructive/50 text-destructive')}
+                                title={status === 'DONE' ? 'Esta tarefa já foi publicada no Jira' : status === 'ERROR' ? 'Veja a fila do Jira para tentar novamente' : undefined}
+                              >
+                                <Send className="h-3.5 w-3.5" strokeWidth={1.5} /> {label}
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}

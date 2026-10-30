@@ -23,6 +23,7 @@ import {
   Users,
   Wrench,
   type LucideIcon,
+  ListTree,
 } from 'lucide-react';
 
 /**
@@ -39,6 +40,7 @@ export type ModuleKey =
   | 'painel'
   | 'squad'
   | 'roster'
+  | 'subtarefas'
   | 'workspace'
   | 'poker'
   | 'retro'
@@ -119,6 +121,7 @@ export const MODULES: readonly PortalModule[] = [
   { key: 'painel', label: 'Painel do time', href: '/squad?tab=resumo', icon: LayoutDashboard, group: 'squad', description: 'Sprint, board e movimentos da squad', aliases: ['resumo', 'painel'], paths: ['/painel'], home: { group: 'flow', order: 1 } },
   { key: 'squad', label: 'Squad', href: '/squad', icon: Network, group: 'squad', description: 'Quadro, cronograma e métricas da squad', aliases: ['hub da squad'], paths: ['/squad/dashboards', '/squad/panels'] },
   { key: 'roster', label: 'Time da squad', href: '/squad/roster', icon: Users, group: 'squad', description: 'Quem está no time, cargos e capacidade', aliases: ['roster', 'integrantes', 'equipe'] },
+  { key: 'subtarefas', label: 'Sub-tarefas do time', href: '/subtarefas', icon: ListTree, group: 'squad', description: 'Quais sub-tarefas o time cria no Jira por tipo de issue', aliases: ['subtasks', 'sub-tarefas', 'jira', 'codificação', 'code review'] },
   { key: 'workspace', label: 'Meu espaço', href: '/workspace', icon: PanelsTopLeft, group: 'squad', description: 'Kanban pessoal, tarefas e agendas', aliases: ['meu quadro', 'workspace'], home: { group: 'flow', order: 2 } },
 
   // Rituais (os cinco módulos de sessão)

@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { JIRA_PUBLISH_EVENT } from '@/app/room/jira-publish-api';
 import { useState, useEffect, useMemo, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DeckType, Participant, Role, Room, Vote, VotingRound, Issue, GlobalRole, ConfidenceLevel } from '@/lib/types';
@@ -277,6 +278,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           case 'ROOM_UPDATED':
             if (data.payload) {
               applyRoom(data.payload);
+            }
+            break;
+
+          case 'JIRA_PUBLISH_UPDATED':
+            // A fila do Jira vive dentro do PokerRoom; ele escuta este evento de janela.
+            if (data.payload && typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent(JIRA_PUBLISH_EVENT, { detail: data.payload }));
             }
             break;
 

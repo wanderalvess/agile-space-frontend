@@ -10,11 +10,14 @@ import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Controls } from '@/components/poker/Controls';
 import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, X } from 'lucide-react';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, Send, SkipForward, StickyNote, Users, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
 import { RefinementNotes } from './RefinementNotes';
 import { History } from './History';
+import { JiraPublishDialog } from './JiraPublishDialog';
+import { JiraPublishQueue } from './JiraPublishQueue';
+import { jiraPublishApi, JIRA_PUBLISH_EVENT, type JiraPublishJob } from '@/app/room/jira-publish-api';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
@@ -501,6 +504,51 @@ const PokerRoomComponent = ({
     return null;
   };
 
+  // Publicação no Jira: fila de envios da sala (carregada uma vez; o WebSocket avisa as mudanças pelo
+  // evento de janela JIRA_PUBLISH_EVENT, disparado pela página) e a tarefa cuja prévia está aberta.
+  const [jiraJobs, setJiraJobs] = useState<JiraPublishJob[]>([]);
+  const [jiraPublishIssue, setJiraPublishIssue] = useState<Issue | null>(null);
+  const [jiraRetryingId, setJiraRetryingId] = useState<string | null>(null);
+  const mergeJiraJob = (job: JiraPublishJob) => {
+    setJiraJobs(prev => {
+      const idx = prev.findIndex(j => j.id === job.id);
+      if (idx < 0) return [job, ...prev];
+      const next = [...prev];
+      next[idx] = job;
+      return next;
+    });
+  };
+  useEffect(() => {
+    let alive = true;
+    jiraPublishApi.list(roomId).then(jobs => { if (alive) setJiraJobs(jobs); }).catch(() => { /* sem fila ainda, ou backend antigo */ });
+    const onUpdate = (e: Event) => {
+      const job = (e as CustomEvent<JiraPublishJob>).detail;
+      if (job && job.roomId === roomId) mergeJiraJob(job);
+    };
+    window.addEventListener(JIRA_PUBLISH_EVENT, onUpdate);
+    return () => { alive = false; window.removeEventListener(JIRA_PUBLISH_EVENT, onUpdate); };
+  }, [roomId]);
+  const jiraStatusByIssueId = useMemo(() => {
+    // O envio mais recente de cada tarefa (a lista vem do mais novo para o mais antigo).
+    const out: Record<string, JiraPublishJob['status']> = {};
+    for (const j of jiraJobs) if (j.issueId && !(j.issueId in out)) out[j.issueId] = j.status;
+    return out;
+  }, [jiraJobs]);
+  const handleJiraRetry = async (jobId: string) => {
+    setJiraRetryingId(jobId);
+    try {
+      mergeJiraJob(await jiraPublishApi.retry(roomId, jobId));
+    } catch (e) {
+      toast({ title: 'Não foi possível tentar de novo', description: e instanceof Error ? e.message : 'Erro inesperado.', variant: 'destructive' });
+    } finally {
+      setJiraRetryingId(null);
+    }
+  };
+  const activeIssueForJira = useMemo(
+    () => (activeIssueId ? issuesQueue.find(i => i.id === activeIssueId) ?? null : null),
+    [issuesQueue, activeIssueId]
+  );
+
   const handleCalculateAndComplete = () => {
     const result = getCalculatedPoints() as any;
     // Só "?" / café (ou só gestão) não é estimativa: salvar "0" apagaria a informação de que ninguém estimou.
@@ -938,6 +986,18 @@ const PokerRoomComponent = ({
                   </div>
                   <aside className="flex min-w-0 flex-col gap-4" aria-label="Resultado da rodada">
                     <CopyEstimateCard summary={summary} deck={deck} values={deck === 'hours' ? adjusted : undefined} />
+                    {activeIssueForJira?.key && activeIssueForJira.status === 'completed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-full gap-2 rounded-lg"
+                        onClick={() => setJiraPublishIssue(activeIssueForJira)}
+                        disabled={jiraStatusByIssueId[activeIssueForJira.id] === 'DONE' || jiraStatusByIssueId[activeIssueForJira.id] === 'RUNNING'}
+                      >
+                        <Send className="h-4 w-4" strokeWidth={1.5} />
+                        {jiraStatusByIssueId[activeIssueForJira.id] === 'DONE' ? 'Enviado ao Jira' : 'Enviar para o Jira'}
+                      </Button>
+                    )}
                     {settings?.outlierPrompt && !settings?.anonymousReveal && (
                       <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
                     )}
@@ -1041,10 +1101,31 @@ const PokerRoomComponent = ({
             icon={HistoryIcon}
             count={(votingRounds || []).length}
           >
-            <History roomId={roomId} rounds={votingRounds || []} participants={participants} issues={issuesQueue} />
+            <section className="mb-3" aria-labelledby="jira-queue-title">
+              <h3 id="jira-queue-title" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Send className="h-3.5 w-3.5" aria-hidden /> Envios para o Jira
+              </h3>
+              <JiraPublishQueue jobs={jiraJobs} onRetry={handleJiraRetry} retryingId={jiraRetryingId} />
+            </section>
+            <History
+              roomId={roomId}
+              rounds={votingRounds || []}
+              participants={participants}
+              issues={issuesQueue}
+              onPublishToJira={setJiraPublishIssue}
+              jiraPublishStatusByIssueId={jiraStatusByIssueId}
+            />
           </ResponsivePanel>
         )}
       </div>
+
+      <JiraPublishDialog
+        roomId={roomId}
+        issue={jiraPublishIssue}
+        open={!!jiraPublishIssue}
+        onOpenChange={(open) => { if (!open) setJiraPublishIssue(null); }}
+        onPublished={mergeJiraJob}
+      />
 
       {/* Votos em andamento ao trocar a tarefa */}
       <SwitchIssueDialog
