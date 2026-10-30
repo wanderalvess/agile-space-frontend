@@ -176,7 +176,7 @@ export function ApprovalsHub() {
                 )}
               >
                 {t.label}
-                {t.count !== null && <span className="text-xs tabular-nums opacity-70">{t.count}</span>}
+                {t.count !== null && <span className="text-xs font-normal tabular-nums">{t.count}</span>}
               </button>
             );
           })}

@@ -88,7 +88,7 @@ export function SquadDataState({ kind, subject, isSyncing, errorMessage, onConne
     )}>
       <span className={cn(
         'self-start rounded-full border px-3 py-0.5 text-xs font-semibold',
-        isError ? 'border-rose-500/50 text-rose-600 dark:text-rose-300' : kind === 'no-jira' ? 'border-amber-500/50 text-amber-600 dark:text-amber-400' : 'border-blue-500/50 text-blue-600 dark:text-blue-300'
+        isError ? 'border-rose-500/50 text-rose-700 dark:text-rose-300' : kind === 'no-jira' ? 'border-amber-500/50 text-amber-800 dark:text-amber-400' : 'border-blue-500/50 text-blue-700 dark:text-blue-300'
       )}>
         {copy.badge}
       </span>

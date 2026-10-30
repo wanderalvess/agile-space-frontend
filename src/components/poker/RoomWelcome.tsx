@@ -108,7 +108,7 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
 
 const STEP_CARD = 'relative flex h-full flex-col gap-3.5 rounded-[14px] border p-5 transition-colors duration-slow';
 const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
-const KEY = 'rounded border border-current/30 px-1.5 py-px text-xs tabular-nums opacity-70';
+const KEY = 'rounded border border-current/40 px-1.5 py-px text-xs tabular-nums';
 
 interface RoomWelcomeProps {
   deck: DeckType;

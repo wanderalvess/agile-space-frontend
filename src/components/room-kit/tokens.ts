@@ -58,9 +58,9 @@ export const TONES: Record<Tone, ToneStyle> = {
     hairline: 'bg-gradient-to-r from-emerald-500 to-emerald-300',
   },
   warn: {
-    tile: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30',
-    text: 'text-amber-700 dark:text-amber-300',
-    chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    tile: 'bg-amber-500/10 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30',
+    text: 'text-amber-800 dark:text-amber-300',
+    chip: 'bg-amber-500/10 text-amber-800 dark:text-amber-300',
     hairline: 'bg-gradient-to-r from-amber-500 to-amber-300',
   },
   danger: {

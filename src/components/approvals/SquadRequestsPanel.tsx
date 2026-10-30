@@ -111,7 +111,7 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
                 )}
               >
                 {f.label}
-                {f.id === 'PENDING' && requests.pendingCount !== null && <span className="text-xs tabular-nums opacity-70">{requests.pendingCount}</span>}
+                {f.id === 'PENDING' && requests.pendingCount !== null && <span className="text-xs font-normal tabular-nums">{requests.pendingCount}</span>}
               </button>
             );
           })}

@@ -148,7 +148,7 @@ export default function KnowledgeSettingsPage() {
                           href={provider.link}
                           target="_blank"
                           rel="noreferrer"
-                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline", FOCUS)}
+                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline max-sm:min-h-11", FOCUS)}
                         >
                           Obter chave <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         </a>
@@ -174,7 +174,7 @@ export default function KnowledgeSettingsPage() {
                     type="button"
                     aria-label={showKey ? "Ocultar chave" : "Mostrar chave"}
                     onClick={() => setShowKey(prev => !prev)}
-                    className={cn("absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground", FOCUS)}
+                    className={cn("absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground max-sm:right-1 max-sm:p-3", FOCUS)}
                   >
                     {showKey ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                   </button>

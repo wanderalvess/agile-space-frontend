@@ -33,7 +33,7 @@ function ModuleRow({ module, match }: { module: HomeModule; match: boolean }) {
               key={l.href + l.label}
               href={l.href}
               className={cn(
-                'rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
+                'rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3.5',
                 FOCUS_RING,
               )}
             >

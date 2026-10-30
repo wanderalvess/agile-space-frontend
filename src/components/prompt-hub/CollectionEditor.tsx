@@ -304,7 +304,7 @@ export function CollectionEditor({ id }: { id?: string }) {
                     <Icon className="h-[18px] w-[18px] shrink-0 text-foreground" strokeWidth={1.5} aria-hidden="true" />
                     <span className="flex flex-col">
                       <span className="text-sm font-semibold text-foreground">{meta.label}</span>
-                      <span className="text-[13px] text-muted-foreground">{meta.description}</span>
+                      <span className={cn('text-[13px]', on ? 'text-foreground/80' : 'text-muted-foreground')}>{meta.description}</span>
                     </span>
                   </button>
                 );

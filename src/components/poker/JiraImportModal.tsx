@@ -237,13 +237,13 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 [&>*]:shrink-0">
                 {types.map(([t, n]) => (
                   <button key={`t-${t}`} type="button" aria-pressed={filter.types.has(t)} onClick={() => toggleIn('types', t)} className={cn(CHIP, filter.types.has(t) && 'border-primary/50 bg-primary/10 font-semibold', FOCUS_RING)}>
-                    {t} <span className="tabular-nums opacity-70">{n}</span>
+                    {t} <span className="font-normal tabular-nums">{n}</span>
                   </button>
                 ))}
                 {types.length > 1 && statuses.length > 1 && <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-border" />}
                 {statuses.map(([s, n]) => (
                   <button key={`s-${s}`} type="button" aria-pressed={filter.statuses.has(s)} onClick={() => toggleIn('statuses', s)} className={cn(CHIP, filter.statuses.has(s) && 'border-primary/50 bg-primary/10 font-semibold', FOCUS_RING)}>
-                    {s} <span className="tabular-nums opacity-70">{n}</span>
+                    {s} <span className="font-normal tabular-nums">{n}</span>
                   </button>
                 ))}
               </div>

@@ -331,7 +331,7 @@ export default function PokerHubPage() {
                 )}
               >
                 {f.label}
-                <span className="text-xs tabular-nums opacity-70">{countOf(f.id)}</span>
+                <span className="text-xs font-normal tabular-nums">{countOf(f.id)}</span>
               </button>
             );
           })}

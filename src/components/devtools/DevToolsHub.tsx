@@ -216,7 +216,7 @@ export function DevToolsHub({ onOpenGuide }: { onOpenGuide?: () => void }) {
             {nExt} usam serviço externo
           </span>
           {onOpenGuide && (
-            <button type="button" onClick={onOpenGuide} className={cn('rounded-md font-semibold text-foreground underline underline-offset-2', FOCUS_RING)}>
+            <button type="button" onClick={onOpenGuide} className={cn('rounded-md font-semibold text-foreground underline underline-offset-2 max-sm:min-h-11', FOCUS_RING)}>
               Ver quais
             </button>
           )}

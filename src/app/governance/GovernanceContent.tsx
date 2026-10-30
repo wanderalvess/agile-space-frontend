@@ -17,7 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { DataTable, PAGE_CARD, type DataColumn } from '@/components/page';
-import { FOCUS_RING, IconTile, ModalButton, StatusChip } from '@/components/room-kit';
+import { FOCUS_RING, IconTile, ModalButton } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import {
   DATA_REQUEST_HREF,
@@ -179,7 +179,7 @@ export function GovernanceContent({ role }: { role: RoleId }) {
                       className={cn('w-[22%] px-3.5 py-2.5 text-left font-bold', c.id === role ? 'bg-primary/10 text-foreground dark:bg-primary/15' : 'text-foreground')}
                     >
                       {c.label}
-                      {c.id === role && <span className="ml-2 align-middle"><StatusChip tone="brand">Você</StatusChip></span>}
+                      {c.id === role && <span className="ml-2 inline-flex h-5 items-center rounded-full bg-background px-2 align-middle text-xs font-semibold text-foreground ring-1 ring-inset ring-primary/50">Você</span>}
                     </th>
                   ))}
                 </tr>

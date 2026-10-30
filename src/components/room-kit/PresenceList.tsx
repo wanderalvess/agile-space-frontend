@@ -137,7 +137,7 @@ export function PresenceList({ items, groupOrder, fallbackGroup, renderActions, 
           {g.label && (
             <h3 className="flex items-center gap-2 px-2 pb-1 pt-1 text-xs font-semibold text-muted-foreground">
               {g.label}
-              <span className="tabular-nums text-muted-foreground/70">{g.items.length}</span>
+              <span className="tabular-nums text-muted-foreground">{g.items.length}</span>
             </h3>
           )}
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">

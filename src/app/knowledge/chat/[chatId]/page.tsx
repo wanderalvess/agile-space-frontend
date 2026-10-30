@@ -350,6 +350,7 @@ function ChatContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-background text-foreground">
+      <h1 className="sr-only">Assistente virtual</h1>
 
       {/* Barra lateral persistente com as conversas */}
       <aside className={cn(

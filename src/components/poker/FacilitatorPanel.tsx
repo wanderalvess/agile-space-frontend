@@ -294,7 +294,7 @@ export function FacilitatorPanel({
                   )}
                 >
                   {t.label}
-                  {n > 0 && <span className="text-xs tabular-nums opacity-70">{n}</span>}
+                  {n > 0 && <span className="text-xs font-normal tabular-nums">{n}</span>}
                 </button>
               );
             })}

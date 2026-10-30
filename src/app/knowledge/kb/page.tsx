@@ -885,6 +885,7 @@ function KBExplorerContent() {
                                 <tr className="bg-muted/40 border-b border-border">
                                   <th className="px-4 py-3 text-left w-12">
                                     <Checkbox
+                                      aria-label="Selecionar todos os artigos"
                                       checked={selectedIds.size === finalDocs.length && finalDocs.length > 0}
                                       onCheckedChange={toggleSelectAll}
                                     />
@@ -904,6 +905,7 @@ function KBExplorerContent() {
                                     <tr key={docItem.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors group">
                                       <td className="px-4 py-3">
                                         <Checkbox
+                                          aria-label={`Selecionar ${docItem.title}`}
                                           checked={selectedIds.has(docItem.id)}
                                           onCheckedChange={() => toggleSelect(docItem.id)}
                                         />
