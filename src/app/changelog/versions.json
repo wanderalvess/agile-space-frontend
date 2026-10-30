@@ -1,5 +1,25 @@
 [
   {
+    "tag": "v4.29.0",
+    "date": "30 de Outubro, 2026",
+    "title": "Scrum Poker redesenhado: sala em três colunas, envio ao Jira em lote e relatório novo",
+    "description": "A sala do Scrum Poker cabe inteira na tela, com a fila e as notas ao lado da mesa, e o fechamento da sessão ganhou envio ao Jira de várias tarefas de uma vez.",
+    "changes": [
+      "Scrum Poker: em telas largas a fila fica à esquerda e as notas do refinamento à direita, sem cobrir a mesa; no notebook continuam a um clique.",
+      "Scrum Poker: a barra do topo mostra em que tarefa a sessão está e quantas foram estimadas; depois de revelar, o botão principal vira \"Salvar e avançar\".",
+      "Scrum Poker: \"Pular\" fica à vista e cancelar a tarefa e encerrar a sessão ficam no menu \"Rodada\".",
+      "Scrum Poker: com os votos revelados, as horas finais por papel, o revotar e o \"Copiar (DEV 10h / QA 4h)\" ficam numa faixa embaixo da mesa, no lugar do baralho.",
+      "Scrum Poker: notas DEV e QA em abas no painel ao lado, salvando sozinhas.",
+      "Scrum Poker: \"Enviar ao Jira ao salvar\" abre a prévia do envio assim que a estimativa é salva (dá para desligar).",
+      "Scrum Poker: enviar ao Jira mostra, para cada sub-tarefa, o título, as horas e o comentário que vem das notas da sala, tudo editável antes de enviar.",
+      "Scrum Poker: envio de várias tarefas ao Jira de uma vez, com a prévia de cada uma e o andamento passo a passo; se algo falha, a nova tentativa continua do passo que parou.",
+      "Scrum Poker: encerrar a sessão mostra o que ficou sem estimar e pergunta, com dois botões, se encerra sem enviar ou enviando ao Jira as estimadas que faltam.",
+      "Scrum Poker: o relatório final abre com um resumo visual da sessão e a faixa do Jira com quantas tarefas faltam enviar; a sugestão de abrir a retro saiu do relatório.",
+      "Scrum Poker: o lobby destaca a sessão ao vivo para entrar direto, e a sala recém-criada mostra quem já chegou, o link com o botão de copiar e como a sessão está configurada.",
+      "Scrum Poker: o importador do Jira marca o que já está na fila e não importa de novo."
+    ]
+  },
+  {
     "tag": "v4.28.0",
     "date": "30 de Outubro, 2026",
     "title": "Diálogos padronizados, mesa do Poker legível e telas mais acessíveis",

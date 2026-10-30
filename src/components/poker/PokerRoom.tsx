@@ -8,15 +8,16 @@ import { summarizeRound, divergenceLabel } from '@/lib/poker-results';
 import { plainSnippet } from '@/lib/poker-table';
 import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Controls } from '@/components/poker/Controls';
-import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
+import { RoundCenter, RoleBreakdown } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, Send, SkipForward, StickyNote, Users, X } from 'lucide-react';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, Send, SkipForward, StickyNote, Users, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
-import { RefinementNotes } from './RefinementNotes';
+import { RefinementNotes, RefinementNotesPanel } from './RefinementNotes';
 import { History } from './History';
 import { JiraPublishDialog } from './JiraPublishDialog';
 import { JiraPublishQueue } from './JiraPublishQueue';
+import { JiraBatchPublishDialog } from './JiraBatchPublishDialog';
 import { jiraPublishApi, JIRA_PUBLISH_EVENT, type JiraPublishJob } from '@/app/room/jira-publish-api';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { pokerApi } from '../../app/room/api';
@@ -35,10 +36,13 @@ import { RoomWelcome, RoomWaiting } from './RoomWelcome';
 import { SwitchIssueDialog, OffTableDialog, CancelIssueDialog, FinishSessionDialog, CeremonySettingsDialog } from './PokerDialogs';
 import { PokerRoomBar } from './PokerRoomBar';
 import { PokerTable } from './PokerTable';
-import { DecisionPanel } from './DecisionPanel';
+import { DecisionBar } from './DecisionPanel';
 import { TaskActionsBar } from './TaskActionsBar';
 import { PokerSessionReport } from './PokerSessionReport';
-import { Modal, ModalButton, ResponsivePanel, RoomTimer, StatusChip } from '@/components/room-kit';
+import { Modal, ModalButton, ResponsivePanel, RoomTimer, StatusChip, useRoomPreference } from '@/components/room-kit';
+
+/** A partir desta largura a fila e as notas ficam abertas ao lado da mesa (colunas fixas, como no desenho). */
+const WIDE_ROOM_QUERY = '(min-width: 1600px)';
 
 const WELCOME_DECK_LABELS: Record<string, string> = {
   fibonacci: 'Fibonacci',
@@ -201,32 +205,62 @@ const PokerRoomComponent = ({
   const [isTeamChatOpen, setIsTeamChatOpen] = useState(false);
   const [teamChatUnread, setTeamChatUnread] = useState(0);
 
+  // Painel das notas do refinamento (coluna da direita). Divide o lado direito com participantes,
+  // histórico e chats: abrir um fecha os outros para não empilhar painéis no mesmo lugar.
+  const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
+  const notesEnabled = !!settings?.refinementNotes;
+
   // Assistente da Base e chat do time abrem no mesmo painel lateral: abrir um
   // fecha o outro para não empilhar dois painéis no mesmo lugar.
   const toggleKnowledgeChat = () => {
     setIsTeamChatOpen(false);
     setIsParticipantsOpen(false);
     setIsHistoryOpen(false);
+    setIsNotesPanelOpen(false);
     setIsChatOpen(v => !v);
   };
   const toggleTeamChat = () => {
     setIsChatOpen(false);
     setIsParticipantsOpen(false);
     setIsHistoryOpen(false);
+    setIsNotesPanelOpen(false);
     setIsTeamChatOpen(v => !v);
   };
   const toggleParticipants = () => {
     setIsChatOpen(false);
     setIsTeamChatOpen(false);
     setIsHistoryOpen(false);
+    setIsNotesPanelOpen(false);
     setIsParticipantsOpen(v => !v);
   };
   const toggleHistory = () => {
     setIsChatOpen(false);
     setIsTeamChatOpen(false);
     setIsParticipantsOpen(false);
+    setIsNotesPanelOpen(false);
     setIsHistoryOpen(v => !v);
   };
+  const toggleNotesPanel = () => {
+    setIsChatOpen(false);
+    setIsTeamChatOpen(false);
+    setIsParticipantsOpen(false);
+    setIsHistoryOpen(false);
+    setIsNotesPanelOpen(v => !v);
+  };
+
+  // Tela larga: fila à esquerda e notas à direita já abertas, sem cobrir a mesa. Abaixo disso
+  // continuam a um clique (barra do topo e botão "Notas" da tarefa).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia(WIDE_ROOM_QUERY).matches) return;
+    setIsQueueOpen(true);
+  }, []);
+  // As configurações da sala chegam depois da primeira pintura: abre as notas uma vez só, quando a sala as liga.
+  const notesAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!notesEnabled || notesAutoOpenedRef.current) return;
+    notesAutoOpenedRef.current = true;
+    if (typeof window !== 'undefined' && window.matchMedia(WIDE_ROOM_QUERY).matches) setIsNotesPanelOpen(true);
+  }, [notesEnabled]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -549,12 +583,28 @@ const PokerRoomComponent = ({
       setJiraRetryingId(null);
     }
   };
+  // Estimadas com chave do Jira que ainda não foram (ou falharam): o encerrar e o relatório oferecem enviar todas de uma vez.
+  const jiraPendingIssues = useMemo(
+    () => issuesQueue.filter(i => i.key && i.status === 'completed' && !i.skipped && !i.cancelled && jiraStatusByIssueId[i.id] !== 'DONE' && jiraStatusByIssueId[i.id] !== 'RUNNING'),
+    [issuesQueue, jiraStatusByIssueId]
+  );
+  const jiraSentCount = useMemo(
+    () => issuesQueue.filter(i => i.key && i.status === 'completed' && jiraStatusByIssueId[i.id] === 'DONE').length,
+    [issuesQueue, jiraStatusByIssueId]
+  );
+  const [jiraBatch, setJiraBatch] = useState<Issue[] | null>(null);
+  const [isJiraBatchOpen, setIsJiraBatchOpen] = useState(false);
+  const openJiraBatch = (list: Issue[]) => {
+    if (list.length === 0) return;
+    setJiraBatch(list);
+    setIsJiraBatchOpen(true);
+  };
   const activeIssueForJira = useMemo(
     () => (activeIssueId ? issuesQueue.find(i => i.id === activeIssueId) ?? null : null),
     [issuesQueue, activeIssueId]
   );
 
-  const handleCalculateAndComplete = () => {
+  const handleCalculateAndComplete = (): boolean => {
     const result = getCalculatedPoints() as any;
     // Só "?" / café (ou só gestão) não é estimativa: salvar "0" apagaria a informação de que ninguém estimou.
     const hasNumericVote = votes.some(v => v.value !== '?' && v.value !== '☕');
@@ -564,9 +614,40 @@ const PokerRoomComponent = ({
         description: 'Os votos são "?" ou café, ou só de gestão. Reabra a votação, pule ou adie a tarefa.',
         variant: 'destructive',
       });
-      return;
+      return false;
     }
     onCompleteIssue(result.points, result.devPoints, result.qaPoints, result.rolePoints);
+    return true;
+  };
+
+  // "Enviar ao Jira ao salvar" (preferência de quem facilita, guardada no navegador). Depois de salvar, a
+  // prévia do envio abre sozinha quando a tarefa volta do servidor já estimada: a prévia é montada no
+  // servidor com as horas salvas, então abrir antes mostraria a estimativa antiga.
+  const [jiraOnSave, setJiraOnSave] = useRoomPreference<boolean>('poker:jiraOnSave', true, (raw) => (raw === '1' ? true : raw === '0' ? false : undefined), (v) => (v ? '1' : '0'));
+  const [jiraAfterSave, setJiraAfterSave] = useState<{ id: string; signature: string; wasCompleted: boolean } | null>(null);
+  const estimateSignature = (i: Issue) => `${i.status}|${i.estimatedPoints ?? ''}|${i.devPoints ?? ''}|${i.qaPoints ?? ''}`;
+  useEffect(() => {
+    if (!jiraAfterSave) return;
+    const issue = issuesQueue.find(i => i.id === jiraAfterSave.id);
+    if (!issue) { setJiraAfterSave(null); return; }
+    const ready = issue.status === 'completed' && (!jiraAfterSave.wasCompleted || estimateSignature(issue) !== jiraAfterSave.signature);
+    if (ready) {
+      setJiraAfterSave(null);
+      setJiraPublishIssue(issue);
+      return;
+    }
+    // Mesma estimativa salva de novo (nada muda na tarefa): abre depois de um instante.
+    if (jiraAfterSave.wasCompleted) {
+      const t = setTimeout(() => { setJiraAfterSave(null); setJiraPublishIssue(issue); }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [jiraAfterSave, issuesQueue]);
+
+  const handleSaveAndAdvance = () => {
+    const issue = activeIssueForJira;
+    const sendToJira = jiraOnSave && !!issue?.key && jiraStatusByIssueId[issue.id] !== 'DONE' && jiraStatusByIssueId[issue.id] !== 'RUNNING';
+    if (!handleCalculateAndComplete()) return;
+    if (sendToJira && issue) setJiraAfterSave({ id: issue.id, signature: estimateSignature(issue), wasCompleted: issue.status === 'completed' });
   };
 
   // Consenso pleno (todos os votos elegíveis iguais) e divergência crítica —
@@ -715,6 +796,14 @@ const PokerRoomComponent = ({
   const sessionStatus = isSessionFinished ? 'done' : sessionStartedAt ? 'live' : 'waiting';
   const presencePeople = participants.map(p => ({ id: p.id, name: p.nickname, online: onlineIds.has(p.id) }));
   const pendingQueueCount = issuesQueue.filter(i => i.status !== 'completed' && !i.skipped && !i.cancelled && !i.parked).length;
+  const sessionProgress = issuesQueue.length > 0 && !isSessionFinished
+    ? {
+        current: activeIssueIndex >= 0 ? activeIssueIndex + 1 : 0,
+        total: issuesQueue.length,
+        estimated: issuesQueue.filter(i => i.status === 'completed' && !i.skipped && !i.cancelled).length,
+      }
+    : null;
+  const canSaveRound = isCurrentUserFacilitator && votesRevealed && !!summary && !!activeIssueId && !isSessionFinished;
 
   const taskActions = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
     <TaskActionsBar
@@ -854,6 +943,8 @@ const PokerRoomComponent = ({
             votedCount={votes.length}
             voterTotal={Math.max(eligibleVoters.length, votes.length)}
             onReveal={handleReveal}
+            save={canSaveRound ? { label: hasNextPending ? 'Salvar e avançar' : 'Salvar final', onSave: handleSaveAndAdvance } : null}
+            progress={sessionProgress}
           />
         </>
       )}
@@ -891,6 +982,10 @@ const PokerRoomComponent = ({
                   participants={participants}
                   onlineIds={onlineIds}
                   roomUrl={typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''}
+                  roomCode={roomId}
+                  currentUserId={currentUser.id}
+                  votingCargos={votingCargos}
+                  onOpenSettings={() => setIsFacilitatorSettingsOpen(true)}
                   onShare={handleCopyLink}
                   onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
                   onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
@@ -913,8 +1008,8 @@ const PokerRoomComponent = ({
               sessionEndedAt={sessionEndedAt}
               settings={settings}
               onRefreshHistory={handleExportTasksToWorkspace}
-              onOpenRetro={onOpenRetro}
               onNewSession={() => router.push('/room?nova=1')}
+              jira={isCurrentUserFacilitator ? { sent: jiraSentCount, pending: jiraPendingIssues.length, onSend: () => openJiraBatch(jiraPendingIssues) } : null}
             />
           ) : (
             <>
@@ -929,7 +1024,8 @@ const PokerRoomComponent = ({
                 isFacilitator={isCurrentUserFacilitator}
                 isTheaterMode={isTheaterMode}
                 onShowDetail={() => setIsDetailOpen(true)}
-                onShowNotes={settings?.refinementNotes && activeIssueId ? () => setIsNotesOpen(true) : undefined}
+                onShowNotes={notesEnabled && activeIssueId ? (isTheaterMode ? () => setIsNotesOpen(true) : toggleNotesPanel) : undefined}
+                notesOpen={!isTheaterMode && isNotesPanelOpen}
                 hasNotes={hasNotes}
                 round={activeIssueId ? currentRoundNumber : undefined}
                 maxRounds={settings?.roundNudge ? maxRounds : undefined}
@@ -956,8 +1052,7 @@ const PokerRoomComponent = ({
               )}
 
               {votesRevealed && summary ? (
-                <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-                  <div className="flex min-w-0 flex-col gap-4">
+                <div className="flex min-w-0 grow flex-col gap-4">
                     <PokerTable
                       participants={participants}
                       votes={votes}
@@ -987,39 +1082,9 @@ const PokerRoomComponent = ({
                       <p className="m-0 text-xs text-muted-foreground" title="Ao salvar, vale a soma das médias por papel">Total ao salvar: {summary.totalHours}</p>
                     )}
                     {settings?.confidenceVote && <ConfidenceSummary votes={votes} participants={participants} votingCargos={votingCargos} />}
-                  </div>
-                  <aside className="flex min-w-0 flex-col gap-4" aria-label="Resultado da rodada">
-                    <CopyEstimateCard summary={summary} deck={deck} values={deck === 'hours' ? adjusted : undefined} />
-                    {activeIssueForJira?.key && activeIssueForJira.status === 'completed' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-full gap-2 rounded-lg"
-                        onClick={() => setJiraPublishIssue(activeIssueForJira)}
-                        disabled={jiraStatusByIssueId[activeIssueForJira.id] === 'DONE' || jiraStatusByIssueId[activeIssueForJira.id] === 'RUNNING'}
-                      >
-                        <Send className="h-4 w-4" strokeWidth={1.5} />
-                        {jiraStatusByIssueId[activeIssueForJira.id] === 'DONE' ? 'Enviado ao Jira' : 'Enviar para o Jira'}
-                      </Button>
-                    )}
                     {settings?.outlierPrompt && !settings?.anonymousReveal && (
                       <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} votingCargos={votingCargos} />
                     )}
-                    {isCurrentUserFacilitator && (
-                      <DecisionPanel
-                        deck={deck}
-                        summary={summary}
-                        adjusted={adjusted}
-                        onAdjust={(role, value) => setAdjusted(prev => ({ ...prev, [role]: value }))}
-                        presentCategories={presentCategories}
-                        onClear={onClear}
-                        onSelectiveRevote={onSelectiveRevote}
-                        onSave={handleCalculateAndComplete}
-                        hasNextPending={hasNextPending}
-                        decisionNote={settings?.decisionNotes && onSetDecisionNote ? { key: activeIssueId || 'none', value: activeIssue?.decisionNote || '', onSave: onSetDecisionNote } : null}
-                      />
-                    )}
-                  </aside>
                 </div>
               ) : (
                 <>
@@ -1043,6 +1108,24 @@ const PokerRoomComponent = ({
             </>
           )}
           </div>
+
+          {/* Rodada revelada: a faixa de decisão toma o lugar do baralho, fixa embaixo. */}
+          {!isInitialState && !(isSessionFinished && stats) && votesRevealed && summary && (
+            <div className="shrink-0">
+              <DecisionBar
+                deck={deck}
+                summary={summary}
+                canDecide={isCurrentUserFacilitator}
+                adjusted={adjusted}
+                onAdjust={(role, value) => setAdjusted(prev => ({ ...prev, [role]: value }))}
+                presentCategories={presentCategories}
+                onClear={onClear}
+                onSelectiveRevote={onSelectiveRevote}
+                decisionNote={settings?.decisionNotes && onSetDecisionNote ? { key: activeIssueId || 'none', value: activeIssue?.decisionNote || '', onSave: onSetDecisionNote } : null}
+                jiraOnSave={activeIssueForJira?.key ? { checked: jiraOnSave, onChange: setJiraOnSave } : null}
+              />
+            </div>
+          )}
 
           {/* Baralho fixo embaixo: nunca cobre a mesa, que rola por cima dele se precisar. */}
           {!isInitialState && !(isSessionFinished && stats) && !(votesRevealed && summary) && (
@@ -1073,6 +1156,26 @@ const PokerRoomComponent = ({
             </div>
           )}
         </main>
+
+        {!isTheaterMode && notesEnabled && !isInitialState && !isSessionFinished && (
+          <ResponsivePanel
+            side="right"
+            open={isNotesPanelOpen}
+            onOpenChange={setIsNotesPanelOpen}
+            sheetBelow={1024}
+            widthClass="w-[22rem]"
+            title="Notas do refinamento"
+            icon={StickyNote}
+            flush={false}
+          >
+            <RefinementNotesPanel
+              devNotes={activeIssue?.devNotes || ''}
+              qaNotes={activeIssue?.qaNotes || ''}
+              onUpdateNotes={onUpdateRefinementNotes}
+              activeIssueId={activeIssueId}
+            />
+          </ResponsivePanel>
+        )}
 
         {!isTheaterMode && (
           <ResponsivePanel
@@ -1206,6 +1309,22 @@ const PokerRoomComponent = ({
         issues={issuesQueue}
         rounds={votingRounds || []}
         onConfirm={() => { onFinishSession && onFinishSession(); }}
+        jira={jiraPendingIssues.length > 0 || jiraSentCount > 0 ? {
+          sent: jiraSentCount,
+          pending: jiraPendingIssues.length,
+          onConfirmAndSend: () => { onFinishSession?.(); openJiraBatch(jiraPendingIssues); },
+        } : null}
+      />
+
+      <JiraBatchPublishDialog
+        roomId={roomId}
+        issues={jiraBatch ?? []}
+        open={isJiraBatchOpen}
+        onOpenChange={setIsJiraBatchOpen}
+        jobs={jiraJobs}
+        onPublished={mergeJiraJob}
+        onRetry={handleJiraRetry}
+        retryingId={jiraRetryingId}
       />
 
       {/* Notas de refinamento: DEV e QA em campos separados */}

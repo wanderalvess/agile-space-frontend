@@ -2,6 +2,7 @@
 
 import { moduleIcon } from '@/lib/modules-registry';
 import React, { useCallback, useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,7 +12,7 @@ import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
-import { PageHeader, PageShell } from '@/components/page';
+import { PageShell } from '@/components/page';
 import { PokerGuide } from '@/components/poker/PokerGuide';
 import { useToolHistory } from '@/hooks/useToolHistory';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
@@ -261,19 +262,37 @@ export default function PokerHubPage() {
 
   const openRoom = (id: string) => router.push(`/room/${id}`);
 
+  // Sessão ao vivo em destaque: a mais recente da squad em andamento (entrar é o que quase todo mundo vem fazer aqui).
+  const liveRoom = rooms.find((r) => roomLobbyStatus(r) === 'live') ?? null;
+
   return (
     <PageShell documentTitle="Scrum Poker">
-      <PageHeader
-        title="Scrum Poker"
-        module="poker"
-        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Scrum Poker' }]}
-        subtitle="Estimativas em horas por papel, com votação às cegas."
-        actions={
-          <>
-            <ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />
+      <section
+        aria-labelledby="poker-hub-title"
+        className="relative flex flex-wrap items-center gap-x-8 gap-y-5 overflow-hidden rounded-[22px] border border-border bg-card px-6 py-6 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-8"
+      >
+        <div aria-hidden="true" className="room-halo pointer-events-none absolute -right-20 top-1/2 h-[320px] w-[620px] -translate-y-1/2" />
+        <div className="relative flex min-w-0 flex-1 basis-[520px] flex-col gap-3">
+          <nav aria-label="Trilha" className="text-[13px] text-muted-foreground">
+            <Link href="/" className={cn('rounded hover:text-foreground', FOCUS_RING)}>Home</Link>
+            <span aria-hidden="true" className="mx-1.5">›</span>
+            <span aria-current="page">Scrum Poker</span>
+          </nav>
+          <h1 id="poker-hub-title" className="m-0 text-[34px] font-extrabold leading-tight tracking-[-0.02em]">Scrum Poker</h1>
+          <p className="m-0 text-[15px] text-muted-foreground">Estimativas em horas por papel, com votação às cegas.</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={openNewSession}
+              disabled={isCreating}
+              className={cn('room-glow inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-[15px] font-bold text-primary-foreground transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60', FOCUS_RING)}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Nova sessão
+            </button>
             <form
               onSubmit={(e) => { e.preventDefault(); joinRoom(); }}
-              className="flex h-11 items-center rounded-xl border border-border bg-card pl-3.5 pr-1.5 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring/30"
+              className="flex h-11 items-center overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring/30"
             >
               <label htmlFor="join-room-id" className="sr-only">Entrar com o ID da sala</label>
               <input
@@ -282,13 +301,13 @@ export default function PokerHubPage() {
                 onChange={(e) => setJoinId(e.target.value.toUpperCase())}
                 placeholder="Entrar com o ID da sala"
                 autoComplete="off"
-                className="w-52 bg-transparent text-sm uppercase tracking-wider text-foreground outline-none placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground"
+                className="h-11 w-52 bg-transparent px-3.5 text-sm uppercase tracking-wider text-foreground outline-none placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground"
               />
               <button
                 type="submit"
                 disabled={!joinId.trim()}
                 aria-label="Entrar na sala"
-                className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-40', FOCUS_RING)}
+                className={cn('inline-flex h-11 w-11 items-center justify-center border-l border-border text-foreground transition-colors hover:bg-accent disabled:opacity-40', FOCUS_RING)}
               >
                 <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
               </button>
@@ -296,23 +315,49 @@ export default function PokerHubPage() {
             <button
               type="button"
               onClick={() => setGuideOpen(true)}
-              className={cn('inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent/50', FOCUS_RING)}
+              className={cn('inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent/50', FOCUS_RING)}
             >
               <HelpCircle className="h-4 w-4" strokeWidth={1.5} />
               Guia
             </button>
-            <button
-              type="button"
-              onClick={openNewSession}
-              disabled={isCreating}
-              className={cn('inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60', FOCUS_RING)}
-            >
-              <Plus className="h-4 w-4" strokeWidth={1.75} />
-              Nova sessão
-            </button>
-          </>
-        }
-      />
+            <ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />
+          </div>
+        </div>
+
+        {/* Arte: três cartas, a do meio na cor da marca. */}
+        <div aria-hidden="true" className="relative hidden h-[170px] w-[300px] shrink-0 md:block">
+          <span className="absolute left-10 top-[30px] flex h-[118px] w-[84px] -rotate-12 items-center justify-center rounded-[14px] border border-border bg-muted text-[30px] font-extrabold text-muted-foreground shadow-[0_16px_30px_rgba(0,0,0,0.25)]">?</span>
+          <span className="absolute left-[176px] top-[30px] flex h-[118px] w-[84px] rotate-12 items-center justify-center rounded-[14px] border border-border bg-muted text-[30px] font-extrabold text-muted-foreground shadow-[0_16px_30px_rgba(0,0,0,0.25)]">13</span>
+          <span className="room-glow absolute left-[106px] top-3 flex h-[130px] w-[92px] flex-col justify-between rounded-2xl bg-primary px-3 py-2.5 text-primary-foreground">
+            <span className="text-sm font-bold">8</span>
+            <span className="self-center text-[40px] font-extrabold leading-none">8</span>
+            <span className="rotate-180 self-end text-sm font-bold">8</span>
+          </span>
+        </div>
+      </section>
+
+      {liveRoom && (
+        <button
+          type="button"
+          onClick={() => openRoom(liveRoom.id)}
+          className={cn('group flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border-[1.5px] border-emerald-500/45 bg-emerald-500/5 px-5 py-4 text-left transition-colors hover:bg-emerald-500/10', FOCUS_RING)}
+        >
+          <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
+            <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_0_6px_rgb(16_185_129/0.18)] motion-safe:animate-pulse" />
+          </span>
+          <span className="flex min-w-0 flex-1 basis-[240px] flex-col gap-0.5">
+            <span className="text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-300">AO VIVO AGORA</span>
+            <span className="truncate text-[17px] font-bold">{liveRoom.title || 'Sem título'}</span>
+            <span className="truncate text-[13px] text-muted-foreground">
+              {liveRoom.team || 'Squad Geral'}
+              {liveRoom.sessionStartedAt ? ` · começou ${formatDistanceToNow(new Date(liveRoom.sessionStartedAt), { addSuffix: true, locale: ptBR })}` : ''}
+            </span>
+          </span>
+          <span className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[11px] bg-emerald-600 px-4 text-sm font-bold text-white transition-transform group-hover:translate-x-0.5 dark:bg-emerald-500 dark:text-emerald-950">
+            Entrar na sala <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+          </span>
+        </button>
+      )}
 
         <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-2">
           {FILTERS.map((f) => {

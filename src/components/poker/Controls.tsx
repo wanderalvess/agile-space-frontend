@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, EyeOff, Lock, Check } from 'lucide-react';
 import { DeckType, Participant } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
-import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
+import { canParticipantVote, formatRoleForCopy, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DECK_CARD_DENSE, DECK_CARD_FULL, DECK_DENSE_THRESHOLD, deckRows } from '@/lib/poker-table';
@@ -36,6 +36,9 @@ interface ControlsProps {
   // Horas máximas do baralho "Horas reais" (ausente = baralho completo).
   maxHours?: number | null;
 }
+
+/** Unidade do baralho ao lado de "Seu voto". */
+const DECK_UNIT: Partial<Record<DeckType, string>> = { hours: 'em horas', fibonacci: 'em pontos', tshirt: 'em tamanhos' };
 
 const CONFIDENCE_OPTIONS = [
   { id: 'low', label: 'Baixa' },
@@ -316,12 +319,16 @@ export function Controls({
   }
 
   const selected = (v: string) => !hideVote && currentUserVote === v;
+  const myCategory = getParticipantCategory(currentUser);
 
   return (
     <section aria-label="Seu voto" className={cn(BAR, 'flex flex-col gap-1')}>
       <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="flex min-w-0 flex-1 items-center gap-x-4">
-          <h2 className="m-0 shrink-0 text-[15px] font-semibold" title={`Digite o valor${specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido`}>Seu baralho</h2>
+          <h2 className="m-0 shrink-0 text-[15px] font-semibold" title={`Digite o valor${specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido`}>Seu voto</h2>
+          <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+            {DECK_UNIT[deck] ?? ''}{myCategory ? ` · ${formatRoleForCopy(myCategory)}` : ''}
+          </span>
           {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] text-muted-foreground md:block">{activePhrase}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">

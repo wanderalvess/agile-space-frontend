@@ -9,7 +9,8 @@ import { copyUnitSuffix, type RoundSummary } from '@/lib/poker-results';
 import { REVEAL_DELAY } from '@/lib/poker-table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { ROLE_STYLES, RoleChip, roleToneOf } from '@/components/room-kit';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
+import { FOCUS_RING, ROLE_STYLES, RoleChip, roleToneOf } from '@/components/room-kit';
 import type { TshirtEquivalent } from '@/lib/types';
 
 const CARD = 'rounded-[14px] border border-border bg-card shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
@@ -141,6 +142,57 @@ export function RoleBreakdown({
   );
 }
 
+/** Texto "(DEV 10h / QA 4h)" da rodada, total em horas e a ação de copiar (com aviso). */
+export function useEstimateCopy(summary: RoundSummary, deck: DeckType, values?: Record<string, string>) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const suffix = copyUnitSuffix(deck, summary.tshirtNumeric);
+  const text = useMemo(
+    () => formatEstimateCopy(summary.activeRoles.map(role => ({ role, value: values?.[role] ?? summary.byRole[role]!.resultValue })), suffix),
+    [summary, values, suffix]
+  );
+
+  const copy = async () => {
+    if (!text) {
+      toast({ title: 'Nada para copiar', description: 'Não há estimativas calculadas.', variant: 'destructive' });
+      return;
+    }
+    if (await copyToClipboard(text)) {
+      setCopied(true);
+      toast({ title: 'Estimativa copiada', description: text });
+      setTimeout(() => setCopied(false), 2500);
+    } else {
+      toast({ title: 'Não foi possível copiar', description: 'Selecione o texto e copie manualmente.', variant: 'destructive' });
+    }
+  };
+
+  const total = deck === 'hours' || summary.tshirtNumeric
+    ? summary.activeRoles.reduce((acc, r) => acc + (Number(values?.[r] ?? summary.byRole[r]!.resultValue) || 0), 0)
+    : null;
+
+  return { text, total, copied, copy };
+}
+
+/** Botão "Copiar (DEV 10h / QA 4h)" da barra de decisão: o próprio texto é o rótulo. */
+export function CopyEstimateButton({ summary, deck, values }: { summary: RoundSummary; deck: DeckType; values?: Record<string, string> }) {
+  const { text, copied, copy } = useEstimateCopy(summary, deck, values);
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copiar a estimativa para colar no título da issue pai"
+      className={cn(
+        'inline-flex h-9 max-w-full items-center gap-2 rounded-[10px] border px-3 text-sm font-semibold transition-colors duration-base max-sm:h-11',
+        FOCUS_RING,
+        copied ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-transparent text-foreground hover:bg-accent'
+      )}
+    >
+      {copied ? <Check className="room-pop h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />}
+      <span className="truncate">{copied ? 'Copiado' : <>Copiar <span className="tabular-nums">{text || 'estimativa'}</span></>}</span>
+    </button>
+  );
+}
+
 /**
  * Card "Copiar estimativa": mostra o texto que vai para a issue pai do Jira,
  * por papel — "(DEV 10h / QA 4h / UX 2h)" — e copia com um clique. Aceita
@@ -156,32 +208,7 @@ export function CopyEstimateCard({
   /** Valor final por papel (padrão: o resultado da rodada). */
   values?: Record<string, string>;
 }) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-  const suffix = copyUnitSuffix(deck, summary.tshirtNumeric);
-  const text = useMemo(
-    () => formatEstimateCopy(summary.activeRoles.map(role => ({ role, value: values?.[role] ?? summary.byRole[role]!.resultValue })), suffix),
-    [summary, values, suffix]
-  );
-
-  const copy = async () => {
-    if (!text) {
-      toast({ title: 'Nada para copiar', description: 'Não há estimativas calculadas.', variant: 'destructive' });
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast({ title: 'Estimativa copiada', description: text });
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      toast({ title: 'Não foi possível copiar', description: 'Selecione o texto e copie manualmente.', variant: 'destructive' });
-    }
-  };
-
-  const total = deck === 'hours' || summary.tshirtNumeric
-    ? summary.activeRoles.reduce((acc, r) => acc + (Number(values?.[r] ?? summary.byRole[r]!.resultValue) || 0), 0)
-    : null;
+  const { text, total, copied, copy } = useEstimateCopy(summary, deck, values);
 
   return (
     <section

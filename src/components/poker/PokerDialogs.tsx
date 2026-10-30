@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Ban, Flag, Hourglass, Save, Settings, SkipForward } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Flag, Hourglass, Save, Send, Settings, SkipForward } from 'lucide-react';
 import type { Issue, VotingRound } from '@/lib/types';
 import { computeSessionBreakdown } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
@@ -194,40 +194,99 @@ export function CancelIssueDialog({ open, onOpenChange, onConfirm }: {
 // Encerrar a sessão
 // ---------------------------------------------------------------------------
 
-export function FinishSessionDialog({ open, onOpenChange, issues, rounds, onConfirm }: {
+export function FinishSessionDialog({ open, onOpenChange, issues, rounds, onConfirm, jira }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   issues: Issue[];
   rounds: VotingRound[];
   onConfirm: () => void;
+  /**
+   * Estimadas com chave do Jira: quantas já foram enviadas e quantas faltam. Com pendentes, o encerrar vira
+   * uma escolha explícita — "sem enviar" ou "e enviar N ao Jira" —, sem caixa marcada escondendo o envio.
+   */
+  jira?: { sent: number; pending: number; onConfirmAndSend: () => void } | null;
 }) {
   const b = useMemo(() => computeSessionBreakdown(issues, rounds), [issues, rounds]);
-  const stats: { n: number; label: string; cls: string }[] = [
-    { n: b.estimated, label: b.estimated === 1 ? 'estimada' : 'estimadas', cls: 'text-emerald-700 dark:text-emerald-300' },
-    { n: b.skipped + b.parked, label: 'puladas ou adiadas', cls: 'text-amber-700 dark:text-amber-300' },
-    { n: b.untouched, label: b.untouched === 1 ? 'não abordada' : 'não abordadas', cls: 'text-muted-foreground' },
-  ];
+  const untouched = useMemo(() => issues.filter(i => !i.skipped && !i.cancelled && i.status !== 'completed'), [issues]);
+  const offTable = b.skipped + b.parked;
+  const pending = jira?.pending ?? 0;
+  const withKey = (jira?.sent ?? 0) + pending;
+  const close = () => onOpenChange(false);
+
+  const tile = 'flex flex-col gap-1 rounded-xl border px-3.5 py-3';
   return (
-    <ConfirmDialog
+    <Modal
       open={open}
       onOpenChange={onOpenChange}
+      size="md"
       tone="danger"
       icon={Flag}
       title="Encerrar a sessão?"
-      description="O que sobrar na fila entra como não abordado no relatório. O tempo contabilizado é só o das tarefas votadas."
-      cancelLabel="Continuar votando"
-      confirmLabel="Encerrar e gerar relatório"
-      onConfirm={onConfirm}
+      description="O time para de votar e o relatório é gerado. O tempo contabilizado é só o das tarefas votadas."
+      footerStart={<ModalButton variant="ghost" onClick={close}>Continuar votando</ModalButton>}
+      footer={
+        pending > 0 && jira ? (
+          <>
+            <ModalButton onClick={() => { onConfirm(); close(); }} className="border-red-600/50 text-red-700 hover:bg-red-500/10 dark:text-red-300">
+              Encerrar sem enviar
+            </ModalButton>
+            <ModalButton variant="danger" onClick={() => { jira.onConfirmAndSend(); close(); }}>
+              Encerrar e enviar {pending} ao Jira
+            </ModalButton>
+          </>
+        ) : (
+          <ModalButton variant="danger" onClick={() => { onConfirm(); close(); }}>Encerrar e gerar relatório</ModalButton>
+        )
+      }
     >
-      <div className="grid grid-cols-3 gap-2">
-        {stats.map((s) => (
-          <div key={s.label} className="flex flex-col gap-0.5 rounded-[10px] border border-border bg-muted/40 p-2.5">
-            <span className={cn('text-xl font-bold tabular-nums', s.cls)}>{s.n}</span>
-            <span className="text-xs text-muted-foreground">{s.label}</span>
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className={cn(tile, 'border-border bg-muted/40')}>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" strokeWidth={2} aria-hidden="true" />{b.estimated === 1 ? 'Estimada' : 'Estimadas'}</span>
+            <span className="text-2xl font-bold tabular-nums">{b.estimated}</span>
           </div>
-        ))}
+          <div className={cn(tile, 'border-border bg-muted/40')}>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><SkipForward className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />Puladas ou adiadas</span>
+            <span className="text-2xl font-bold tabular-nums">{offTable}</span>
+          </div>
+          <div className={cn(tile, b.untouched > 0 ? 'border-amber-500/50 bg-amber-500/10' : 'border-border bg-muted/40')}>
+            <span className={cn('flex items-center gap-1.5 text-xs', b.untouched > 0 ? 'text-amber-800 dark:text-amber-200' : 'text-muted-foreground')}>
+              <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />{b.untouched === 1 ? 'Não abordada' : 'Não abordadas'}
+            </span>
+            <span className={cn('text-2xl font-bold tabular-nums', b.untouched > 0 && 'text-amber-700 dark:text-amber-300')}>{b.untouched}</span>
+          </div>
+        </div>
+
+        {untouched.length > 0 && (
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Tarefas não abordadas">
+            {untouched.slice(0, 3).map(i => (
+              <li key={i.id} className="flex items-center gap-2.5 rounded-[10px] border border-dashed border-amber-500/50 px-3 py-2">
+                {i.key && <span className="shrink-0 text-xs font-bold text-amber-700 dark:text-amber-300">{i.key}</span>}
+                <span className="min-w-0 flex-1 truncate text-[13px]">{i.title}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">fica como não abordada</span>
+              </li>
+            ))}
+            {untouched.length > 3 && <li className="px-1 text-xs text-muted-foreground">+ {untouched.length - 3} na fila</li>}
+          </ul>
+        )}
+
+        {jira && withKey > 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <span aria-hidden="true" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              <Send className="h-4 w-4" strokeWidth={1.5} />
+            </span>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold">{jira.sent} de {withKey} {withKey === 1 ? 'estimada já está' : 'estimadas já estão'} no Jira</span>
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                {pending > 0
+                  ? `${pending === 1 ? 'A outra fica salva' : `As outras ${pending} ficam salvas`} no portal se você encerrar sem enviar. Dá para enviar depois pelo relatório.`
+                  : 'Nada pendente de envio.'}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
-    </ConfirmDialog>
+    </Modal>
   );
 }
 

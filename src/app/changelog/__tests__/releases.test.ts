@@ -42,9 +42,9 @@ describe('parseReleaseDate', () => {
     expect(formatLongDate(null)).toBe('Data não informada');
     expect(formatLongDate('2026-10-14')).toBe('14 de outubro de 2026');
   });
-  it('todas as 214 versões do arquivo têm data legível', () => {
+  it('todas as 215 versões do arquivo têm data legível', () => {
     const list = releasesFromFile(rawVersions as RawVersion[]).map(toEntry);
-    expect(list).toHaveLength(214);
+    expect(list).toHaveLength(215);
     expect(list.filter((e) => !e.iso)).toEqual([]);
   });
 });

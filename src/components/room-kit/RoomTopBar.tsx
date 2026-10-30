@@ -96,6 +96,8 @@ export interface RoomTopBarProps {
   primaryAction?: React.ReactNode;
   /** Ações da sala logo depois da principal (ex.: pular, cancelar e encerrar do Poker). Quebram de linha se faltar largura. */
   secondaryActions?: React.ReactNode;
+  /** As ações extras são curtas (ex.: "Pular" e um menu): a barra cabe numa linha a partir de 1280 px, não só de 1480. */
+  compactSecondary?: boolean;
   /** Presença: pilha de avatares que abre a lista de participantes. */
   presence?: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void; /** Sem dado de quem está conectado: só conta quem entrou na sala. */ unknown?: boolean };
   actions?: RoomTopBarAction[];
@@ -305,6 +307,7 @@ export function RoomTopBar({
   timer,
   primaryAction,
   secondaryActions,
+  compactSecondary = false,
   presence,
   actions = [],
   menuItems = [],
@@ -313,6 +316,8 @@ export function RoomTopBar({
   className,
 }: RoomTopBarProps) {
   const pending = pendingTiers(actions);
+  // Centro largo (ações extras compridas): a linha única só cabe a partir de 1480 px.
+  const wideCenter = !!secondaryActions && !compactSecondary;
   const hasCenter = !!phases || !!timer || !!primaryAction || !!secondaryActions;
   const feedbackInMenu = !!onOpenFeedback;
 
@@ -367,7 +372,7 @@ export function RoomTopBar({
             className={cn(
               'order-3 flex basis-full flex-wrap items-center gap-2',
               // Com ações extras o centro é largo: a linha única só cabe a partir de 1480 px.
-              secondaryActions ? 'min-[1480px]:order-2 min-[1480px]:basis-auto min-[1480px]:flex-nowrap min-[1480px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
+              wideCenter ? 'min-[1480px]:order-2 min-[1480px]:basis-auto min-[1480px]:flex-nowrap min-[1480px]:justify-center' : 'xl:order-2 xl:basis-auto xl:flex-nowrap xl:justify-center'
             )}
           >
             {phases && (
@@ -391,7 +396,7 @@ export function RoomTopBar({
         )}
 
         {/* Direita: presença, ações, tema e conta */}
-        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', secondaryActions ? 'min-[1480px]:order-3 min-[1480px]:ml-0' : 'xl:order-3 xl:ml-0')}>
+        <div className={cn('order-2 ml-auto flex shrink-0 items-center gap-1.5', wideCenter ? 'min-[1480px]:order-3 min-[1480px]:ml-0' : 'xl:order-3 xl:ml-0')}>
           {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} unknown={presence.unknown} />}
 
           {actions.map((a) => (
