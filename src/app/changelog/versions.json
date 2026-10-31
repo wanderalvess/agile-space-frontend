@@ -1,5 +1,105 @@
 [
   {
+    "tag": "v4.29.1",
+    "date": "30 de Outubro, 2026",
+    "title": "Rituais da Home levam direto à ferramenta",
+    "description": "Os cartões de \"Rituais do time\" na Home abrem a página da ferramenta em vez de um painel lateral.",
+    "changes": [
+      "Home: clicar em Scrum Poker, Retrospectiva, Review, Radar de clima ou Brainstorming abre direto a página com as sessões e o \"Nova sessão\", sem o painel lateral no meio do caminho."
+    ]
+  },
+  {
+    "tag": "v4.29.0",
+    "date": "30 de Outubro, 2026",
+    "title": "Scrum Poker redesenhado: sala em três colunas, envio ao Jira em lote e relatório novo",
+    "description": "A sala do Scrum Poker cabe inteira na tela, com a fila e as notas ao lado da mesa, e o fechamento da sessão ganhou envio ao Jira de várias tarefas de uma vez.",
+    "changes": [
+      "Scrum Poker: em telas largas a fila fica à esquerda e as notas do refinamento à direita, sem cobrir a mesa; no notebook continuam a um clique.",
+      "Scrum Poker: a barra do topo mostra em que tarefa a sessão está e quantas foram estimadas; depois de revelar, o botão principal vira \"Salvar e avançar\".",
+      "Scrum Poker: \"Pular\" fica à vista e cancelar a tarefa e encerrar a sessão ficam no menu \"Rodada\".",
+      "Scrum Poker: com os votos revelados, as horas finais por papel, o revotar e o \"Copiar (DEV 10h / QA 4h)\" ficam numa faixa embaixo da mesa, no lugar do baralho.",
+      "Scrum Poker: notas DEV e QA em abas no painel ao lado, salvando sozinhas.",
+      "Scrum Poker: \"Enviar ao Jira ao salvar\" abre a prévia do envio assim que a estimativa é salva (dá para desligar).",
+      "Scrum Poker: enviar ao Jira mostra, para cada sub-tarefa, o título, as horas e o comentário que vem das notas da sala, tudo editável antes de enviar.",
+      "Scrum Poker: envio de várias tarefas ao Jira de uma vez, com a prévia de cada uma e o andamento passo a passo; se algo falha, a nova tentativa continua do passo que parou.",
+      "Scrum Poker: encerrar a sessão mostra o que ficou sem estimar e pergunta, com dois botões, se encerra sem enviar ou enviando ao Jira as estimadas que faltam.",
+      "Scrum Poker: o relatório final abre com um resumo visual da sessão e a faixa do Jira com quantas tarefas faltam enviar; a sugestão de abrir a retro saiu do relatório.",
+      "Scrum Poker: o lobby destaca a sessão ao vivo para entrar direto, e a sala recém-criada mostra quem já chegou, o link com o botão de copiar e como a sessão está configurada.",
+      "Scrum Poker: o importador do Jira marca o que já está na fila e não importa de novo.",
+      "Scrum Poker: com a fila montada, quem facilita vê a tela \"Tudo pronto para começar\", com a primeira tarefa na mesa e o botão de iniciar.",
+      "Scrum Poker: em \"Quem vota\", Desenvolvedor(a) aparece em azul e Analista de QA em verde, as mesmas cores da mesa.",
+      "Scrum Poker: a tabela de tarefas do relatório ganhou a coluna Jira (enviada, com erro ou não enviada), só na tela."
+    ]
+  },
+  {
+    "tag": "v4.28.0",
+    "date": "30 de Outubro, 2026",
+    "title": "Diálogos padronizados, mesa do Poker legível e telas mais acessíveis",
+    "description": "Os diálogos do portal seguem o mesmo desenho, a mesa do Scrum Poker mostra cargos e nomes inteiros no celular e uma revisão de telas ajustou contraste e áreas de toque.",
+    "changes": [
+      "Todos os diálogos do portal (importações, confirmações, configurações e detalhes) seguem o mesmo desenho, com os botões no mesmo lugar e o rodapé quebrando linha no celular.",
+      "Scrum Poker: no celular a mesa passa a ter duas colunas e mostra o cargo e o nome por inteiro; no computador, \"Desenvolvedor(a)\" não é mais cortado.",
+      "Base de Conhecimento: a pesquisa foi refeita no padrão do portal, e as caixas de seleção da lista têm nome para leitores de tela.",
+      "Melhoria de contraste nos temas claro e escuro (avisos como \"Jira não conectado\", contadores e selos) e áreas de toque de 44 px no celular em atalhos da Home, links de chave de API e no \"Esqueceu a senha?\".",
+      "Retro: o contador de votos no cabeçalho de cada coluna mostra quantos você usou (por exemplo, 1 de 5), e a caixa de ação concluída ficou mais fácil de tocar.",
+      "Corrigido: chaves de API e links copiam também sem HTTPS e dentro de diálogos, e o botão avisa quando a cópia falha.",
+      "Corrigido: a Home do Prompt Hub carregava com erro ao ordenar por mais usados ou mais clonados.",
+      "Corrigido: o histórico de sprints vazio não derruba mais a página da Squad.",
+      "Corrigido: no Scrum Poker, em sala cheia, quem está sem cargo sai do grupo DEV e o nome curto ignora \"(PO)\"."
+    ]
+  },
+  {
+    "tag": "v4.27.0",
+    "date": "28 de Outubro, 2026",
+    "title": "Ficha de identidade única, foto de perfil e cargo da administração em todas as telas",
+    "description": "Minha identidade virou uma ficha só, as pessoas aparecem com a foto que enviaram nas salas e o cargo passa a ser o definido na administração.",
+    "changes": [
+      "Minha identidade: o modal virou uma ficha única, sem abas nem botão Salvar, com aparência, squads e o pedido de ajuste de cargo ao Suporte no mesmo lugar.",
+      "Foto de perfil: cada pessoa envia a própria foto (recorte quadrado), que tem prioridade sobre a do Jira.",
+      "As fotos enviadas aparecem nas salas de Poker, Retro e Brainstorming, na Squad, no roster, no plano de ação, nas mensagens e no Prompt Hub.",
+      "O cargo é o definido na administração em todas as telas (cabeçalho, Poker, Retro e painéis); o papel na squad deixa de servir de cargo. \"Developer\" e \"Desenvolvedor(a)\", \"QA\" e \"Analista de QA\" passam a ser um cargo só.",
+      "Scrum Poker: quem vota é definido por cargo da administração (campo \"Quem vota\" na criação e no painel), e salas, mesa e listas mostram o cargo por extenso.",
+      "Scrum Poker: pular, cancelar e encerrar a sessão ficam visíveis, com texto, na barra do topo; Editar, Notas, Detalhes, Apresentar e Configurações também mostram o nome do botão."
+    ]
+  },
+  {
+    "tag": "v4.26.0",
+    "date": "23 de Outubro, 2026",
+    "title": "Planejamento com revisão e distribuição, Prompt Hub no servidor e Suporte com protocolo",
+    "description": "O Planejamento da sprint ganhou revisão e distribuição, a Review mostra de onde vem cada texto importado do Jira e Prompt Hub, Suporte e Base de Conhecimento ficaram mais completos.",
+    "changes": [
+      "Planejamento da sprint: nova etapa Revisar e enviar, com pendências, resumo e prévia do que vai ao Jira, e a meta atual da sprint no Jira ao lado da definida no plano.",
+      "Planejamento da sprint: a Distribuição encadeia as datas com efeito cascata e mostra as ausências hachuradas no Gantt; o plano pode copiar a sprint anterior ou buscar a próxima no Jira.",
+      "Planejamento da sprint: o Code Review soma ao item e deixa de aparecer como divergência no escopo.",
+      "Squad: novo Gantt no Cronograma, com atraso, cascata de datas e datas aproximadas para o que está fora da sprint.",
+      "Review: ao importar do Jira, cada texto mostra de onde veio e a pessoa decide o que usar; imagens e marcações do Jira não entram no texto e a sugestão é limitada a 600 caracteres.",
+      "Prompt Hub: busca, filtros e paginação feitos no servidor, favoritos, versões e uso por semana; coleções públicas abrem sem login.",
+      "Suporte: tipo de pedido, protocolo SUP-NNNN, fechar e reabrir, e aviso no sino.",
+      "Base de Conhecimento: os artigos podem ficar em Rascunho ou Arquivado.",
+      "Convite: quem ainda não entrou vê a página do convite (squad, papel, quem convidou e validade) antes de entrar ou criar a conta.",
+      "Jolt: a transformação passa a exigir login."
+    ]
+  },
+  {
+    "tag": "v4.25.0",
+    "date": "17 de Outubro, 2026",
+    "title": "Retro com 17 formatos e cenários, Brainstorming e Review com mais controle e presença online",
+    "description": "A Retro ganhou 17 formatos com cenário próprio e pode ser encerrada e reaberta, Brainstorming e Review têm mais controle sobre a sessão e as salas mostram quem está online.",
+    "changes": [
+      "Retro: 8 formatos novos (17 no total) em um seletor por grupos, cada um com cenário, ícones, pergunta-guia e tempo sugerido; a apresentação mostra uma coluna em destaque ou todas lado a lado.",
+      "Retro: encerrar e reabrir a retro (o time passa a só ler), nota livre no check-in e números da sprint; o criador ou o administrador apaga a retro pelo menu Mais.",
+      "Retro: o rascunho de um cartão ainda não enviado sobrevive ao F5.",
+      "Brainstorming: encerrar a sessão, passar a facilitação, limite de votos por pessoa, autoria e marca \"editada\" na ideia; o lobby tem status Aberto/Encerrado e filtros.",
+      "Review: a decisão do PO é travada no servidor, o time pode seguir o apresentador no modo Teatro e as consultas JQL são compartilhadas com a squad; o resumo e as exportações trazem a linha de Participantes.",
+      "Review: se duas pessoas editam o mesmo campo, aparece o conflito (Reaplicar ou Descartar) em vez de sobrescrever o texto.",
+      "Radar de clima: mostra quem já respondeu, encerra de verdade e sincroniza a apresentação.",
+      "Salas de Poker, Retro, Brainstorming, Radar e Review mostram quem está online.",
+      "Plano de ação: cada ação guarda a origem (Retro, Brainstorming ou Radar), com prazo em data e selo Atrasada; o lobby tem filtros.",
+      "Base de Conhecimento: novo leitor de artigo em grade (sumário, texto e informações) e novo editor, com importação de Word e Markdown.",
+      "Corrigido: os horários de decisão da Review e do Poker apareciam adiantados."
+    ]
+  },
+  {
     "tag": "v4.24.0",
     "date": "14 de Outubro, 2026",
     "title": "Gerador de spec Jolt, sessão que se renova e senha pelo link",

@@ -2,12 +2,15 @@
 
 import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import React, { useEffect, useRef } from 'react';
-import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2 } from 'lucide-react';
+import { Check, CloudDownload, Copy, Layers, ListPlus, Lock, Play, Share2 } from 'lucide-react';
 import type { DeckType, Participant } from '@/lib/types';
 import { getDeckCards } from '@/lib/poker-deck';
+import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
+import { canonicalCargo } from '@/lib/cargo';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { FOCUS_RING, PersonAvatar, RoomQr, StatusChip } from '@/components/room-kit';
+import { FOCUS_RING, PersonAvatar, StatusChip } from '@/components/room-kit';
 
 // Cartas exibidas no leque de boas-vindas, por baralho (a do meio é a destacada).
 const FAN_FACES: Record<DeckType, readonly string[]> = {
@@ -91,22 +94,6 @@ function CardFan({ deck, maxHours }: { deck: DeckType; maxHours?: number | null 
   );
 }
 
-function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked' }) {
-  return (
-    <span
-      className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-slow',
-        state === 'done' && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-        state === 'active' && 'bg-primary text-primary-foreground room-glow-ring',
-        state === 'locked' && 'border border-border bg-muted text-muted-foreground'
-      )}
-    >
-      {state === 'done' ? <Check className="h-4 w-4" strokeWidth={1.75} /> : state === 'locked' ? <Lock className="h-3.5 w-3.5" strokeWidth={1.5} /> : n}
-    </span>
-  );
-}
-
-const STEP_CARD = 'relative flex h-full flex-col gap-3.5 rounded-[14px] border p-5 transition-colors duration-slow';
 const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
 const KEY = 'rounded border border-current/40 px-1.5 py-px text-xs tabular-nums';
 
@@ -118,26 +105,72 @@ interface RoomWelcomeProps {
   participants: Participant[];
   onlineIds: Set<string>;
   roomUrl: string;
+  /** Código curto da sala (o mesmo do "Entrar com o ID" do lobby). */
+  roomCode: string;
+  currentUserId: string;
+  /** Cargos que votam nesta sala (rótulo "vota" ao lado de cada pessoa e o resumo da sessão). */
+  votingCargos: readonly string[];
   onShare: () => void;
   onImportJira: () => void;
   onAddManual: () => void;
+  onOpenSettings?: () => void;
+  /**
+   * Fila montada, sessão ainda não iniciada ("Pronto para começar"): a mesa mostra a primeira tarefa e o botão
+   * de iniciar; o convite dá lugar ao aviso de que o baralho abre no início.
+   */
+  ready?: { firstKey?: string | null; firstTitle: string; queueCount: number; onStart: () => void } | null;
 }
 
-/** Facilitador, fila vazia: três passos para começar (convidar, montar a fila, votar). */
-export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds, roomUrl, onShare, onImportJira, onAddManual }: RoomWelcomeProps) {
+/** Lugares da mesa em miniatura: quem já chegou senta em volta; sobram cadeiras tracejadas até 4. */
+function MiniTable({ participants, onlineIds, currentUserId, center }: { participants: Participant[]; onlineIds: Set<string>; currentUserId: string; center?: React.ReactNode }) {
+  const shown = participants.slice(0, 8);
+  const seats = Math.max(4, shown.length);
+  const placed = Array.from({ length: seats }, (_, i) => {
+    // Começa à esquerda e gira no sentido horário, como na mesa da votação.
+    const angle = Math.PI + (i * 2 * Math.PI) / seats;
+    return { x: 50 + 42 * Math.cos(angle), y: 50 + 38 * Math.sin(angle), p: shown[i] ?? null };
+  });
+  return (
+    <div className="relative flex min-h-[260px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-border bg-card">
+      <div aria-hidden="true" className="room-dots-bg pointer-events-none absolute inset-0" />
+      <div aria-hidden="true" className="absolute h-[44%] w-[62%] max-w-[460px] rounded-[50%] border border-border bg-background shadow-[0_0_0_8px_hsl(var(--border)/0.35),0_0_60px_hsl(var(--primary)/0.10)]" />
+      <div className="relative z-[1] flex flex-col items-center gap-1 text-center">
+        {center ?? (
+          <>
+            <span className="text-[15px] font-semibold">{participants.length} {participants.length === 1 ? 'lugar ocupado' : 'lugares ocupados'}</span>
+            <span className="text-[13px] text-muted-foreground">Quem entrar pelo link senta aqui</span>
+          </>
+        )}
+      </div>
+      {placed.map(({ x, y, p }, i) =>
+        p ? (
+          <span key={p.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5" style={{ left: `${x}%`, top: `${y}%` }}>
+            <span className={cn('relative rounded-full', p.id === currentUserId && 'ring-2 ring-primary ring-offset-2 ring-offset-card', !onlineIds.has(p.id) && 'opacity-50')}>
+              <PersonAvatar name={p.nickname} userId={p.id} size="lg" />
+            </span>
+            <span className="max-w-[7rem] truncate text-xs font-semibold">{p.nickname.split(' ')[0]}</span>
+          </span>
+        ) : (
+          <span key={`empty-${i}`} aria-hidden="true" className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-dashed border-border" style={{ left: `${x}%`, top: `${y}%` }} />
+        )
+      )}
+    </div>
+  );
+}
+
+/** Facilitador, fila vazia: passos em trilha, a mesa com quem já chegou, o convite e, ao lado, quem está e como a sessão está. */
+export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds, roomUrl, roomCode, currentUserId, votingCargos, onShare, onImportJira, onAddManual, onOpenSettings, ready }: RoomWelcomeProps) {
   const { toast } = useToast();
-  const others = participants.length > 1;
-  const onlineCount = participants.filter((p) => onlineIds.has(p.id)).length;
   useJoinToasts(participants);
 
   const copyInline = async () => {
-    try {
-      await navigator.clipboard.writeText(roomUrl);
-      toast({ title: 'Link copiado' });
-    } catch {
-      onShare();
-    }
+    if (await copyToClipboard(roomUrl)) toast({ title: 'Link copiado' });
+    else onShare();
   };
+  const votingLabels = votingCargos.map((c) => canonicalCargo(c) || c);
+  const hasQaOnline = participants.some((p) => onlineIds.has(p.id) && getParticipantCategory(p) === 'QA');
+  const hasDevOnline = participants.some((p) => onlineIds.has(p.id) && getParticipantCategory(p) === 'Developer');
+  const missing = !hasDevOnline ? 'um DEV' : !hasQaOnline ? 'um QA' : null;
 
   // Atalhos do facilitador: I importar, N nova tarefa, S compartilhar.
   useEffect(() => {
@@ -152,93 +185,154 @@ export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants,
     return () => window.removeEventListener('keydown', onKey);
   }, [onImportJira, onAddManual, onShare]);
 
+  const STEP = 'flex items-center gap-2.5 rounded-xl px-3.5 py-3';
+  const DONE_STEP = 'border border-emerald-500/40 bg-emerald-500/5';
+  const DONE_DOT = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white dark:text-emerald-950';
   return (
-    <div className="relative w-full max-w-[1080px] text-left">
-      <div aria-hidden="true" className="room-halo room-breathe pointer-events-none absolute left-1/2 top-0 -z-10 h-[520px] w-[900px] -translate-x-1/2" />
-
-      <CardFan deck={deck} maxHours={maxHours} />
-
-      <div className="mt-2 flex flex-col items-center gap-3.5 text-center">
-        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Sua sala está pronta</h2>
-        <div className="flex items-center gap-2">
-          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
-          {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
+    <div className="grid h-full w-full gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section aria-label="Primeiros passos" className="flex min-w-0 flex-col gap-[18px]">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="m-0 text-[30px] font-extrabold leading-tight tracking-[-0.02em]">{ready ? 'Tudo pronto para começar' : 'Sua sala está pronta'}</h1>
+          <p className="m-0 text-[15px] text-muted-foreground">
+            {ready
+              ? `${ready.queueCount} ${ready.queueCount === 1 ? 'tarefa' : 'tarefas'} na fila e o time na sala. Quando você iniciar, a primeira vai para a mesa e o baralho abre para todos.`
+              : 'Chame o time e monte a fila. A votação começa quando a primeira tarefa entrar.'}
+          </p>
         </div>
-        <ul className="m-0 flex list-none flex-wrap justify-center gap-x-[18px] gap-y-1 p-0 text-[13px] text-muted-foreground" aria-label="Progresso da sala">
-          <li className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} aria-hidden="true" /> Sala criada</li>
-          <li className="flex items-center gap-1.5">
-            {others ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} aria-hidden="true" /> : <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-primary" />}
-            {others ? `${onlineCount} online agora` : 'Convide o time'}
+
+        <ol aria-label="Passos" className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 md:grid-cols-3">
+          <li className={cn(STEP, DONE_STEP)}>
+            <span aria-hidden="true" className={DONE_DOT}><Check className="h-4 w-4" strokeWidth={2.25} /></span>
+            <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Sala criada</span><span className="truncate text-xs text-muted-foreground">{deckLabel}{roomTeam ? ` · ${roomTeam}` : ''}</span></span>
           </li>
-          <li className="flex items-center gap-1.5"><span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-primary" /> Fila vazia</li>
-        </ul>
-      </div>
+          {ready ? (
+            <li className={cn(STEP, DONE_STEP)}>
+              <span aria-hidden="true" className={DONE_DOT}><Check className="h-4 w-4" strokeWidth={2.25} /></span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Time e fila</span><span className="text-xs text-muted-foreground">{participants.length} na sala · {ready.queueCount} {ready.queueCount === 1 ? 'tarefa' : 'tarefas'}</span></span>
+            </li>
+          ) : (
+            <li aria-current="step" className={cn(STEP, 'border-[1.5px] border-primary bg-primary/5')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">2</span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Chame o time e monte a fila</span><span className="text-xs text-muted-foreground">{participants.length} na sala · 0 tarefas</span></span>
+            </li>
+          )}
+          {ready ? (
+            <li aria-current="step" className={cn(STEP, 'border-[1.5px] border-primary bg-primary/5')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">3</span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Comece a votar</span><span className="text-xs text-muted-foreground">Inicie o refinamento na mesa</span></span>
+            </li>
+          ) : (
+            <li className={cn(STEP, 'border border-dashed border-border')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-border text-sm font-extrabold text-muted-foreground"><Lock className="h-3.5 w-3.5" strokeWidth={1.5} /></span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold text-muted-foreground">Comece a votar</span><span className="text-xs text-muted-foreground">Libera com a primeira tarefa</span></span>
+            </li>
+          )}
+        </ol>
 
-      <ol className="relative m-0 mt-5 grid list-none grid-cols-1 gap-5 p-0 md:grid-cols-3">
-        <li aria-hidden="true" className="absolute left-[16%] right-[16%] top-[38px] hidden h-px bg-border md:block" />
+        {!ready && <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onImportJira} className={cn(BTN, 'w-auto bg-primary px-4 font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
+            <CloudDownload className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira <kbd className={KEY}>I</kbd>
+          </button>
+          <button type="button" onClick={onAddManual} className={cn(BTN, 'w-auto border border-border px-4 font-medium hover:bg-accent', FOCUS_RING)}>
+            <ListPlus className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Adicionar manualmente <kbd className={KEY}>N</kbd>
+          </button>
+        </div>}
 
-        <li className="relative">
-          <div className={cn(STEP_CARD, 'border-border bg-card')}>
-            <div className="flex items-center gap-3">
-              <StepBadge n={1} state={others ? 'done' : 'active'} />
-              <h3 className="text-[17px] font-semibold">Convide o time</h3>
-            </div>
-            <div className="flex items-center gap-3.5">
-              <RoomQr url={roomUrl} size={104} />
-              <div className="flex min-w-0 flex-col gap-2.5">
-                <div className="flex items-center">
-                  {participants.slice(0, 5).map((p, i) => (
-                    <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
-                      <PersonAvatar name={p.nickname} userId={p.id} size="md" />
-                    </span>
-                  ))}
-                  {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 5}</span>}
-                </div>
-                <span className="text-[13px] leading-snug text-muted-foreground">
-                  {participants.length > 1 ? `${participants.length} na sala · ${onlineCount} online` : 'Só você por aqui'}
-                </span>
-              </div>
-            </div>
-            <div className="mt-auto flex flex-col gap-2">
-              <button type="button" onClick={copyInline} className={cn(BTN, 'bg-primary font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
-                <Copy className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Copiar link
-              </button>
-              <button type="button" onClick={onShare} className={cn(BTN, 'border border-border font-medium hover:bg-accent', FOCUS_RING)}>
-                <Share2 className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Mais opções <kbd className={KEY}>S</kbd>
+        <MiniTable
+          participants={participants}
+          onlineIds={onlineIds}
+          currentUserId={currentUserId}
+          center={ready ? (
+            <div className="flex max-w-[360px] flex-col items-center gap-2.5 px-4">
+              <span className="text-xs font-bold tracking-[0.08em] text-muted-foreground">PRIMEIRA NA MESA</span>
+              <span className="line-clamp-2 text-base font-semibold leading-snug">
+                {ready.firstKey && <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{ready.firstKey} · </span>}
+                {ready.firstTitle}
+              </span>
+              <button type="button" onClick={ready.onStart} className={cn(BTN, 'mt-1 w-auto bg-primary px-5 font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
+                <Play className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} aria-hidden="true" /> Iniciar refinamento
               </button>
             </div>
+          ) : undefined}
+        />
+
+        {ready ? (
+          <div className="flex items-center gap-3 rounded-[14px] border border-dashed border-border px-[18px] py-3.5 text-sm text-muted-foreground">
+            <Layers className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            <span>O baralho abre quando o refinamento começar. Para o time, a sala mostra &quot;Aguardando o facilitador iniciar&quot;.</span>
           </div>
-        </li>
-
-        <li className="relative">
-          <div className={cn(STEP_CARD, 'border-primary/50 bg-card shadow-[0_0_0_3px_hsl(var(--primary)/0.1)] [.theme-leitura_&]:shadow-none')}>
-            <div className="flex items-center gap-3">
-              <StepBadge n={2} state="active" />
-              <h3 className="text-[17px] font-semibold">Monte a fila</h3>
-            </div>
-            <div className="mt-auto flex flex-col gap-2">
-              <button type="button" onClick={onImportJira} className={cn(BTN, 'bg-primary font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
-                <CloudDownload className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira <kbd className={KEY}>I</kbd>
-              </button>
-              <button type="button" onClick={onAddManual} className={cn(BTN, 'border border-border font-medium hover:bg-accent', FOCUS_RING)}>
-                <ListPlus className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Adicionar manualmente <kbd className={KEY}>N</kbd>
-              </button>
-            </div>
+        ) : (
+        <div className="flex flex-wrap items-center gap-3.5 rounded-2xl border border-border bg-card px-[18px] py-4">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[15px] font-semibold">Chame o time</span>
+            <span className="text-xs text-muted-foreground">Mande no chat da reunião</span>
+          </span>
+          <div className="flex h-[42px] min-w-[16rem] flex-1 items-center overflow-hidden rounded-[11px] border border-border bg-background">
+            <label htmlFor="room-welcome-link" className="sr-only">Link da sala</label>
+            <input id="room-welcome-link" readOnly value={roomUrl.replace(/^https?:\/\//, '')} onFocus={(e) => e.currentTarget.select()} className="h-[42px] min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] text-muted-foreground outline-none" />
+            <button type="button" onClick={copyInline} className={cn('inline-flex h-[42px] items-center gap-2 border-l border-border bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90', FOCUS_RING)}>
+              <Copy className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Copiar link
+            </button>
           </div>
-        </li>
-
-        <li className="relative">
-          <div className={cn(STEP_CARD, 'border-dashed border-border bg-muted/40')}>
-            <div className="flex items-center gap-3">
-              <StepBadge n={3} state="locked" />
-              <h3 className="text-[17px] font-semibold text-muted-foreground">Comece a votar</h3>
-            </div>
-            <span className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Play className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Libera com a primeira tarefa
+          {/* Código curto (salas antigas): dá para ditar. Os identificadores longos ficam só no link. */}
+          {roomCode.length <= 12 && (
+            <span className="flex flex-col items-center gap-0.5 rounded-[11px] border border-border px-3 py-1">
+              <span className="text-xs text-muted-foreground">Código</span>
+              <span className="font-mono text-[15px] font-medium tracking-[0.08em]">{roomCode}</span>
             </span>
+          )}
+          <button type="button" onClick={onShare} className={cn('inline-flex h-[42px] items-center gap-2 rounded-[11px] border border-border px-3.5 text-sm font-semibold hover:bg-accent', FOCUS_RING)}>
+            <Share2 className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Convite e QR <kbd className={KEY}>S</kbd>
+          </button>
+        </div>
+        )}
+      </section>
+
+      <aside className="flex min-w-0 flex-col gap-3.5">
+        <section aria-labelledby="room-welcome-people" className="flex flex-col gap-2">
+          <h2 id="room-welcome-people" className="m-0 text-[15px] font-semibold">Na sala · {participants.length}</h2>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {participants.slice(0, 8).map((p) => {
+              const votes = canParticipantVote(p, votingCargos);
+              const role = canonicalCargo(p.globalRole) || 'Sem cargo';
+              return (
+                <li key={p.id} className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-2.5">
+                  <span className="relative">
+                    <PersonAvatar name={p.nickname} userId={p.id} size="md" />
+                    {onlineIds.has(p.id) && <span aria-label="online" className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] font-semibold">{p.nickname}{p.id === currentUserId ? ' (você)' : ''}</span>
+                    <span className={cn('truncate text-xs', votes ? 'text-foreground/80' : 'text-muted-foreground')}>
+                      {role} · {p.isFacilitator ? 'facilitador' : votes ? 'vota' : 'observa'}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+            {participants.length > 8 && <li className="px-1 text-xs text-muted-foreground">+ {participants.length - 8} na sala</li>}
+          </ul>
+          {missing && <span className="text-xs leading-relaxed text-muted-foreground">Ainda falta {missing} online para votar.</span>}
+        </section>
+
+        <section aria-labelledby="room-welcome-config" className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-card p-3.5">
+          <div className="flex items-center">
+            <h2 id="room-welcome-config" className="m-0 flex-1 text-sm font-semibold">Como a sessão está</h2>
+            {onOpenSettings && (
+              <button type="button" onClick={onOpenSettings} className={cn('rounded text-[13px] font-medium text-primary underline-offset-2 hover:underline [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}>
+                Ajustar
+              </button>
+            )}
           </div>
-        </li>
-      </ol>
+          <dl className="m-0 grid grid-cols-[6rem_minmax(0,1fr)] gap-y-2 text-[13px]">
+            <dt className="text-muted-foreground">Baralho</dt>
+            <dd className="m-0">{deckLabel}{deck === 'hours' && maxHours ? `, até ${maxHours}h` : ''}</dd>
+            <dt className="text-muted-foreground">Quem vota</dt>
+            <dd className="m-0">{votingLabels.length ? votingLabels.join(', ') : 'Desenvolvedor(a) e QA'}</dd>
+            {roomTeam && (<><dt className="text-muted-foreground">Squad</dt><dd className="m-0 truncate">{roomTeam}</dd></>)}
+          </dl>
+        </section>
+      </aside>
     </div>
   );
 }

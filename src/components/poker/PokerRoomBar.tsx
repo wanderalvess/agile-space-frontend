@@ -3,6 +3,7 @@
 import { moduleIcon } from '@/lib/modules-registry';
 import React from 'react';
 import {
+  ArrowRight,
   Eye,
   HelpCircle,
   History,
@@ -81,6 +82,30 @@ export interface PokerRoomBarProps {
   votedCount: number;
   voterTotal: number;
   onReveal: () => void;
+  /** Votos revelados: "Salvar e avançar" (ou "Salvar final") toma o lugar do "Revelar votos". */
+  save?: { label: string; onSave: () => void } | null;
+  /** Onde a sessão está: tarefa na mesa, total e quantas já foram estimadas. */
+  progress?: { current: number; total: number; estimated: number } | null;
+}
+
+/** "Tarefa 2 de 7 · 1 estimada" com a barrinha de avanço; some no celular, onde a fila já mostra. */
+function SessionProgress({ current, total, estimated }: { current: number; total: number; estimated: number }) {
+  const pct = total > 0 ? Math.round((estimated / total) * 100) : 0;
+  return (
+    <div
+      className="hidden w-40 shrink-0 flex-col gap-1.5 md:flex xl:max-[1439px]:hidden"
+      role="group"
+      aria-label={`Tarefa ${current} de ${total}, ${estimated} ${estimated === 1 ? 'estimada' : 'estimadas'}`}
+    >
+      <div aria-hidden="true" className="flex justify-between gap-2 text-xs text-muted-foreground">
+        <span className="whitespace-nowrap">Tarefa <strong className="font-semibold text-foreground">{current}</strong> de {total}</span>
+        <span className="whitespace-nowrap">{estimated} {estimated === 1 ? 'estimada' : 'estimadas'}</span>
+      </div>
+      <div aria-hidden="true" className="h-1 overflow-hidden rounded-full bg-border">
+        <div className="h-full rounded-full bg-primary transition-[width] duration-slow" style={{ width: `${Math.max(pct, current > 0 ? 4 : 0)}%` }} />
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -131,22 +156,39 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
       status={p.status}
       chips={chips}
       timer={
-        showTimer && p.timer ? (
-          <RoomTimer
-            timer={p.timer}
-            isFacilitator={p.isFacilitator}
-            onStart={p.onStartTimer}
-            onPause={p.onPauseTimer}
-            onResume={p.onResumeTimer}
-            onReset={p.onResetTimer}
-            onSetDuration={p.onSetTimerDuration}
-            isSoundEnabled={p.isSoundEnabled}
-            serverOffset={p.serverTimeOffset}
-          />
+        p.progress || (showTimer && p.timer) ? (
+          <>
+            {p.progress && p.progress.total > 0 && <SessionProgress {...p.progress} />}
+            {showTimer && p.timer && (
+              <RoomTimer
+                timer={p.timer}
+                isFacilitator={p.isFacilitator}
+                onStart={p.onStartTimer}
+                onPause={p.onPauseTimer}
+                onResume={p.onResumeTimer}
+                onReset={p.onResetTimer}
+                onSetDuration={p.onSetTimerDuration}
+                isSoundEnabled={p.isSoundEnabled}
+                serverOffset={p.serverTimeOffset}
+              />
+            )}
+          </>
         ) : undefined
       }
       primaryAction={
-        p.isFacilitator && p.showReveal ? (
+        p.isFacilitator && p.save ? (
+          <button
+            type="button"
+            onClick={p.save.onSave}
+            className={cn(
+              'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90 max-sm:h-11',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+            )}
+          >
+            {p.save.label}
+            <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        ) : p.isFacilitator && p.showReveal ? (
           <button
             type="button"
             onClick={p.onReveal}
@@ -164,6 +206,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
         ) : undefined
       }
       secondaryActions={p.taskActions}
+      compactSecondary
       presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants }}
       actions={actions}
       menuItems={menuItems}

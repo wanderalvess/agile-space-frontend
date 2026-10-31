@@ -9,6 +9,7 @@ import { ConfirmDialog, FIELD, IconButton, IconTile, ModalButton, SelectField, S
 import { PAGE_CARD } from '@/components/page/styles';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { cn } from '@/lib/utils';
 import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
@@ -119,9 +120,13 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
     }
   };
 
-  const copyRevealedKey = () => {
+  const copyRevealedKey = async () => {
     if (!revealedKey) return;
-    navigator.clipboard.writeText(revealedKey);
+    // A chave só aparece uma vez: se a cópia falhar (HTTP, foco preso no modal), a pessoa precisa saber para copiar na mão.
+    if (!(await copyToClipboard(revealedKey))) {
+      toast({ variant: 'destructive', title: 'Não foi possível copiar', description: 'Selecione a chave e copie manualmente (Ctrl+C).' });
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

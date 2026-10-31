@@ -22,6 +22,8 @@ interface JiraImportModalProps {
   open: boolean;
   onClose: () => void;
   onImport: (issues: JiraIssue[]) => void;
+  /** Chaves que já estão na fila (maiúsculas): aparecem como "Já na fila", desmarcadas e sem como marcar. */
+  existingKeys?: ReadonlySet<string>;
 }
 
 type Source = 'api' | 'xml';
@@ -33,8 +35,11 @@ const SOURCES = [
 
 const CHIP = 'inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-2.5 text-xs text-foreground transition-colors duration-fast hover:bg-accent';
 
-/** Sincronizar Jira (Scrum Poker): conexão, consulta ou XML, revisão das issues e importação para a fila. */
-export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProps) {
+const NO_KEYS: ReadonlySet<string> = new Set();
+
+/** Importar do Jira (Scrum Poker): conexão, consulta ou XML, revisão das issues e importação para a fila. */
+export function JiraImportModal({ open, onClose, onImport, existingKeys = NO_KEYS }: JiraImportModalProps) {
+  const inQueue = (key: string) => existingKeys.has(key.toUpperCase());
   const { toast } = useToast();
   const { settings, saveSettings } = useJiraSettings();
   const { savedJqls, saveJql, deleteJql } = useSavedJqls();
@@ -85,7 +90,7 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
   const startResults = (issues: JiraIssue[], count: number | null) => {
     setResults(issues);
     setTotal(count);
-    setSelected(new Set(issues.map((i) => i.key)));
+    setSelected(new Set(issues.filter((i) => !inQueue(i.key)).map((i) => i.key)));
     setFilter(EMPTY_FILTER);
     setExpanded(new Set());
   };
@@ -131,12 +136,14 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
     }
   };
 
-  const toggle = (key: string) =>
+  const toggle = (key: string) => {
+    if (inQueue(key)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
+  };
   const toggleExpand = (key: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -153,14 +160,15 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
   const visible = useMemo(() => (results ? filterJiraResults(results, filter) : []), [results, filter]);
   const types = useMemo(() => (results ? countDistinct(results, (r) => r.type) : []), [results]);
   const statuses = useMemo(() => (results ? countDistinct(results, (r) => r.status) : []), [results]);
-  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.key));
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.key) || inQueue(r.key));
+  const alreadyQueued = results ? results.filter((r) => inQueue(r.key)).length : 0;
   const truncated = results !== null && total !== null && total > results.length;
 
   const toggleAllVisible = () =>
     setSelected((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) visible.forEach((r) => next.delete(r.key));
-      else visible.forEach((r) => next.add(r.key));
+      else visible.forEach((r) => { if (!inQueue(r.key)) next.add(r.key); });
       return next;
     });
 
@@ -190,7 +198,8 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
         onOpenChange={(o) => { if (!o) close(); }}
         size="lg"
         icon={CloudDownload}
-        title="Sincronizar Jira"
+        title="Importar do Jira"
+        description="Escolha as tarefas que entram na fila. Importar não muda nada no Jira."
         headerExtra={
           results === null ? (
             <TabBar tabs={SOURCES} value={source} onChange={(id) => { setSource(id); setError(null); }} label="Origem das issues" idPrefix="jira-source" />
@@ -206,6 +215,7 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
             <div className="flex flex-wrap items-center gap-2">
               <StatusChip tone="neutral">{visible.length === results!.length ? `${results!.length} issues` : `${visible.length} de ${results!.length}`}</StatusChip>
               <StatusChip tone="brand">{selected.size} {selected.size === 1 ? 'marcada' : 'marcadas'}</StatusChip>
+              {alreadyQueued > 0 && <StatusChip tone="neutral">{alreadyQueued} já na fila</StatusChip>}
               <span className="flex-1" />
               <button
                 type="button"
@@ -253,17 +263,20 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
         }
         footerStart={
           results !== null ? (
-            <ModalButton variant="ghost" onClick={() => { setResults(null); setError(null); }} className="gap-2">
-              <RotateCcw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> <span className="max-sm:sr-only">Nova busca</span>
-            </ModalButton>
+            <>
+              <ModalButton variant="ghost" onClick={() => { setResults(null); setError(null); }} className="gap-2">
+                <RotateCcw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> <span className="max-sm:sr-only">Nova busca</span>
+              </ModalButton>
+              {hasResults && <span className="text-[13px] text-muted-foreground max-md:hidden">Entram na fila na ordem do Jira.</span>}
+            </>
           ) : undefined
         }
         footer={
           <>
             <ModalButton onClick={close}>Cancelar</ModalButton>
             {hasResults ? (
-              <ModalButton variant="primary" onClick={confirmImport} disabled={selected.size === 0}>
-                Importar {selected.size}<span className="max-sm:hidden">{selected.size === 1 ? 'selecionada' : 'selecionadas'}</span>
+              <ModalButton variant="primary" onClick={confirmImport} disabled={selected.size === 0} className="room-glow">
+                Importar {selected.size} {selected.size === 1 ? 'tarefa' : 'tarefas'}
               </ModalButton>
             ) : results === null && source === 'api' ? (
               <ModalButton variant="primary" onClick={handleSearch} disabled={!canSearch} className="gap-2">
@@ -415,20 +428,22 @@ export function JiraImportModal({ open, onClose, onImport }: JiraImportModalProp
             ) : (
               <ul className="m-0 flex list-none flex-col gap-2 p-0">
                 {visible.map((r) => {
-                  const checked = selected.has(r.key);
+                  const queued = inQueue(r.key);
+                  const checked = !queued && selected.has(r.key);
                   const open = expanded.has(r.key);
                   const snippet = stripHtml(r.description);
                   const hasDetail = !!(r.description || r.acceptanceCriteria);
                   const href = toSafeExternalUrl(r.url);
                   const inputId = `jira-issue-${r.key}`;
                   return (
-                    <li key={r.key} className={cn('rounded-xl border transition-colors duration-fast', checked ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-accent/40')}>
+                    <li key={r.key} className={cn('rounded-xl border transition-colors duration-fast', queued ? 'border-dashed border-border opacity-75' : checked ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-accent/40')}>
                       <div className="flex items-start">
-                        <label htmlFor={inputId} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 p-3">
-                          <Checkbox id={inputId} checked={checked} onCheckedChange={() => toggle(r.key)} className="mt-0.5" />
+                        <label htmlFor={inputId} className={cn('flex min-w-0 flex-1 items-start gap-3 p-3', queued ? 'cursor-default' : 'cursor-pointer')}>
+                          <Checkbox id={inputId} checked={checked} disabled={queued} onCheckedChange={() => toggle(r.key)} className="mt-0.5" />
                           <span className="flex min-w-0 flex-1 flex-col gap-1">
                             <span className="flex flex-wrap items-center gap-1.5">
                               <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
+                              {queued && <StatusChip tone="neutral">Já na fila</StatusChip>}
                               {r.type && <StatusChip tone="neutral">{r.type}</StatusChip>}
                               {r.status && <StatusChip tone={jiraStatusTone(r.status)}>{r.status}</StatusChip>}
                               {r.priority && <span className="text-xs text-muted-foreground">{r.priority}</span>}

@@ -22,6 +22,8 @@ import { Switch } from '@/components/ui/switch';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 const BLANK_TEMPLATE = '__blank';
+/** Baralho no resumo do rodapé ("Horas · Ao vivo · 2 cargos votam"). */
+const SUMMARY_DECK: Record<string, string> = { hours: 'Horas', fibonacci: 'Fibonacci', tshirt: 'Camisetas' };
 const UNIT_OPTIONS = (Object.keys(TSHIRT_UNIT_LABELS) as TshirtUnit[]).map((u) => ({ value: u, label: TSHIRT_UNIT_LABELS[u] }));
 
 // Metadados dos baralhos para os cartões do modal (as cartas completas vêm de DECKS).
@@ -290,10 +292,15 @@ export function CreateSessionModal({
       icon={moduleIcon('poker')}
       title="Nova sessão"
       preventClose={isCreating}
+      footerStart={
+        <span className="truncate text-[13px] text-muted-foreground max-md:hidden">
+          {SUMMARY_DECK[deckType] ?? 'Baralho'} · {mode === 'sync' ? 'Ao vivo' : 'No seu tempo'} · {votingCargos.length === 1 ? '1 cargo vota' : `${votingCargos.length} cargos votam`}
+        </span>
+      }
       footer={
         <>
           <ModalButton onClick={() => onOpenChange(false)} disabled={isCreating}>Cancelar</ModalButton>
-          <ModalButton variant="primary" onClick={handleCreate} disabled={isCreating} className="min-w-[140px] gap-2">
+          <ModalButton variant="primary" onClick={handleCreate} disabled={isCreating} className="room-glow min-w-[140px] gap-2">
             {isCreating && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />}
             {isCreating ? 'Preparando…' : 'Criar sala'}
           </ModalButton>

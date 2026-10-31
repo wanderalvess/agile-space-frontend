@@ -137,15 +137,15 @@ describe('RitualsSection: histórico indisponível', () => {
 
   it('mostra o aviso com "Tentar de novo" só quando a busca falhou', () => {
     const onRetry = vi.fn();
-    const { rerender } = render(<RitualsSection history={empty} loading={false} showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    const { rerender } = render(<RitualsSection history={empty} loading={false} now={NOW} onRetry={onRetry} />);
     expect(screen.queryByText('Histórico indisponível agora.')).toBeNull();
 
-    rerender(<RitualsSection history={empty} loading={false} failed showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    rerender(<RitualsSection history={empty} loading={false} failed now={NOW} onRetry={onRetry} />);
     expect(screen.getByText('Histórico indisponível agora.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
 
-    rerender(<RitualsSection history={empty} loading failed showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    rerender(<RitualsSection history={empty} loading failed now={NOW} onRetry={onRetry} />);
     expect((screen.getByRole('button', { name: 'Tentar de novo' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

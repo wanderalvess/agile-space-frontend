@@ -436,7 +436,12 @@ export function TopicQueue({
 
       <QueueTaskModal open={isTaskOpen} onOpenChange={setIsTaskOpen} issues={issues} onAdd={onAddIssue} />
       <QueueBulkModal open={isBulkOpen} onOpenChange={setIsBulkOpen} issues={issues} onImport={onBulkAddIssues} />
-      <JiraImportModal open={isJiraOpen} onClose={() => setIsJiraOpen(false)} onImport={handleJiraImport} />
+      <JiraImportModal
+        open={isJiraOpen}
+        onClose={() => setIsJiraOpen(false)}
+        onImport={handleJiraImport}
+        existingKeys={new Set(issues.filter((i) => i.key && !i.cancelled).map((i) => String(i.key).toUpperCase()))}
+      />
 
       <ConfirmDialog
         open={!!idToDelete}

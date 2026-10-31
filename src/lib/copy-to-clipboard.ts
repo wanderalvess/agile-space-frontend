@@ -28,7 +28,13 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
   textArea.style.top = "-9999px";
   textArea.style.left = "-9999px";
 
-  document.body.appendChild(textArea);
+  // Dentro de um modal (Radix) o foco fica preso no diálogo: um textarea no <body>
+  // não consegue receber foco e o execCommand falha. Anexa dentro do diálogo aberto.
+  const container =
+    (document.activeElement as HTMLElement | null)?.closest('[role="dialog"], [role="alertdialog"]') ??
+    document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') ??
+    document.body;
+  container.appendChild(textArea);
   textArea.focus();
   textArea.select();
 
@@ -44,6 +50,6 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     console.error("Fallback execCommand('copy') failed.", error);
     return false;
   } finally {
-    document.body.removeChild(textArea);
+    textArea.remove();
   }
 };

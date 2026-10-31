@@ -78,9 +78,6 @@ export default function Home() {
     [scope, activeId, switchTo, toast],
   );
 
-  const scopedSquad = effectiveScope ? squads.find((s) => s.id === effectiveScope) : undefined;
-  const scopeLabel = isMulti ? (scopedSquad ? `Squad ${scopedSquad.name}` : 'Todas as squads') : '';
-
   const chips = heroChips({
     squadCount: squads.length,
     liveCount: live.data.length,
@@ -127,7 +124,7 @@ export default function Home() {
         now={now}
       />
 
-      <RitualsSection history={history.data} loading={history.loading} failed={history.failed} onRetry={history.refetch} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
+      <RitualsSection history={history.data} loading={history.loading} failed={history.failed} onRetry={history.refetch} now={now} />
 
       <ModuleGrid query={query} />
 

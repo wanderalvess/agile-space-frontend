@@ -136,7 +136,8 @@ describe('hub do Plano de ação', () => {
     const table = await screen.findByRole('table', { name: 'Planos da squad' });
     expect(within(table).getByText('Plano aberto aqui')).toBeTruthy();
     expect(within(table).getByText('Neste navegador')).toBeTruthy();
-    expect(screen.getByRole('alert').textContent).toContain('abertos neste navegador');
+    // A tabela já aparece com o histórico local enquanto a lista carrega; o aviso só vem depois da falha.
+    expect((await screen.findByRole('alert')).textContent).toContain('abertos neste navegador');
   });
 
   it('sem squad ativa não há lista, mas criar e entrar por ID seguem', async () => {

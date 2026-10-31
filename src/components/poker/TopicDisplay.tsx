@@ -28,6 +28,8 @@ interface TopicDisplayProps {
   onShowNotes?: () => void;
   /** Já existe nota de DEV ou de QA nesta tarefa (ponto no botão). */
   hasNotes?: boolean;
+  /** O painel de notas está aberto ao lado da mesa (botão pressionado). */
+  notesOpen?: boolean;
   /** Menu "mais ações da tarefa" (tirar da mesa, cancelar, encerrar). */
   menu?: ReactNode;
   // Rodada
@@ -52,6 +54,7 @@ export function TopicDisplay({
   onShowDetail,
   onShowNotes,
   hasNotes = false,
+  notesOpen = false,
   menu,
   round,
   maxRounds,
@@ -104,7 +107,7 @@ export function TopicDisplay({
           {showFinished ? (
             <StatusChip tone="success">Sessão concluída</StatusChip>
           ) : topic ? (
-            revealed ? <StatusChip tone="success">Revelado</StatusChip> : <StatusChip dot className="uppercase tracking-wide">Votando agora</StatusChip>
+            revealed ? <StatusChip tone="success">Revelado</StatusChip> : <StatusChip dot>Votando</StatusChip>
           ) : (
             <span className="inline-flex h-[22px] items-center rounded-full border border-dashed border-border px-2 text-xs font-semibold text-muted-foreground">Mesa livre</span>
           )}
@@ -122,7 +125,7 @@ export function TopicDisplay({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> No Jira
+              Abrir no Jira <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
             </a>
           )}
         </div>
@@ -165,7 +168,8 @@ export function TopicDisplay({
               aria-label={hasNotes ? 'Notas de refinamento (com notas)' : 'Notas de refinamento'}
               title="Notas de refinamento desta tarefa"
               onClick={onShowNotes}
-              className="gap-2 whitespace-nowrap max-sm:h-11"
+              aria-pressed={notesOpen}
+              className={cn('gap-2 whitespace-nowrap max-sm:h-11', notesOpen && 'border-primary/60 bg-primary/10')}
             >
               <StickyNote className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Notas
             </ModalButton>

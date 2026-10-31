@@ -9,6 +9,7 @@ import { adminApi, type ApiKeyData } from '@/app/admin/api';
 import { userApi } from '@/app/users/api';
 import { toast } from '@/hooks/use-toast';
 import { logSystemEvent } from '@/lib/audit';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { cn } from '@/lib/utils';
 import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
 import { EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD } from '@/components/page';
@@ -150,7 +151,7 @@ export function ApiKeysManager() {
   const copyRevealedKey = async () => {
     if (!revealedKey) return;
     try {
-      await navigator.clipboard.writeText(revealedKey);
+      if (!(await copyToClipboard(revealedKey))) throw new Error('clipboard');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

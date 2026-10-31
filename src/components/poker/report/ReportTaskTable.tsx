@@ -67,8 +67,32 @@ function SortHeader({ label, sort, active, onSort, align = 'left' }: { label: st
 const TH = 'border-b border-border px-2.5 py-2 text-xs font-bold text-muted-foreground';
 const TD = 'border-b border-border px-2.5 py-2.5 align-top';
 
-/** Tabela principal do relatório: uma linha por tarefa da pauta, filtrável por situação e ordenável. */
-export function ReportTaskTable({ report }: { report: SessionReportData }) {
+/** Situação do envio da tarefa ao Jira (o envio mais recente). */
+export type JiraTaskStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'ERROR';
+
+const JIRA_CHIP: Record<JiraTaskStatus | 'TODO', { label: string; cls: string }> = {
+  DONE: { label: 'Enviada', cls: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+  RUNNING: { label: 'Enviando', cls: 'bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' },
+  PENDING: { label: 'Na fila', cls: 'bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' },
+  ERROR: { label: 'Com erro', cls: 'bg-red-500/10 text-red-700 dark:text-red-300' },
+  TODO: { label: 'Não enviada', cls: 'bg-muted text-muted-foreground' },
+};
+
+const ESTIMATED: ReadonlySet<TaskSituation> = new Set(['consenso', 'revotada', 'divergencia', 'estimada']);
+const sendable = (t: ReportTask) => !!t.key && ESTIMATED.has(t.situation);
+
+/** Selo do Jira na linha: só para tarefa estimada com chave; o resto fica com traço. */
+function JiraCell({ task, status }: { task: ReportTask; status?: JiraTaskStatus }) {
+  if (!sendable(task)) return <span className="text-muted-foreground">—</span>;
+  const chip = JIRA_CHIP[status ?? 'TODO'];
+  return <span className={cn('inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-2 text-xs font-semibold', chip.cls)}>{chip.label}</span>;
+}
+
+/**
+ * Tabela principal do relatório: uma linha por tarefa da pauta, filtrável por situação e ordenável.
+ * Com `jiraStatus`, ganha a coluna "Jira" (só na tela: o PDF e as exportações não levam o status de envio).
+ */
+export function ReportTaskTable({ report, jiraStatus }: { report: SessionReportData; jiraStatus?: Record<string, JiraTaskStatus> }) {
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>('todas');
   const [sort, setSort] = useState<TaskSort>('pauta');
@@ -81,6 +105,8 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
   const isHours = report.header.deck === 'hours';
   const hasEstimates = report.kpis.estimated > 0;
   const totalRounds = report.tasks.reduce((s, t) => s + t.rounds, 0);
+  const showJira = !!jiraStatus && report.tasks.some(sendable);
+  const extraCols = (isHours ? 1 : 0) + (showJira ? 1 : 0);
 
   const copy = async (text: string, title: string) => {
     try {
@@ -146,6 +172,7 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
               </th>
               <th scope="col" className={TH}>Situação</th>
               <th scope="col" className={TH}>Decisão e observações</th>
+              {showJira && <th scope="col" className={TH}>Jira</th>}
               {isHours && <th scope="col" className={cn(TH, 'w-10')}><span className="sr-only">Copiar estimativa</span></th>}
             </tr>
           </thead>
@@ -167,6 +194,7 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
                 <td className={cn(TD, 'text-center tabular-nums')}>{t.rounds > 0 ? t.rounds : <span className="text-muted-foreground">—</span>}</td>
                 <td className={TD}><SituationChip situation={t.situation} /></td>
                 <td className={cn(TD, 'max-w-[320px]')}><Notes task={t} /></td>
+                {showJira && <td className={TD}><JiraCell task={t} status={jiraStatus?.[t.id]} /></td>}
                 {isHours && (
                   <td className={cn(TD, 'text-right')}>
                     {t.copyText && (
@@ -186,7 +214,7 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
             ))}
             {visible.length === 0 && (
               <tr>
-                <td className={cn(TD, 'text-center text-muted-foreground')} colSpan={report.roles.length + 5 + (isHours ? 1 : 0)}>Nenhuma tarefa nesta situação.</td>
+                <td className={cn(TD, 'text-center text-muted-foreground')} colSpan={report.roles.length + 5 + extraCols}>Nenhuma tarefa nesta situação.</td>
               </tr>
             )}
           </tbody>
@@ -201,11 +229,11 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
                 ))}
                 <td className={cn('whitespace-nowrap px-2.5 py-3 text-right tabular-nums')}>{report.kpis.totalLabel}</td>
                 <td className="px-2.5 py-3 text-center tabular-nums">{totalRounds}</td>
-                <td colSpan={isHours ? 3 : 2} />
+                <td colSpan={2 + extraCols} />
               </tr>
               {report.totals.rolesDiffer && (
                 <tr>
-                  <td colSpan={report.roles.length + 5 + (isHours ? 1 : 0)} className="px-2.5 pb-2 text-xs text-muted-foreground">
+                  <td colSpan={report.roles.length + 5 + extraCols} className="px-2.5 pb-2 text-xs text-muted-foreground">
                     A soma dos papéis ({formatNumber(Object.values(report.totals.roles).reduce((a, b) => a + b, 0))}h) difere do total por ajuste manual de estimativa.
                   </td>
                 </tr>
@@ -236,6 +264,7 @@ export function ReportTaskTable({ report }: { report: SessionReportData }) {
                 ) : null
               )}
               {t.rounds > 0 && <span className="tabular-nums text-muted-foreground">{t.rounds} {t.rounds === 1 ? 'rodada' : 'rodadas'}</span>}
+              {showJira && sendable(t) && <span className="inline-flex items-center gap-1.5 text-muted-foreground">Jira <JiraCell task={t} status={jiraStatus?.[t.id]} /></span>}
             </div>
             <div className="text-xs"><Notes task={t} /></div>
           </li>
