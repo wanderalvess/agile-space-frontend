@@ -1,5 +1,14 @@
 [
   {
+    "tag": "v4.29.1",
+    "date": "30 de Outubro, 2026",
+    "title": "Rituais da Home levam direto à ferramenta",
+    "description": "Os cartões de \"Rituais do time\" na Home abrem a página da ferramenta em vez de um painel lateral.",
+    "changes": [
+      "Home: clicar em Scrum Poker, Retrospectiva, Review, Radar de clima ou Brainstorming abre direto a página com as sessões e o \"Nova sessão\", sem o painel lateral no meio do caminho."
+    ]
+  },
+  {
     "tag": "v4.29.0",
     "date": "30 de Outubro, 2026",
     "title": "Scrum Poker redesenhado: sala em três colunas, envio ao Jira em lote e relatório novo",
