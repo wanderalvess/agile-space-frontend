@@ -20,6 +20,8 @@ export interface JiraDraft {
   preview: JiraPublishPreview;
   renameEnabled: boolean;
   renameSummary: string;
+  /** Comentário opcional na própria issue pai (útil quando a squad não cria sub-tarefas, ex.: issue de teste). */
+  parentComment: string;
   subtasks: EditableSubtask[];
 }
 
@@ -30,6 +32,7 @@ export function draftFromPreview(p: JiraPublishPreview): JiraDraft {
     preview: p,
     renameEnabled: !!rename,
     renameSummary: rename?.summary ?? '',
+    parentComment: '',
     subtasks: creates.map(c => {
       const comment = p.steps.find(s => s.kind === 'ADD_COMMENT' && s.dependsOnIndex === c.index)?.comment ?? '';
       return { key: `${c.index}`, include: true, create: { ...c }, comment, commentOn: !!comment.trim() };
@@ -42,6 +45,9 @@ export function buildSteps(d: JiraDraft): JiraPublishStep[] {
   const out: JiraPublishStep[] = [];
   if (d.renameEnabled && d.renameSummary.trim()) {
     out.push({ index: out.length, kind: 'RENAME_PARENT', targetKey: d.preview.parentKey, summary: d.renameSummary.trim() });
+  }
+  if (d.parentComment.trim()) {
+    out.push({ index: out.length, kind: 'ADD_COMMENT', targetKey: d.preview.parentKey, comment: d.parentComment.trim() });
   }
   for (const s of d.subtasks) {
     if (!s.include) continue;
@@ -66,7 +72,7 @@ export function draftCounts(d: JiraDraft) {
   return {
     rename: d.renameEnabled && !!d.renameSummary.trim() ? 1 : 0,
     subtasks: included.length,
-    comments: included.filter(s => s.commentOn && s.comment.trim()).length,
+    comments: included.filter(s => s.commentOn && s.comment.trim()).length + (d.parentComment.trim() ? 1 : 0),
   };
 }
 
@@ -85,7 +91,7 @@ export function validateDraft(d: JiraDraft): string | null {
   for (const s of d.subtasks) {
     if (s.include && !(s.create.summary ?? '').trim()) return `Título vazio na sub-tarefa ${s.create.issueType ?? ''}.`;
   }
-  if (!d.renameEnabled && !d.subtasks.some(s => s.include)) return 'Nada selecionado para enviar.';
+  if (!d.renameEnabled && !d.parentComment.trim() && !d.subtasks.some(s => s.include)) return 'Nada selecionado para enviar.';
   return null;
 }
 
@@ -142,7 +148,7 @@ export function JiraPublishEditor({ draft, onChange, idPrefix }: { draft: JiraDr
             Renomear a issue pai <span className="font-mono text-xs text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{preview.parentKey}</span>
           </label>
           <span className="flex-1" />
-          <span className="text-xs text-muted-foreground">A pai não recebe comentário</span>
+          <span className="text-xs text-muted-foreground">Só o título muda; nenhum outro campo</span>
         </div>
         <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 text-[13px]">
           <span className="text-muted-foreground">Hoje</span>
@@ -157,6 +163,17 @@ export function JiraPublishEditor({ draft, onChange, idPrefix }: { draft: JiraDr
             className={cn(FIELD, 'h-9 font-medium disabled:opacity-60')}
           />
         </div>
+        <details className="text-[13px]" open={!!draft.parentComment.trim() || draft.subtasks.length === 0}>
+          <summary className="cursor-pointer select-none text-muted-foreground">Comentar na issue pai (opcional)</summary>
+          <textarea
+            id={`${idPrefix}-parent-comment`}
+            value={draft.parentComment}
+            onChange={(e) => onChange({ ...draft, parentComment: e.target.value })}
+            placeholder={`Comentário para ${preview.parentKey}. Deixe vazio para não comentar na pai.`}
+            aria-label={`Comentário na issue pai ${preview.parentKey}`}
+            className={cn(FIELD, 'mt-2 min-h-[72px] w-full resize-y py-2.5 text-[13px] leading-relaxed')}
+          />
+        </details>
       </section>
 
       <section aria-label="Sub-tarefas e comentários" className="flex flex-col gap-2.5">
