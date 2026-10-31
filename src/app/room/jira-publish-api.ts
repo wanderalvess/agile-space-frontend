@@ -53,6 +53,50 @@ export interface JiraPublishJob {
   updatedAt?: string | null;
   finishedAt?: string | null;
   steps: JiraPublishStep[];
+  // Só na tela de envios da squad:
+  requestedByName?: string | null;
+  roomTitle?: string | null;
+  /** Em andamento sem sinal de vida há mais de 10 minutos: dá para retomar ou descartar. */
+  stale?: boolean;
+}
+
+/** Fila da squad: os envios de todas as salas e o domínio do Jira para montar links. */
+export interface JiraPublishSquadQueue {
+  squadId: string;
+  jiraDomain?: string | null;
+  jobs: JiraPublishJob[];
+}
+
+export type JiraPublishEventAction = 'SUBMITTED' | 'RETRY' | 'STEP_DONE' | 'STEP_ERROR' | 'JOB_DONE' | 'VERIFIED';
+
+/** Uma linha do log de um envio. */
+export interface JiraPublishEvent {
+  id: string;
+  stepPosition?: number | null;
+  kind?: JiraPublishStepKind | null;
+  action: JiraPublishEventAction;
+  ok?: boolean | null;
+  message?: string | null;
+  resultKey?: string | null;
+  userId?: string | null;
+  userName?: string | null;
+  createdAt: string;
+}
+
+export interface JiraVerifyCheck {
+  index: number;
+  kind: JiraPublishStepKind;
+  status: 'OK' | 'DIVERGENT' | 'NOT_SENT';
+  detail: string;
+}
+
+export interface JiraVerifyResult {
+  jobId: string;
+  checkedAt: string;
+  allOk: boolean;
+  confirmed: number;
+  total: number;
+  checks: JiraVerifyCheck[];
 }
 
 /** Evento de janela disparado pela página da sala quando o WebSocket avisa que um envio mudou. */
@@ -111,6 +155,36 @@ export const jiraPublishApi = {
     });
     if (!res.ok) throw await readError(res, 'Falha ao tentar novamente');
     return res.json();
+  },
+  // --- Tela "Envios para o Jira" (fora da sala) ---
+
+  async squadQueue(squadId: string): Promise<JiraPublishSquadQueue> {
+    const res = await authFetch(`${API_BASE_URL}/squads/${encodeURIComponent(squadId)}/jira-publish`);
+    if (!res.ok) throw await readError(res, 'Falha ao carregar os envios para o Jira');
+    return res.json();
+  },
+
+  async events(jobId: string): Promise<JiraPublishEvent[]> {
+    const res = await authFetch(`${API_BASE_URL}/jira-publish/jobs/${encodeURIComponent(jobId)}/events`);
+    if (!res.ok) throw await readError(res, 'Falha ao carregar o log do envio');
+    return res.json();
+  },
+
+  async retryJob(jobId: string): Promise<JiraPublishJob> {
+    const res = await authFetch(`${API_BASE_URL}/jira-publish/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Falha ao tentar novamente');
+    return res.json();
+  },
+
+  async verify(jobId: string): Promise<JiraVerifyResult> {
+    const res = await authFetch(`${API_BASE_URL}/jira-publish/jobs/${encodeURIComponent(jobId)}/verify`, { method: 'POST' });
+    if (!res.ok) throw await readError(res, 'Falha ao conferir no Jira');
+    return res.json();
+  },
+
+  async discard(jobId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/jira-publish/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+    if (!res.ok) throw await readError(res, 'Falha ao descartar o envio');
   },
 };
 

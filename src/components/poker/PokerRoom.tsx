@@ -550,6 +550,8 @@ const PokerRoomComponent = ({
   const [jiraRetryingId, setJiraRetryingId] = useState<string | null>(null);
   const mergeJiraJob = (job: JiraPublishJob) => {
     setJiraJobs(prev => {
+      // Envio descartado na tela de envios: o servidor avisa com status DISCARDED e ele sai da fila.
+      if ((job.status as string) === 'DISCARDED') return prev.filter(j => j.id !== job.id);
       const idx = prev.findIndex(j => j.id === job.id);
       if (idx < 0) return [job, ...prev];
       const next = [...prev];

@@ -23,6 +23,7 @@ import {
   Wrench,
   type LucideIcon,
   ListTree,
+  SendHorizontal,
 } from 'lucide-react';
 
 /**
@@ -40,6 +41,7 @@ export type ModuleKey =
   | 'squad'
   | 'roster'
   | 'subtarefas'
+  | 'envios-jira'
   | 'workspace'
   | 'poker'
   | 'retro'
@@ -120,6 +122,7 @@ export const MODULES: readonly PortalModule[] = [
   { key: 'squad', label: 'Squad', href: '/squad', icon: Network, group: 'squad', description: 'Quadro, cronograma e métricas da squad', aliases: ['hub da squad'], paths: ['/squad/dashboards', '/squad/panels'] },
   { key: 'roster', label: 'Time da squad', href: '/squad/roster', icon: Users, group: 'squad', description: 'Quem está no time, cargos e capacidade', aliases: ['roster', 'integrantes', 'equipe'] },
   { key: 'subtarefas', label: 'Sub-tarefas do time', href: '/subtarefas', icon: ListTree, group: 'squad', description: 'Quais sub-tarefas o time cria no Jira por tipo de issue', aliases: ['subtasks', 'sub-tarefas', 'jira', 'codificação', 'code review'] },
+  { key: 'envios-jira', label: 'Envios para o Jira', href: '/envios-jira', icon: SendHorizontal, group: 'squad', description: 'O que o Poker mandou para o Jira: o que deu certo, o que deu erro e como tentar de novo', aliases: ['jira', 'fila', 'envios', 'publicação', 'log', 'erro', 'tentar novamente'] },
   { key: 'workspace', label: 'Meu espaço', href: '/workspace', icon: PanelsTopLeft, group: 'squad', description: 'Kanban pessoal, tarefas e agendas', aliases: ['meu quadro', 'workspace'], home: { group: 'flow', order: 2 } },
 
   // Rituais (os cinco módulos de sessão)
