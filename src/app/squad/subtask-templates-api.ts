@@ -39,7 +39,7 @@ async function readError(res: Response, fallback: string): Promise<SubtaskTempla
     if (text) {
       try {
         const body = JSON.parse(text);
-        detail = body.error || body.message || body.reason || '';
+        detail = body.message || body.reason || body.error || '';
       } catch {
         detail = text;
       }

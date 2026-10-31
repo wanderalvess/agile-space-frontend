@@ -190,6 +190,11 @@ export function JiraPublishDialog({ roomId, issue, open, onOpenChange, onPublish
           <div>
             <p className="font-semibold text-foreground">Não dá para montar o envio</p>
             <p className="text-muted-foreground">{loadError}</p>
+            {/Sub-tarefas do time/i.test(loadError) && (
+              <a href="/subtarefas" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline">
+                Abrir Sub-tarefas do time <ExternalLink className="h-3 w-3" aria-hidden />
+              </a>
+            )}
           </div>
         </div>
       )}
