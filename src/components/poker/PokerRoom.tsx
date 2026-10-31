@@ -463,7 +463,7 @@ const PokerRoomComponent = ({
     setIsShareDialogOpen(true);
   };
 
-  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
+  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue, squadId: roomTeam });
 
   const handleReveal = () => {
     onReveal();
@@ -1292,6 +1292,7 @@ const PokerRoomComponent = ({
             onSetDeck={onSetDeck}
             onSaveTemplate={saveRoomTemplate.openDialog}
             templatesVersion={saveRoomTemplate.version}
+            squadId={roomTeam}
           />
         </CeremonySettingsDialog>
       )}

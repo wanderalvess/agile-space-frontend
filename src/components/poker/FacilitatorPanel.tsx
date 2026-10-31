@@ -56,6 +56,8 @@ interface FacilitatorPanelProps {
   hasVotes?: boolean;
   /** Muda a cada template salvo, para a lista da aba Sessão recarregar. */
   templatesVersion?: number;
+  /** Squad da sala: a aba Sessão lista os templates dela. */
+  squadId?: string;
   divergenceThresholds?: DivergenceThresholds;
   tshirtEquivalents?: Partial<Record<TshirtSize, TshirtEquivalent>>;
   onUpdateSettings: (settings: Partial<FacilitatorSettings>) => void;
@@ -145,6 +147,7 @@ export function FacilitatorPanel({
   maxHours,
   hasVotes,
   templatesVersion,
+  squadId,
   divergenceThresholds,
   tshirtEquivalents,
   onUpdateSettings,
@@ -415,7 +418,7 @@ export function FacilitatorPanel({
 
             {tab === 'relatorios' && visibleDefs.filter((d) => d.tab === 'relatorios').map(renderToggle)}
 
-            {tab === 'sessao' && <TemplatesTab onSaveClick={onSaveTemplate} version={templatesVersion ?? 0} />}
+            {tab === 'sessao' && <TemplatesTab onSaveClick={onSaveTemplate} version={templatesVersion ?? 0} squadId={squadId} />}
           </div>
         </div>
       )}

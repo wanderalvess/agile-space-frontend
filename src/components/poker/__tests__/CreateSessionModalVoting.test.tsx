@@ -12,6 +12,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/components/shared/SquadChoiceField', () => ({ SquadChoiceField: () => <div>squad</div> }));
 vi.mock('@/app/room/api', () => ({ pokerApi: { saveOrUpdateRoom: (...a: unknown[]) => saveOrUpdateRoom(...a) } }));
 vi.mock('@/lib/poker-templates', async (orig) => ({ ...(await orig<typeof import('@/lib/poker-templates')>()), listTemplates: () => [] }));
+vi.mock('@/lib/poker-templates-api', () => ({ pokerTemplatesApi: { list: async () => [] }, importLocalTemplates: vi.fn() }));
 
 import { CreateSessionModal } from '../CreateSessionModal';
 import { DEFAULT_VOTING_CARGOS } from '@/lib/poker-utils';

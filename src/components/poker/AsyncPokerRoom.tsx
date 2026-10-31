@@ -92,7 +92,7 @@ const AsyncPokerRoomComponent = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
+  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue, squadId: roomTeam });
   // Quem vota: a política da sala (cargos), a mesma da sala ao vivo.
   const votingCargos = useMemo(() => votingCargosOf(settings), [settings]);
   const deckValues = useMemo(() => getDeckCards(deck, settings?.maxHours), [deck, settings?.maxHours]);
@@ -379,6 +379,7 @@ const AsyncPokerRoomComponent = ({
             hasVotes={votes.length > 0}
             onSaveTemplate={saveRoomTemplate.openDialog}
             templatesVersion={saveRoomTemplate.version}
+            squadId={roomTeam}
             divergenceThresholds={settings?.divergenceThresholds}
             tshirtEquivalents={settings?.tshirtEquivalents}
             onUpdateSettings={onUpdateSettings || (() => {})}

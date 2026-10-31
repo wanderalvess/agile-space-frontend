@@ -1,9 +1,9 @@
 import type { DeckType, Room, Issue } from './types';
 
 /**
- * Templates de sala de poker guardados no localStorage (por navegador do
- * usuário, mesmo padrão do histórico de salas). Guardam deck + configurações
- * do facilitador + backlog (títulos/links), para reabrir uma sessão pré-pronta.
+ * Templates de sala de poker: deck + configurações do facilitador + backlog (títulos/links), para reabrir uma
+ * sessão pré-pronta. Hoje ficam no servidor, por squad (poker-templates-api.ts); as funções de localStorage
+ * abaixo sobram para ler e levar à squad os templates que versões antigas guardavam só no navegador.
  */
 export const POKER_TEMPLATES_KEY = 'agileSpace_poker_templates';
 
@@ -14,6 +14,10 @@ export interface PokerTemplate {
   settings: NonNullable<Room['settings']>;
   backlog: { title: string; jiraLink?: string; type?: Issue['type'] }[];
   createdAt: string;
+  /** Só nos templates do servidor. */
+  squadId?: string;
+  createdBy?: string;
+  createdByName?: string | null;
 }
 
 export function listTemplates(): PokerTemplate[] {

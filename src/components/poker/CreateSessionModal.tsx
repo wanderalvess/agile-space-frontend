@@ -4,7 +4,7 @@ import { moduleIcon } from '@/lib/modules-registry';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Clock, Save, Settings2, Users } from 'lucide-react';
-import { cleanTemplateName, deleteTemplate, listTemplates, renameTemplate, saveTemplate, TEMPLATE_NAME_MAX, type PokerTemplate } from '@/lib/poker-templates';
+import { cleanTemplateName, TEMPLATE_NAME_MAX, type PokerTemplate } from '@/lib/poker-templates';
 import { TSHIRT_UNIT_LABELS, type DeckType, type TshirtUnit } from '@/lib/types';
 import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
 import { DEFAULT_ROOM_SETTINGS, DEFAULT_VOTING_CARGOS, votingCargosOf } from '@/lib/poker-utils';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { pokerApi } from '@/app/room/api';
 import { FIELD, FOCUS_RING, IconButton, IconTile, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
 import { MaxHoursField } from './MaxHoursField';
-import { TemplateManagerDialog } from './TemplateDialogs';
+import { TemplateManagerDialog, useSquadPokerTemplates } from './TemplateDialogs';
 import { VotingCargosField } from './VotingCargosField';
 import { Switch } from '@/components/ui/switch';
 
@@ -130,7 +130,6 @@ export function CreateSessionModal({
   const [teamTouched, setTeamTouched] = useState(false);
   const [mode, setMode] = useState<'sync' | 'async'>('sync');
   const [deckType, setDeckType] = useState<string>('hours');
-  const [templates, setTemplates] = useState<PokerTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [managerOpen, setManagerOpen] = useState(false);
   // Horas máximas do baralho "Horas reais": salas novas nascem com 40.
@@ -145,16 +144,20 @@ export function CreateSessionModal({
   // Equivalência numérica por tamanho (só relevante para o baralho de camisetas).
   const [tshirtEquivalents, setTshirtEquivalents] = useState<Record<string, { value: string; unit: TshirtUnit }>>({});
 
-  // Templates vêm do localStorage; carrega ao abrir (evita mismatch de SSR).
-  useEffect(() => {
-    if (open) setTemplates(listTemplates());
-  }, [open]);
-
   // Squad do usuário assim que o perfil chega (async) — só se o campo não foi editado à mão.
   useEffect(() => {
     if (teamTouched) return;
     if (activeSquadId) setTeam(activeSquadId);
   }, [activeSquadId, teamTouched]);
+
+  // Templates da squad escolhida na sala (servidor); recarrega ao abrir e ao trocar de squad.
+  const templateStore = useSquadPokerTemplates(team.trim() || null, open);
+  const templates = templateStore.templates;
+  // Template escolhido que não existe na squad nova volta para "Sessão em branco".
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a lista mudou de squad
+    if (templateId && templateStore.status === 'ready' && !templates.some((t) => t.id === templateId)) setTemplateId('');
+  }, [templateId, templates, templateStore.status]);
 
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
   const allItems: ReadonlyArray<{ key: string; title: string; desc: string }> = SETUP_GROUPS.flatMap((g) => [...g.items]);
@@ -266,8 +269,13 @@ export function CreateSessionModal({
       if (docRef && docRef.id) {
         saveRoomMeta(docRef.id, 'poker', title.trim(), team.trim() || 'Squad');
         if (saveAsTemplate) {
-          const saved = saveTemplate({ name: cleanTemplateName(templateName), deckType: deckType as DeckType, settings: newRoom.settings as NonNullable<PokerTemplate['settings']>, backlog: tpl?.backlog ?? [] });
-          toast({ title: 'Template salvo', description: saved.name });
+          // A sala já existe: falhar aqui só avisa, não impede de entrar.
+          try {
+            const saved = await templateStore.create({ name: cleanTemplateName(templateName), deckType: deckType as DeckType, settings: newRoom.settings as NonNullable<PokerTemplate['settings']>, backlog: tpl?.backlog ?? [] });
+            toast({ title: 'Template salvo para a squad', description: saved.name });
+          } catch (err) {
+            toast({ variant: 'destructive', title: 'A sala foi criada, mas o template não foi salvo', description: err instanceof Error ? err.message : undefined });
+          }
         }
         onOpenChange(false);
         router.push(`/room/${docRef.id}`);
@@ -335,7 +343,7 @@ export function CreateSessionModal({
                 options={[{ value: BLANK_TEMPLATE, label: 'Sessão em branco' }, ...templates.map((t) => ({ value: t.id, label: `${t.name} · ${t.backlog.length} ${t.backlog.length === 1 ? 'tarefa' : 'tarefas'}` }))]}
                 className="h-10 min-w-0 flex-1 text-sm"
               />
-              {templates.length > 0 && <IconButton label="Gerenciar templates" icon={Settings2} onClick={() => setManagerOpen(true)} className="h-10 w-10" />}
+              {(templates.length > 0 || templateStore.localCount > 0) && <IconButton label="Gerenciar templates" icon={Settings2} onClick={() => setManagerOpen(true)} className="h-10 w-10" />}
             </div>
           </div>
         </div>
@@ -519,9 +527,7 @@ export function CreateSessionModal({
       <TemplateManagerDialog
         open={managerOpen}
         onOpenChange={setManagerOpen}
-        templates={templates}
-        onRename={(id, name) => { renameTemplate(id, name); setTemplates(listTemplates()); }}
-        onDelete={(id) => { deleteTemplate(id); setTemplates(listTemplates()); if (templateId === id) setTemplateId(''); }}
+        store={templateStore}
       />
     </Modal>
   );

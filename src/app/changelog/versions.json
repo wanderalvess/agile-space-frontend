@@ -1,5 +1,16 @@
 [
   {
+    "tag": "v4.30.0",
+    "date": "30 de Outubro, 2026",
+    "title": "Templates do Scrum Poker compartilhados pela squad",
+    "description": "Os templates de sessão do Scrum Poker passam a ficar no servidor, por squad: quem salva, salva para o time todo.",
+    "changes": [
+      "Scrum Poker: templates salvos na Nova sessão ou dentro da sala aparecem para toda a squad, em qualquer computador.",
+      "Scrum Poker: a lista de templates mostra quem salvou cada um; renomear e excluir ficam com quem salvou ou com a liderança da squad.",
+      "Scrum Poker: templates que estavam salvos só no navegador aparecem com o botão \"Levar para a squad\"."
+    ]
+  },
+  {
     "tag": "v4.29.1",
     "date": "30 de Outubro, 2026",
     "title": "Rituais da Home levam direto à ferramenta",
