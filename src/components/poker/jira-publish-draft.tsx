@@ -32,7 +32,7 @@ export function draftFromPreview(p: JiraPublishPreview): JiraDraft {
     preview: p,
     renameEnabled: !!rename,
     renameSummary: rename?.summary ?? '',
-    parentComment: '',
+    parentComment: p.steps.find(s => s.kind === 'ADD_COMMENT' && s.dependsOnIndex == null)?.comment ?? '',
     subtasks: creates.map(c => {
       const comment = p.steps.find(s => s.kind === 'ADD_COMMENT' && s.dependsOnIndex === c.index)?.comment ?? '';
       return { key: `${c.index}`, include: true, create: { ...c }, comment, commentOn: !!comment.trim() };
@@ -170,9 +170,15 @@ export function JiraPublishEditor({ draft, onChange, idPrefix }: { draft: JiraDr
             value={draft.parentComment}
             onChange={(e) => onChange({ ...draft, parentComment: e.target.value })}
             placeholder={`Comentário para ${preview.parentKey}. Deixe vazio para não comentar na pai.`}
+            aria-describedby={`${idPrefix}-parent-comment-hint`}
             aria-label={`Comentário na issue pai ${preview.parentKey}`}
             className={cn(FIELD, 'mt-2 min-h-[72px] w-full resize-y py-2.5 text-[13px] leading-relaxed')}
           />
+          <p id={`${idPrefix}-parent-comment-hint`} className="m-0 mt-1 text-xs text-muted-foreground">
+            {draft.subtasks.length === 0
+              ? 'Sem sub-tarefas, as notas DEV e QA da sala vêm para cá. Editar aqui não muda as notas da sala.'
+              : 'Normalmente as notas vão nas sub-tarefas; use este campo só se quiser algo na pai também.'}
+          </p>
         </details>
       </section>
 
