@@ -24,7 +24,8 @@ describe('pokerTemplatesApi', () => {
   });
 
   it('erro do servidor vira mensagem legível', async () => {
-    authFetch.mockResolvedValue(json({ message: 'Só quem salvou o template ou a liderança da squad pode alterá-lo.' }, 403));
+    // Formato real do backend: o código em "error" e o texto em "message".
+    authFetch.mockResolvedValue(json({ error: '403', message: 'Só quem salvou o template ou a liderança da squad pode alterá-lo.' }, 403));
     await expect(pokerTemplatesApi.remove('DDW', 't1')).rejects.toMatchObject({ status: 403, message: expect.stringContaining('Só quem salvou') });
   });
 });
