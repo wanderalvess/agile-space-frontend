@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/verify-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { upstreamErrorMessage } from '@/lib/jira-proxy-error';
 
 /**
  * Proxy fino pro Spring Boot (/api/jira/attachment) — o backend já valida que
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       return NextResponse.json(
-        { error: 'Erro ao buscar anexo do Jira via Spring Boot', details: errorText },
+        { error: upstreamErrorMessage(errorText, 'Erro ao buscar anexo do Jira via Spring Boot'), details: errorText },
         { status: response.status }
       );
     }
