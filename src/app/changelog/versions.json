@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.30.1",
+    "date": "01 de Novembro, 2026",
+    "title": "Reforço de segurança e aviso mais claro nos templates",
+    "description": "Componentes do portal atualizados, validações mais rígidas no cadastro e na busca de casos de teste, e mensagens mais claras nos templates do Scrum Poker.",
+    "changes": [
+      "Segurança: o portal passou para versões corrigidas do Next.js e do DOMPurify, que protege o conteúdo escrito pelos usuários.",
+      "Segurança: a busca de casos de teste do Zephyr só aceita o endereço do Jira, sem caminho, e uma chave de caso de teste válida.",
+      "Cadastro: a squad inicial deixa de ser escolhida na hora de se cadastrar; ela vem do time em que a pessoa já consta ou de um convite.",
+      "Scrum Poker: ao tentar renomear ou excluir um template que é de outra pessoa, o aviso explica o motivo (só quem salvou ou a liderança da squad pode alterá-lo) em vez de mostrar só o código do erro."
+    ]
+  },
+  {
     "tag": "v4.30.0",
     "date": "30 de Outubro, 2026",
     "title": "Templates do Scrum Poker compartilhados pela squad",

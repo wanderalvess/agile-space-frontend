@@ -19,7 +19,8 @@ async function readError(res: Response, fallback: string): Promise<PokerTemplate
     if (text) {
       try {
         const body = JSON.parse(text);
-        detail = body.error || body.message || body.reason || '';
+        // O backend manda {error: "403", message: "texto para o usuário"}: o texto vem primeiro, senão a tela mostra só o código.
+        detail = body.message || body.reason || body.error || '';
       } catch {
         detail = text;
       }
