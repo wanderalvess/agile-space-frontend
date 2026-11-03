@@ -19,9 +19,12 @@ import {
   renderTemplate,
   subtaskTemplatesApi,
   TEMPLATE_VARIABLES,
+  roleDivergence,
+  suggestionFor,
   type JiraIssueTypeOption,
   type SubtaskRole,
   type SubtaskTemplate,
+  type SuggestedRole,
 } from '@/app/squad/subtask-templates-api';
 
 const ANY_PARENT = '__any__';
@@ -68,6 +71,7 @@ export default function SubtaskTemplatesPage() {
   const [types, setTypes] = useState<JiraIssueTypeOption[] | null>(null);
   const [typesError, setTypesError] = useState<string | null>(null);
   const [typesLoading, setTypesLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedRole[] | null>(null);
 
   const load = useCallback(async () => {
     if (!squadId) return;
@@ -98,8 +102,19 @@ export default function SubtaskTemplatesPage() {
     }
   }, [squadId]);
 
+  // O papel que o Planejador dá a cada tipo é só uma ajuda: se não carregar, a tela funciona sem ela.
+  const loadSuggestions = useCallback(async () => {
+    if (!squadId) return;
+    try {
+      setSuggestions(await subtaskTemplatesApi.suggestedRoles(squadId));
+    } catch {
+      setSuggestions(null);
+    }
+  }, [squadId]);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { void loadTypes(); }, [loadTypes]);
+  useEffect(() => { void loadSuggestions(); }, [loadSuggestions]);
 
   const subtaskTypes = useMemo(() => (types ?? []).filter(t => t.subtask && t.name).map(t => ({ value: t.name!, label: t.name! })), [types]);
   const parentTypes = useMemo(() => (types ?? []).filter(t => !t.subtask && t.name).map(t => ({ value: t.name!, label: t.name! })), [types]);
@@ -123,8 +138,14 @@ export default function SubtaskTemplatesPage() {
     setDirty(true);
   };
   const add = () => {
-    setRows(prev => [...prev, newRow({ jiraIssueTypeName: subtaskTypes[0]?.value ?? '' })]);
+    const typeName = subtaskTypes[0]?.value ?? '';
+    setRows(prev => [...prev, newRow({ jiraIssueTypeName: typeName, role: suggestionFor(suggestions, typeName)?.role ?? 'NONE' })]);
     setDirty(true);
+  };
+  // Ao trocar o tipo, o papel passa a ser o do Planejador (a pessoa ainda pode mudar depois).
+  const changeType = (localId: string, typeName: string) => {
+    const role = suggestionFor(suggestions, typeName)?.role;
+    update(localId, role ? { jiraIssueTypeName: typeName, role } : { jiraIssueTypeName: typeName });
   };
 
   const problems = useMemo(() => rows.filter(r => !r.jiraIssueTypeName.trim() || !r.titleTemplate.trim()).length, [rows]);
@@ -229,13 +250,13 @@ export default function SubtaskTemplatesPage() {
                       {subtaskTypes.length > 0 ? (
                         <SelectField
                           value={row.jiraIssueTypeName}
-                          onChange={(v) => update(row.localId, { jiraIssueTypeName: v })}
+                          onChange={(v) => changeType(row.localId, v)}
                           options={subtaskTypes.some(o => o.value === row.jiraIssueTypeName) || !row.jiraIssueTypeName ? subtaskTypes : [{ value: row.jiraIssueTypeName, label: `${row.jiraIssueTypeName} (não encontrado no Jira)` }, ...subtaskTypes]}
                           placeholder="Escolha o tipo"
                           disabled={readOnly}
                         />
                       ) : (
-                        <Input value={row.jiraIssueTypeName} onChange={(e) => update(row.localId, { jiraIssueTypeName: e.target.value })} placeholder="Ex.: Codificação" disabled={readOnly} />
+                        <Input value={row.jiraIssueTypeName} onChange={(e) => changeType(row.localId, e.target.value)} placeholder="Ex.: Codificação" disabled={readOnly} />
                       )}
                     </Field>
                     <Field label="Aplica-se a issues pai do tipo" hint="Vazio = qualquer tipo de issue.">
@@ -254,6 +275,14 @@ export default function SubtaskTemplatesPage() {
                       <SelectField value={row.role} onChange={(v) => update(row.localId, { role: v as SubtaskRole })} options={ROLE_OPTIONS} disabled={readOnly} />
                     </Field>
                   </div>
+
+                  <RoleDivergence
+                    divergence={roleDivergence(suggestionFor(suggestions, row.jiraIssueTypeName), row.role)}
+                    role={row.role}
+                    typeName={row.jiraIssueTypeName}
+                    readOnly={readOnly}
+                    onUse={(role) => update(row.localId, { role })}
+                  />
 
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <Field label="Padrão de título" hint={`Exemplo: ${renderTemplate(row.titleTemplate || DEFAULT_TITLE, { ...SAMPLE_VARS, tipo: row.jiraIssueTypeName || SAMPLE_VARS.tipo, papel: row.role === 'NONE' ? '' : row.role })}`}>
@@ -282,6 +311,33 @@ export default function SubtaskTemplatesPage() {
         </>
       )}
     </PageShell>
+  );
+}
+
+const ROLE_LABEL: Record<SubtaskRole, string> = { DEV: 'DEV', QA: 'QA', NONE: 'sem horas' };
+
+/** Avisa quando o papel desta linha não bate com o que o Planejador usa para o mesmo tipo de sub-tarefa. */
+function RoleDivergence({ divergence, role, typeName, readOnly, onUse }: {
+  divergence: SuggestedRole | null;
+  role: SubtaskRole;
+  typeName: string;
+  readOnly: boolean;
+  onUse: (role: SubtaskRole) => void;
+}) {
+  if (!divergence?.role) return null;
+  const suggested = divergence.role;
+  return (
+    <p role="status" className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-[13px]">
+      <span>
+        O Planejador conta “{typeName}” como <strong>{ROLE_LABEL[suggested]}</strong>
+        {divergence.sprintKey ? ` (mapeamento da sprint ${divergence.sprintKey})` : ''}, e aqui está como <strong>{ROLE_LABEL[role]}</strong>. As horas podem cair em lugares diferentes.
+      </span>
+      {!readOnly && (
+        <Button type="button" size="sm" variant="outline" onClick={() => onUse(suggested)}>
+          Usar {ROLE_LABEL[suggested]}
+        </Button>
+      )}
+    </p>
   );
 }
 
