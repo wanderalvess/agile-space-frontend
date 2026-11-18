@@ -5,6 +5,8 @@
 FROM node:20-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Sem o binário de GPU do onnxruntime-node (download que retorna 404 e não é usado no servidor).
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 RUN npm ci
 
 # --- Build stage ---

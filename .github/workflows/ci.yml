@@ -17,7 +17,11 @@ jobs:
           node-version: "20"
           cache: npm
 
+      # O onnxruntime-node (dependência do @huggingface/transformers) baixa no install um binário de GPU (CUDA)
+      # que hoje responde 404 no GitHub e derruba o npm ci. O CI não usa GPU: pula esse download.
       - run: npm ci
+        env:
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
 
       - name: Typecheck
         run: npm run typecheck
