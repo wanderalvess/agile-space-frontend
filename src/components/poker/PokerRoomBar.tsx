@@ -30,6 +30,9 @@ import {
   type TopBarPerson,
 } from '@/components/room-kit';
 
+/** Fim do tempo com mais de 3 s de atraso (tela aberta depois) não conta como "agora": sem alarme nem aviso. */
+const TIMER_LATE_GRACE_MS = 3000;
+
 export interface PokerRoomBarProps {
   roomTitle: string;
   /** "Squad · Sprint". */
@@ -50,6 +53,8 @@ export interface PokerRoomBarProps {
   onResumeTimer: () => void;
   onResetTimer: () => void;
   onSetTimerDuration: (duration: number) => void;
+  /** Avisa que o tempo zerou (uma vez por fim, só quando a tela estava aberta). */
+  onTimerExpire?: (info: { late: boolean }) => void;
   // Painéis
   isQueueOpen: boolean;
   /** Tarefas ainda na fila (selo do botão). */
@@ -153,7 +158,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
       toolName="Scrum Poker"
       toolIcon={moduleIcon('poker')}
       title={p.roomTitle}
-      status={p.status}
+      status={p.status === 'live' ? undefined : p.status}
       chips={chips}
       timer={
         p.progress || (showTimer && p.timer) ? (
@@ -170,6 +175,8 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
                 onSetDuration={p.onSetTimerDuration}
                 isSoundEnabled={p.isSoundEnabled}
                 serverOffset={p.serverTimeOffset}
+                onExpire={p.onTimerExpire}
+                lateGraceMs={TIMER_LATE_GRACE_MS}
               />
             )}
           </>

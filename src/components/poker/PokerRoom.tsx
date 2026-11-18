@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
 import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantPresent, getEligibleStatsVotes, votingCargosOf, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
@@ -315,6 +315,12 @@ const PokerRoomComponent = ({
 
   // Notificação "sua vez" (opt-in): avisa o votante quando uma nova rodada
   // abre e ele ainda não votou. Uma vez por tópico ativo (ref evita repetir).
+  // Tempo zerou: aviso na tela para todos (o alarme sonoro é do RoomTimer, quando o som está ligado).
+  const handleTimerExpire = useCallback(({ late }: { late: boolean }) => {
+    if (late) return;
+    toast({ title: 'Tempo esgotado', description: 'O cronômetro da rodada chegou a zero.' });
+  }, [toast]);
+
   const notifiedTurnRef = useRef<string | null>(null);
   useEffect(() => {
     if (!settings?.turnNotification) { notifiedTurnRef.current = null; return; }
@@ -859,6 +865,8 @@ const PokerRoomComponent = ({
             onSetDuration={onSetTimerDuration}
             isSoundEnabled={isSoundEnabled}
             serverOffset={serverTimeOffset}
+            onExpire={handleTimerExpire}
+            lateGraceMs={3000}
           />
         )}
         <Button variant="outline" size="sm" onClick={() => setIsTheaterMode(false)} className="h-9 gap-2 rounded-lg">
@@ -925,6 +933,7 @@ const PokerRoomComponent = ({
             onResumeTimer={onResumeTimer}
             onResetTimer={onResetTimer}
             onSetTimerDuration={onSetTimerDuration}
+            onTimerExpire={handleTimerExpire}
             isQueueOpen={isQueueOpen}
             onToggleQueue={() => setIsQueueOpen(v => !v)}
             isParticipantsOpen={isParticipantsOpen}

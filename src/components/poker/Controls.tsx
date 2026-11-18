@@ -333,15 +333,14 @@ export function Controls({
         </div>
         <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
           {confidenceEnabled && onSetConfidence && (
-            <fieldset title={hasVoted ? undefined : "Disponível depois do voto"} className="m-0 flex items-center gap-2 border-0 p-0 [&_button]:h-7">
+            <fieldset title={hasVoted ? undefined : 'Vale para o voto que você der em seguida'} className="m-0 flex items-center gap-2 border-0 p-0 [&_button]:h-7">
               <legend className="sr-only">Confiança (opcional)</legend>
               <span aria-hidden="true" className="hidden sm:inline">Confiança</span>
               <Segmented
                 label="Confiança"
                 options={CONFIDENCE_OPTIONS}
-                value={hasVoted ? currentUserConfidence : null}
-                onChange={(id) => { if (hasVoted) onSetConfidence(id); }}
-                className={cn(!hasVoted && 'opacity-50')}
+                value={currentUserConfidence}
+                onChange={onSetConfidence}
               />
             </fieldset>
           )}

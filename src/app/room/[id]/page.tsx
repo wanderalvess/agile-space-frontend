@@ -59,7 +59,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // Fallback seguro de offset de relógio local/servidor
   const clockOffset = 0;
 
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  // Alarme do timer ligado por padrão: sem ele o fim do tempo passava despercebido. Quem desligou continua desligado.
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const [hasJoined, setHasJoined] = useState(false);
 
@@ -124,7 +125,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
 
   const currentUserVote = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.value || null, [votes, currentUser]);
-  const currentUserConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
+  const savedConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
+  // Confiança marcada antes de votar: fica guardada aqui e vai junto com o voto, em vez de o seletor ficar travado.
+  const [pendingConfidence, setPendingConfidence] = useState<ConfidenceLevel | null>(null);
+  const currentUserConfidence = savedConfidence ?? pendingConfidence;
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -796,16 +800,24 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       participantGlobalRole: currentUser.globalRole,
       issueId: roomData.activeIssueId || undefined,
       // trocar de carta mantém a confiança já marcada
-      confidence: previous?.confidence,
+      confidence: previous?.confidence ?? pendingConfidence ?? undefined,
     };
+    setPendingConfidence(null);
     setVotes(prev => [...prev.filter(v => v.participantId !== currentUser.id), newVote as Vote]);
     pokerApi.saveVote(roomId, newVote)
       .then(saved => setVotes(prev => prev.map(v => v.participantId === saved.participantId ? saved : v)))
       .catch(err => { restore(); notifyError(err); });
-  }, [currentUser, currentUserVote, votes, roomId, roomData, notifyError]);
+  }, [currentUser, currentUserVote, votes, roomId, roomData, notifyError, pendingConfidence]);
+
+  // A confiança guardada sem voto vale só para a tarefa na mesa.
+  useEffect(() => { setPendingConfidence(null); }, [roomData?.activeIssueId, roomData?.votesRevealed]);
 
   const handleSetConfidence = useCallback((confidence: ConfidenceLevel) => {
-    if (!currentUser || !currentUserVote) return;
+    if (!currentUser) return;
+    if (!currentUserVote) {
+      setPendingConfidence(prev => (prev === confidence ? null : confidence));
+      return;
+    }
 
     const base = votes.find(v => v.participantId === currentUser.id);
     const updatedConfidence = confidence === currentUserConfidence ? undefined : confidence;

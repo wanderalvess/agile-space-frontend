@@ -390,7 +390,8 @@ export function TopicQueue({
       </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
+      {/* O Radix embrulha o conteúdo num display:table, que cresce até o título mais longo e empurra o card para fora do painel. */}
+      <ScrollArea className="min-h-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
         <ul className="m-0 flex list-none flex-col gap-1 p-0 px-2.5 pb-6">
           {visible.length === 0 ? (
             <li className="mx-1.5 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-5 py-8 text-center">

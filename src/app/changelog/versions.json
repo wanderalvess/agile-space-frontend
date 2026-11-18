@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.30.3",
+    "date": "18 de Novembro, 2026",
+    "title": "Sala do Poker: confiança, fim do tempo e fila",
+    "description": "Ajustes na sala do Scrum Poker: a confiança pode ser marcada antes do voto, o fim do tempo avisa na tela e o cabeçalho e a fila ficam mais limpos.",
+    "changes": [
+      "Scrum Poker: o campo Confiança agora pode ser escolhido antes de votar; a escolha vale para o voto que você der em seguida.",
+      "Scrum Poker: quando o cronômetro zera, aparece o aviso \"Tempo esgotado\" para todos, e o alarme sonoro vem ligado por padrão (quem já desligou continua desligado).",
+      "Scrum Poker: títulos longos na fila deixam de estourar a lateral do painel.",
+      "Scrum Poker: o cabeçalho deixa de mostrar o selo \"Ao vivo\", ganhando espaço; \"Aguardando\" e \"Encerrada\" continuam aparecendo."
+    ]
+  },
+  {
     "tag": "v4.30.2",
     "date": "03 de Novembro, 2026",
     "title": "Aviso claro quando o token do Jira não é reconhecido",
