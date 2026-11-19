@@ -171,6 +171,17 @@ describe('CSV', () => {
     expect(csvField('livre', true)).toBe('"livre"');
     expect(csvField(null)).toBe('');
   });
+  it('texto que viraria fórmula na planilha ganha apóstrofo; número e valores comuns ficam como estão', () => {
+    expect(csvField('=HYPERLINK("http://x","a")')).toBe('"\'=HYPERLINK(""http://x"",""a"")"');
+    expect(csvField('+55 11 99999')).toBe("'+55 11 99999");
+    expect(csvField('-cmd|calc')).toBe("'-cmd|calc");
+    expect(csvField('@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(csvField('\t=1+1')).toBe("'\t=1+1");
+    expect(csvField('-3')).toBe('-3');
+    expect(csvField(-3)).toBe('-3');
+    expect(csvField('a=b')).toBe('a=b');
+    expect(csvField('=1+1', true)).toBe('"\'=1+1"');
+  });
   it('monta cabeçalho e linhas, comentário sempre entre aspas', () => {
     const csv = buildCsv(['Data', 'Nota', 'Comentário'], [['01/10/2026', 9, 'ok'], ['02/10/2026', 'Sugestão', 'tem, vírgula']], [2]);
     expect(csv).toBe('Data,Nota,Comentário\n01/10/2026,9,"ok"\n02/10/2026,Sugestão,"tem, vírgula"');

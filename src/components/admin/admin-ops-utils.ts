@@ -6,9 +6,21 @@ import type { ModuleKey } from '@/lib/modules-registry';
 
 /* ------------------------------------------------------------------ CSV */
 
+/**
+ * Texto que começa com `=`, `+`, `-`, `@` (ou tabulação/retorno) vira fórmula quando o CSV abre no Excel/Sheets, e aqui
+ * saem comentários de feedback e nomes digitados por usuários. Ganha um apóstrofo na frente para abrir como texto.
+ * Número puro (ex.: "-3") não é fórmula e fica como está.
+ */
+export function neutralizeCsvFormula(text: string): string {
+  if (!/^[=+\-@\t\r]/.test(text)) return text;
+  if (/^[+-]?\d+([.,]\d+)?$/.test(text)) return text;
+  return `'${text}`;
+}
+
 /** Campo de CSV: entre aspas quando tem vírgula, aspas ou quebra de linha (ou quando `force`). */
 export function csvField(value: unknown, force = false): string {
-  const text = value == null ? '' : String(value);
+  const raw = value == null ? '' : String(value);
+  const text = typeof value === 'string' ? neutralizeCsvFormula(raw) : raw;
   if (force || /[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }

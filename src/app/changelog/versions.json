@@ -1,5 +1,15 @@
 [
   {
+    "tag": "v4.30.4",
+    "date": "19 de Novembro, 2026",
+    "title": "Exportações de planilha mais seguras",
+    "description": "Textos digitados por usuários deixam de virar fórmula quando você abre o CSV exportado no Excel ou no Google Planilhas.",
+    "changes": [
+      "Admin: os CSV de Feedbacks e da Auditoria passam a tratar texto que começa com =, +, - ou @, que antes podia virar fórmula ao abrir a planilha.",
+      "Health Check: o CSV do resultado recebe o mesmo cuidado."
+    ]
+  },
+  {
     "tag": "v4.30.3",
     "date": "18 de Novembro, 2026",
     "title": "Sala do Poker: confiança, fim do tempo e fila",

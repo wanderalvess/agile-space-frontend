@@ -143,7 +143,12 @@ export function buildMarkdown(r: HealthReport): string {
 /** Marca de ordem de bytes (UTF-8): o Excel reconhece os acentos. */
 const BOM = String.fromCharCode(0xfeff);
 
-const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+/** Célula entre aspas; texto que começa com = + - @ vira fórmula no Excel/Sheets, então ganha apóstrofo. */
+const csvCell = (value: string | number) => {
+  let text = String(value);
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text) && !/^[+-]?\d+([.,]\d+)?$/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
 
 /** CSV com BOM (o Excel abre os acentos certos): uma coluna por valor da escala, votos, média, nota e situação. */
 export function buildCsv(r: HealthReport): string {
