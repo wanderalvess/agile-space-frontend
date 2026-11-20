@@ -1,5 +1,16 @@
 [
   {
+    "tag": "v4.30.5",
+    "date": "20 de Novembro, 2026",
+    "title": "Tela de erro com saída",
+    "description": "Quando uma tela do portal quebra, você vê uma explicação clara e botões para tentar de novo ou voltar ao início, em vez da tela padrão em inglês.",
+    "changes": [
+      "Se uma tela falhar ao abrir, o portal mostra \"Não conseguimos abrir esta tela\", com Tentar de novo, Ir para o início e o link do suporte.",
+      "O código do erro aparece na tela para facilitar o atendimento do suporte.",
+      "Se o próprio portal não carregar, uma tela simples avisa e oferece tentar de novo."
+    ]
+  },
+  {
     "tag": "v4.30.4",
     "date": "19 de Novembro, 2026",
     "title": "Exportações de planilha mais seguras",
