@@ -7,17 +7,15 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Users, X, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
+import { Users } from 'lucide-react';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { clearJustSignedUp, hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
+import { SQUAD_SUMMARY_HREF } from '@/lib/squad-hub';
+import { Notice } from './Notice';
 
 export function LinkedTeamWelcome({ showPainelLink = true }: { showPainelLink?: boolean }) {
-  const { session } = useAuth();
   const [visible, setVisible] = useState(false);
-  const teamId = session?.activeProjectId;
-  const teamName = session?.activeProjectName || teamId;
+  const { squadId: teamId } = useActiveSquad();
 
   useEffect(() => {
     setVisible(isJustSignedUp() && hasLinkedTeam(teamId));
@@ -31,24 +29,13 @@ export function LinkedTeamWelcome({ showPainelLink = true }: { showPainelLink?: 
   if (!visible) return null;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3" role="status">
-      <Users className="h-5 w-5 text-primary shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold">Você já está no time {teamName}.</p>
-        <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug">
-          Encontramos o seu e-mail nesse time e vinculamos a sua conta. Poker, Review e Retro já abrem com ele.
-        </p>
-      </div>
-      {showPainelLink && (
-        <Button asChild size="sm" variant="outline" className="h-8 rounded-lg text-xs font-bold shrink-0" onClick={dismiss}>
-          <Link href="/painel">
-            Ver painel do time <ArrowRight className="h-3 w-3 ml-1" />
-          </Link>
-        </Button>
-      )}
-      <Button size="icon" variant="ghost" onClick={dismiss} aria-label="Dispensar aviso" className="h-8 w-8 rounded-lg shrink-0">
-        <X className="h-3.5 w-3.5" />
-      </Button>
-    </div>
+    <Notice
+      compact
+      icon={Users}
+      title={'Você já está vinculado a esta squad.'}
+      text="Vinculamos a sua conta pelo e-mail."
+      action={showPainelLink ? { label: 'Ver o resumo da squad', href: SQUAD_SUMMARY_HREF } : undefined}
+      onDismiss={dismiss}
+    />
   );
 }

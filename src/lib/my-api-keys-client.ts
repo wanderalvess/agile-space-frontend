@@ -1,4 +1,5 @@
 import { authFetch } from '@/lib/auth-client';
+import { normalizeAuthRole } from '@/lib/types';
 
 /**
  * Cliente do self-service de API key (/api/api-keys no backend Spring) — cada
@@ -7,7 +8,7 @@ import { authFetch } from '@/lib/auth-client';
  * ALLOWED_SCOPES_BY_ROLE abaixo pra já esconder da UI o que o backend recusaria
  * de qualquer jeito — não é a checagem real, só evita a viagem de rede).
  * Diferente de adminApi.getApiKeys/createApiKey/revokeApiKey (/admin/api-keys),
- * que é a visão global de ADMIN/LEAD sobre as chaves de todo mundo.
+ * que é a visão global do ADMIN sobre as chaves de todo mundo.
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -20,6 +21,8 @@ export interface MyApiKeyData {
   createdAt: string;
   lastUsedAt?: string;
   revokedAt?: string;
+  /** Null/ausente = sem expiração. */
+  expiresAt?: string | null;
 }
 
 export interface CreatedMyApiKey extends MyApiKeyData {
@@ -33,12 +36,12 @@ export const API_KEY_SCOPES: { value: string; label: string; description: string
   { value: 'PROMPTHUB_READ', label: 'Prompt Hub · leitura', description: 'Prompts e coleções públicas.' },
   { value: 'PROMPTHUB_WRITE', label: 'Prompt Hub · escrita', description: 'Criar e importar prompts e skills.' },
   { value: 'POKER_READ', label: 'Scrum Poker · leitura', description: 'Buscar estimativas de rodadas já feitas.' },
-  { value: 'POKER_WRITE', label: 'Scrum Poker · escrita', description: 'Criar sessão de planning poker.' },
+  { value: 'POKER_WRITE', label: 'Scrum Poker · escrita', description: 'Criar sessão de Scrum Poker.' },
 ];
 
 /** Espelha ApiKeyController.allowedScopesFor — só pra UI, a checagem real é no backend. */
 export function scopesAllowedForRole(role: string | undefined | null): string[] {
-  const privileged = role?.toUpperCase() === 'ADMIN' || role?.toUpperCase() === 'LEAD';
+  const privileged = normalizeAuthRole(role) === 'ADMIN';
   if (privileged) return API_KEY_SCOPES.map(s => s.value);
   return ['KNOWLEDGE_READ', 'SQUAD_READ'];
 }
@@ -68,15 +71,37 @@ function safeJsonParse(text: string): any {
   }
 }
 
+function expiryBody(expiresIn?: string): Record<string, unknown> {
+  if (!expiresIn) return {};
+  return expiresIn === 'never' ? { neverExpires: true } : { expiresInDays: Number(expiresIn) };
+}
+
 export const myApiKeysApi = {
   async list(): Promise<MyApiKeyData[]> {
     return req<MyApiKeyData[]>('/api-keys');
   },
 
-  async create(name: string, scopes: string[]): Promise<CreatedMyApiKey> {
+  /** expiresIn: '30' | '90' | '180' | 'never' (só admin). Omitido = 90 dias. */
+  async create(name: string, scopes: string[], expiresIn?: string): Promise<CreatedMyApiKey> {
     return req<CreatedMyApiKey>('/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name, scopes }),
+      body: JSON.stringify({ name, scopes, ...expiryBody(expiresIn) }),
+    });
+  },
+
+  /** Estende a validade e reavalia o papel do dono. */
+  async renew(id: string, expiresIn?: string): Promise<MyApiKeyData> {
+    return req<MyApiKeyData>(`/api-keys/${encodeURIComponent(id)}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(expiryBody(expiresIn)),
+    });
+  },
+
+  /** Cria uma chave nova igual e revoga a antiga; a chave crua nova só vem nesta resposta. */
+  async rotate(id: string, expiresIn?: string): Promise<CreatedMyApiKey> {
+    return req<CreatedMyApiKey>(`/api-keys/${encodeURIComponent(id)}/rotate`, {
+      method: 'POST',
+      body: JSON.stringify(expiryBody(expiresIn)),
     });
   },
 

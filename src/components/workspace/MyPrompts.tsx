@@ -1,216 +1,210 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  Plus,
-  Search,
-  Lock,
-  Sparkles,
-  Terminal,
-  BrainCircuit,
-  MessageSquare
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MessageSquare, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { PromptItem } from '@/app/prompt-hub/types';
-import { promptApi } from '@/app/prompt-hub/api';
-import { deletePromptWithChildren } from '@/app/prompt-hub/deletePrompt';
-import { PromptCard } from '@/app/prompt-hub/components/PromptCard';
-import { PromptEditor } from '@/app/prompt-hub/components/PromptEditor';
-import { PromptView } from '@/app/prompt-hub/components/PromptView';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import { EmptyState, ErrorState, LoadingSkeleton } from '@/components/page';
+import { FIELD, ModalButton } from '@/components/room-kit';
+import { useAuth } from '@/context/AuthContext';
+import { useDebounce } from '@/hooks/use-debounce';
+import { cn } from '@/lib/utils';
+import { DEFAULT_FILTERS } from '@/app/prompt-hub/catalog-logic';
+import { fetchCatalog, invalidateCatalogCache, type CatalogResponse } from '@/app/prompt-hub/catalog-query';
+import type { PromptItem } from '@/app/prompt-hub/types';
+import { DeleteItemDialog } from '@/components/prompt-hub/DeleteItemDialog';
+import { ItemCard, type ItemCardHandlers } from '@/components/prompt-hub/ItemCard';
+import { ItemPanel } from '@/components/prompt-hub/ItemPanel';
+import { usePromptActions } from '@/components/prompt-hub/usePromptActions';
+import { WorkspaceSectionHeader } from './workspace-ui';
 
+const PAGE_SIZE = 24;
+
+/**
+ * Aba "Prompts" do Meu espaço: os itens da própria pessoa, com os mesmos cartões, painel lateral e
+ * editor da Biblioteca de IA (o filtro "Meus itens" do catálogo). Busca e paginação são do servidor.
+ */
 export function MyPrompts({ userProfile }: { userProfile: any }) {
+  const router = useRouter();
   const { session } = useAuth();
-  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id;
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState<PromptItem | null>(null);
-  const [viewingPrompt, setViewingPrompt] = useState<PromptItem | null>(null);
-  const [search, setSearch] = useState('');
+  const effectiveUserId: string | undefined = userProfile?.id || userProfile?.email || session?.id;
 
-  const [rawPrompts, setRawPrompts] = useState<PromptItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 300).trim();
+  const [items, setItems] = useState<PromptItem[]>([]);
+  const [result, setResult] = useState<CatalogResponse | null>(null);
+  const [page, setPage] = useState(0);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [selected, setSelected] = useState<PromptItem | null>(null);
+  const [toDelete, setToDelete] = useState<PromptItem | null>(null);
+  const requestId = useRef(0);
 
-  const loadPrompts = useCallback(async () => {
+  const actions = usePromptActions({
+    onUsed: id => {
+      setItems(prev => prev.map(item => (item.id === id ? { ...item, useCount: (item.useCount || 0) + 1 } : item)));
+      setSelected(prev => (prev && prev.id === id ? { ...prev, useCount: (prev.useCount || 0) + 1 } : prev));
+    },
+  });
+
+  const request = useCallback(
+    (pageNumber: number) => ({
+      filters: { ...DEFAULT_FILTERS, search, status: 'all' as const },
+      sort: 'recent' as const,
+      favoritesOnly: false,
+      mineOnly: true,
+      page: pageNumber,
+      size: PAGE_SIZE,
+      sessionId: effectiveUserId,
+      anonymous: false,
+    }),
+    [search, effectiveUserId]
+  );
+
+  const load = useCallback(async () => {
     if (!effectiveUserId) {
-      setIsLoading(false);
+      setState('ready');
+      setItems([]);
       return;
     }
-    setIsLoading(true);
+    const id = ++requestId.current;
+    setState(prev => (prev === 'ready' ? prev : 'loading'));
     try {
-      const response = await promptApi.listPrompts(undefined, effectiveUserId, 0, 100);
-      setRawPrompts(response.content);
-    } catch (err: any) {
-      console.error('Erro ao carregar prompts do usuário', err);
-      toast.error('Erro ao carregar seus prompts.');
-    } finally {
-      setIsLoading(false);
+      const response = await fetchCatalog(request(0), actions.localFavorites);
+      if (id !== requestId.current) return;
+      setResult(response);
+      setItems(response.items);
+      setPage(0);
+      setState('ready');
+    } catch (err) {
+      console.error('[meu-espaco] erro ao carregar os itens da pessoa', err);
+      if (id === requestId.current) setState('error');
     }
-  }, [effectiveUserId]);
+    // localFavorites só importa ao servidor antigo e não deve refazer a busca.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveUserId, request]);
 
   useEffect(() => {
-    loadPrompts();
-  }, [loadPrompts]);
+    void load();
+  }, [load]);
 
-  const filteredPrompts = useMemo(() => {
-    if (!rawPrompts) return [];
-
-    if (!search) return rawPrompts;
-
-    const searchLower = search.toLowerCase();
-    return rawPrompts.filter(item =>
-      item.title.toLowerCase().includes(searchLower) ||
-      item.content?.toLowerCase().includes(searchLower) ||
-      item.tags.some(t => t.toLowerCase().includes(searchLower))
-    );
-  }, [rawPrompts, search]);
-
-  const handleSave = async (data: Partial<PromptItem>) => {
-    if (!effectiveUserId) return;
-
-    const loadingToast = toast.loading('Salvando...');
+  const loadMore = async () => {
+    setLoadingMore(true);
     try {
-      const payload: Partial<PromptItem> = {
-        ...data,
-        authorId: effectiveUserId,
-        authorName: userProfile?.name || session?.name || session?.email?.split('@')[0] || 'Membro',
-        authorRole: userProfile?.role || 'Colaborador',
-        authorSquad: userProfile?.squadId || 'Squad Geral',
-        authorAvatar: userProfile?.avatarSeed || '',
-      };
-      delete (payload as any).id;
-      delete (payload as any).createdAt;
-      delete (payload as any).updatedAt;
-
-      if (data.id) {
-        await promptApi.updatePrompt(data.id, payload);
-      } else {
-        await promptApi.createPrompt(payload);
-      }
-      toast.success('Prompt salvo com sucesso!', { id: loadingToast });
-      setIsEditorOpen(false);
-      setEditingPrompt(null);
-      loadPrompts();
-    } catch (err: any) {
-      toast.error('Erro ao salvar: ' + err.message, { id: loadingToast });
+      const next = await fetchCatalog(request(page + 1), actions.localFavorites);
+      setItems(prev => {
+        const known = new Set(prev.map(item => item.id));
+        return [...prev, ...next.items.filter(item => !known.has(item.id))];
+      });
+      setResult(prev => (prev ? { ...prev, total: next.total, totalPages: next.totalPages } : next));
+      setPage(page + 1);
+    } catch (err) {
+      toast.error('Não foi possível carregar mais itens', { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setLoadingMore(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este prompt?')) return;
-    try {
-      await deletePromptWithChildren(id);
-      toast.success('Prompt removido.');
-      loadPrompts();
-    } catch (err: any) {
-      toast.error('Erro ao remover: ' + err.message);
-    }
+  const patchItem = (id: string, patch: Partial<PromptItem>) => {
+    setItems(prev => prev.map(item => (item.id === id ? { ...item, ...patch } : item)));
+    setSelected(prev => (prev && prev.id === id ? { ...prev, ...patch } : prev));
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center h-[60vh]">
-        <AgileSpinner size="md" variant="indigo" />
-      </div>
-    );
-  }
+  const afterDelete = () => {
+    setSelected(null);
+    invalidateCatalogCache();
+    void load();
+  };
+
+  const handlers: ItemCardHandlers = {
+    onOpen: item => setSelected(items.find(candidate => candidate.id === item.id) ?? item),
+    onCopy: item => actions.copyText(item, item.content ?? ''),
+    onOpenTool: (item, link) => void actions.openTool(item, link),
+    onToggleFavorite: async item => {
+      const next = await actions.toggleFavorite({ id: item.id, favorite: item.favorite }, !!item.favorite);
+      if (next !== null && typeof item.favorite === 'boolean') patchItem(item.id, { favorite: next });
+    },
+    onCopyLink: item => void actions.copyLink(item),
+    onEdit: item => router.push(`/prompt-hub/${encodeURIComponent(item.id)}/editar`),
+    onDuplicate: item => void actions.duplicate(item),
+    onDelete: item => setToDelete(item),
+    onSelectTag: tag => setSearchInput(tag),
+  };
+
+  const total = result?.total ?? 0;
+  const newItem = () => router.push('/prompt-hub/novo');
 
   return (
-    <div className="flex-1 flex flex-col space-y-6 w-full">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Prompts"
-        accent="orange"
-        title="Meus"
-        titleAccent="Prompts"
-        subtitle="Sua biblioteca privada de modelos de escrita, instruções de IA e prompts"
+        title="Meus prompts"
+        subtitle="Sua biblioteca de prompts, skills, agentes e outros modelos. Os públicos também aparecem na Biblioteca de IA."
         action={
-          <div className="flex items-center gap-3">
-            <div className="relative w-full md:w-64">
-              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Filtrar prompts..."
-                className="h-10 pl-9 rounded-xl border-border bg-background text-foreground shadow-xs focus-visible:ring-2 focus-visible:ring-primary/20 text-xs font-medium"
+          <>
+            <div className="relative w-full sm:w-[280px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={event => setSearchInput(event.target.value)}
+                placeholder="Filtrar meus itens..."
+                aria-label="Filtrar meus itens"
+                className={cn(FIELD, 'h-[42px] pl-9 text-sm')}
               />
             </div>
-            <Button
-              onClick={() => {
-                setEditingPrompt(null);
-                setIsEditorOpen(true);
-              }}
-              className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold uppercase text-xs tracking-wider shadow-md shadow-primary/20 transition-all gap-2 shrink-0 active:scale-95"
-            >
-              <Plus className="h-4 w-4" /> Novo
-            </Button>
-          </div>
+            <ModalButton variant="primary" onClick={newItem}>
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo
+            </ModalButton>
+          </>
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
-        {filteredPrompts.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-20 text-center bg-card text-card-foreground border border-border/80 rounded-3xl shadow-xs">
-            <div className="w-16 h-16 bg-muted/40 rounded-2xl flex items-center justify-center mb-5">
-              <MessageSquare className="h-8 w-8 text-muted-foreground/40" />
+      {state === 'loading' && <LoadingSkeleton variant="cards" rows={3} label="Carregando seus itens" />}
+      {state === 'error' && (
+        <ErrorState title="Não foi possível carregar os itens" description="Confira a conexão e tente de novo." onRetry={() => void load()} />
+      )}
+      {state === 'ready' && total === 0 && (
+        <EmptyState
+          icon={MessageSquare}
+          title="Nenhum item encontrado"
+          description={
+            search
+              ? `Nenhum item combina com "${search}".`
+              : 'Você ainda não possui itens nesta conta. Comece criando um novo modelo para acelerar seu trabalho.'
+          }
+          actions={
+            search ? (
+              <ModalButton onClick={() => setSearchInput('')}>Limpar filtro</ModalButton>
+            ) : (
+              <ModalButton variant="primary" onClick={newItem}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar primeiro item
+              </ModalButton>
+            )
+          }
+        />
+      )}
+      {state === 'ready' && total > 0 && (
+        <>
+          <section aria-label="Meus itens" className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
+            {(result?.mode === 'legacy' ? items.map(item => ({ ...item, favorite: actions.localFavorites.has(item.id) })) : items).map(item => (
+              <ItemCard key={item.id} item={item} query={search} sessionId={effectiveUserId} handlers={handlers} />
+            ))}
+          </section>
+          {page + 1 < (result?.totalPages ?? 1) && (
+            <div className="flex flex-col items-center gap-2">
+              <ModalButton onClick={() => void loadMore()} disabled={loadingMore}>
+                {loadingMore ? 'Carregando…' : 'Carregar mais'}
+              </ModalButton>
+              <span className="text-[13px] text-muted-foreground">
+                Mostrando {items.length.toLocaleString('pt-BR')} de {total.toLocaleString('pt-BR')}
+              </span>
             </div>
-            <h3 className="text-lg font-bold text-foreground uppercase tracking-tight italic">Nenhum prompt encontrado</h3>
-            <p className="text-xs font-medium text-muted-foreground max-w-sm mt-1.5 leading-relaxed">
-              Você ainda não possui prompts registrados nesta conta. Comece criando um novo modelo para acelerar seu trabalho.
-            </p>
-            <Button
-              onClick={() => {
-                setEditingPrompt(null);
-                setIsEditorOpen(true);
-              }}
-              variant="outline"
-              className="mt-4 text-xs font-bold rounded-xl"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1 text-primary" /> Criar Primeiro Prompt
-            </Button>
-          </div>
-        ) : (
-          filteredPrompts.map(prompt => (
-            <PromptCard
-              key={prompt.id}
-              prompt={prompt}
-              isOwner={true}
-              // Sem estrela aqui: favoritos vivem em localStorage do navegador
-              // e este painel não os carrega.
-              isReadOnly={true}
-              onFork={() => {}}
-              onEdit={() => {
-                setEditingPrompt(prompt);
-                setIsEditorOpen(true);
-              }}
-              onView={() => setViewingPrompt(prompt)}
-              onDelete={() => handleDelete(prompt.id)}
-              onToggleFavorite={() => {}}
-            />
-          ))
-        )}
-      </div>
+          )}
+        </>
+      )}
 
-      <PromptEditor
-        isOpen={isEditorOpen}
-        onClose={() => {
-          setIsEditorOpen(false);
-          setEditingPrompt(null);
-        }}
-        onSave={handleSave}
-        initialData={editingPrompt}
-      />
-
-      <PromptView
-        isOpen={!!viewingPrompt}
-        onClose={() => setViewingPrompt(null)}
-        prompt={viewingPrompt}
-        isOwner={true}
-        onCopy={() => {}}
-      />
+      <ItemPanel item={selected} onClose={() => setSelected(null)} onPatch={patchItem} onDeleted={afterDelete} onSelectTag={tag => { setSelected(null); setSearchInput(tag); }} />
+      <DeleteItemDialog item={toDelete} sessionId={effectiveUserId} onClose={() => setToDelete(null)} onDeleted={afterDelete} />
     </div>
   );
 }

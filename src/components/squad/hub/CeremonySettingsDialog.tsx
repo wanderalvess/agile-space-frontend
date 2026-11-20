@@ -1,0 +1,280 @@
+'use client';
+
+/**
+ * Configuração da fonte do card "Próxima cerimônia" (aba Resumo do hub da squad): a squad escolhe UMA fonte
+ * — Google Calendar (cada membro conecta a própria agenda) ou cadastro manual (a squad
+ * registra o horário recorrente uma vez) — nunca as duas ao mesmo tempo, porque são duas
+ * respostas pra mesma pergunta e misturar convida a divergência.
+ *
+ * Qualquer membro da squad pode editar (mesmo nível de confiança de outras telas
+ * colaborativas do Portal Tech V&D hoje — ver requireSquadWriteAccess no backend).
+ */
+
+import { useEffect, useRef, useState } from 'react';
+import { CalendarClock, Plus, Trash2 } from 'lucide-react';
+import { Modal, ModalButton } from '@/components/room-kit';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { CEREMONY_DAY_LABEL } from '@/lib/ceremony-schedule';
+import type { CeremonyDayOfWeek, SquadCeremony, SquadConfig } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { safeHref } from '@/lib/safe-url';
+
+// Ordem de exibição segunda→domingo — CEREMONY_DAY_INDEX (ceremony-schedule.ts) começa em
+// domingo pra bater com Date#getDay(), mas isso é só um detalhe de cálculo, não de UI.
+const DISPLAY_DAYS: CeremonyDayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+function newCeremony(): SquadCeremony {
+  return {
+    id: `ceremony_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    title: '',
+    daysOfWeek: [],
+    startTime: '09:00',
+    durationMinutes: 15,
+    meetLink: '',
+  };
+}
+
+export function CeremonySettingsDialog({
+  open,
+  onOpenChange,
+  mode,
+  ceremonies,
+  estimationUnit,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: 'google_calendar' | 'manual';
+  ceremonies: SquadCeremony[];
+  estimationUnit?: SquadConfig['estimationUnit'];
+  onSave: (patch: Partial<Pick<SquadConfig, 'ceremonyMode' | 'ceremonies' | 'estimationUnit'>>) => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [draftMode, setDraftMode] = useState<'google_calendar' | 'manual'>(mode);
+  const [draftCeremonies, setDraftCeremonies] = useState<SquadCeremony[]>(ceremonies);
+  const [draftUnit, setDraftUnit] = useState<string>(estimationUnit ?? '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sempre lê o valor salvo mais recente, sem precisar re-sincronizar o rascunho toda vez
+  // que ele muda (ver useRef abaixo) — só na transição fechado -> aberto.
+  const latestSavedRef = useRef({ mode, ceremonies, estimationUnit });
+  latestSavedRef.current = { mode, ceremonies, estimationUnit };
+
+  // Reabre sempre a partir do estado salvo — evita levar rascunho não salvo de uma
+  // abertura anterior pra próxima. Depende só de `open`: com mode/ceremonies também nas
+  // deps, qualquer re-render do pai enquanto o dialog está aberto (ex: o tick de 30s do
+  // countdown no card) recriava a referência de `ceremonies` e resetava o formulário no
+  // meio da edição.
+  useEffect(() => {
+    if (open) {
+      setDraftMode(latestSavedRef.current.mode);
+      setDraftUnit(latestSavedRef.current.estimationUnit ?? '');
+      setDraftCeremonies(latestSavedRef.current.ceremonies.length ? latestSavedRef.current.ceremonies : []);
+    }
+     
+  }, [open]);
+
+  const updateCeremony = (id: string, patch: Partial<SquadCeremony>) => {
+    setDraftCeremonies((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
+
+  const toggleDay = (id: string, day: CeremonyDayOfWeek) => {
+    setDraftCeremonies((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        const has = c.daysOfWeek.includes(day);
+        return { ...c, daysOfWeek: has ? c.daysOfWeek.filter((d) => d !== day) : [...c.daysOfWeek, day] };
+      })
+    );
+  };
+
+  const removeCeremony = (id: string) => {
+    setDraftCeremonies((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const canSave =
+    draftMode === 'google_calendar' ||
+    draftCeremonies.every((c) => c.title.trim() && c.daysOfWeek.length > 0 && c.durationMinutes > 0);
+
+  const handleSave = async () => {
+    const badLink = draftMode === 'manual' ? draftCeremonies.find((c) => c.meetLink?.trim() && !safeHref(c.meetLink)) : undefined;
+    if (badLink) {
+      toast({
+        variant: 'destructive',
+        title: 'Link do Meet inválido',
+        description: `O link de "${badLink.title || 'cerimônia'}" precisa começar com https:// (ou http://).`,
+      });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await onSave({
+        ceremonyMode: draftMode,
+        ceremonies: draftMode === 'manual' ? draftCeremonies : ceremonies,
+        ...(draftUnit ? { estimationUnit: draftUnit as NonNullable<SquadConfig['estimationUnit']> } : {}),
+      });
+      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada para a squad toda.' });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Não consegui salvar',
+        description: err?.message || 'Tente de novo em instantes.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      icon={CalendarClock}
+      title="Configuração da squad"
+      description="Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale para a squad inteira."
+      preventClose={isSaving}
+      footer={
+        <>
+          <ModalButton onClick={() => onOpenChange(false)} disabled={isSaving}>
+            Cancelar
+          </ModalButton>
+          <ModalButton variant="primary" onClick={handleSave} disabled={isSaving || !canSave}>
+            {isSaving ? 'Salvando…' : 'Salvar'}
+          </ModalButton>
+        </>
+      }
+    >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ceremony-unit">Unidade de estimativa</Label>
+            <Select value={draftUnit} onValueChange={setDraftUnit}>
+              <SelectTrigger id="ceremony-unit">
+                <SelectValue placeholder="Escolha como a squad estima" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SP">Story Points (SP)</SelectItem>
+                <SelectItem value="HOURS">Horas (h)</SelectItem>
+                <SelectItem value="TSHIRT">T-Shirt (P/M/G)</SelectItem>
+                <SelectItem value="COUNT">Contagem (Throughput)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ceremony-mode">Fonte dos rituais</Label>
+            <Select value={draftMode} onValueChange={(v) => setDraftMode(v as 'google_calendar' | 'manual')}>
+              <SelectTrigger id="ceremony-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="google_calendar">Google Calendar (cada membro conecta a própria agenda)</SelectItem>
+                <SelectItem value="manual">Cadastro manual (a squad registra o horário)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {draftMode === 'manual' && (
+            <div className="space-y-3">
+              {draftCeremonies.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma cerimônia cadastrada ainda. Adicione a daily, planning, review, retro ou
+                  refinement do time.
+                </p>
+              )}
+
+              {draftCeremonies.map((c) => (
+                <div key={c.id} className="rounded-xl border border-border p-3 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Input
+                      value={c.title}
+                      onChange={(e) => updateCeremony(c.id, { title: e.target.value })}
+                      placeholder="Nome (ex: Daily)"
+                      aria-label="Nome da cerimônia"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeCeremony(c.id)}
+                      aria-label="Remover cerimônia"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {DISPLAY_DAYS.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        aria-pressed={c.daysOfWeek.includes(day)}
+                        onClick={() => toggleDay(c.id, day)}
+                        className={cn(
+                          'h-8 w-10 rounded-lg text-xs font-semibold transition-colors',
+                          c.daysOfWeek.includes(day)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-accent'
+                        )}
+                      >
+                        {CEREMONY_DAY_LABEL[day]}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor={`${c.id}-time`} className="text-xs text-muted-foreground">Horário</Label>
+                      <Input
+                        id={`${c.id}-time`}
+                        type="time"
+                        value={c.startTime}
+                        onChange={(e) => updateCeremony(c.id, { startTime: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`${c.id}-duration`} className="text-xs text-muted-foreground">Duração (min)</Label>
+                      <Input
+                        id={`${c.id}-duration`}
+                        type="number"
+                        min={5}
+                        step={5}
+                        value={c.durationMinutes}
+                        onChange={(e) => updateCeremony(c.id, { durationMinutes: Number(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`${c.id}-meet`} className="text-xs text-muted-foreground">Link do Meet (opcional)</Label>
+                    <Input
+                      id={`${c.id}-meet`}
+                      value={c.meetLink || ''}
+                      onChange={(e) => updateCeremony(c.id, { meetLink: e.target.value })}
+                      placeholder="https://meet.google.com/..."
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setDraftCeremonies((prev) => [...prev, newCeremony()])}
+                className="gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" /> Adicionar cerimônia
+              </Button>
+            </div>
+          )}
+        </div>
+    </Modal>
+  );
+}

@@ -1,42 +1,63 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, use } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, use } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import {
-  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText, MessageSquareText,
-  ChevronDown, AlertTriangle, RefreshCw, MoreHorizontal
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, Flag, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
+import { ConfirmDialog, IconTile, ModalButton, ShareDialog } from '@/components/room-kit';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { JiraIssue } from '@/services/jiraService';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { getAuthToken } from '@/lib/auth-client';
-import { cn } from '@/lib/utils';
 
-// New Refactored Components & Utils
-import { ShowcaseSession, ShowcaseTask, Decision, CardKind, PREPARATION_STATUS } from '@/components/showcase/types';
-import { formatTime, makeTask, isTaskContentComplete } from '@/components/showcase/utils';
-import { TaskCard } from '@/components/showcase/TaskCard';
-import { TeatroMode } from '@/components/showcase/TeatroMode';
+import { ShowcaseSession, ShowcaseTask, Decision } from '@/components/showcase/types';
+import { FeedbackWidget } from '@/components/feedback-widget';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
+import { TeatroMode } from '@/components/showcase/TeatroMode';
 import { SessionSettingsDialog } from '@/components/showcase/SessionSettingsDialog';
 import { SummaryDialog } from '@/components/showcase/SummaryDialog';
 import { PrintSlidesView } from '@/components/showcase/PrintSlidesView';
 import { ShowcaseTour, TOUR_STORAGE_KEY } from '@/components/showcase/ShowcaseTour';
-import { decryptSecret } from '@/lib/vault-crypto';
-import { showcaseApi } from '../api';
+import { ReviewRoomBar } from '@/components/showcase/ReviewRoomBar';
+import { ReviewPrepBar } from '@/components/showcase/ReviewPrepBar';
+import { ReviewCardsView } from '@/components/showcase/ReviewCardsView';
+import { ReviewEmptyRoom } from '@/components/showcase/ReviewEmptyRoom';
+import { ReviewGuide } from '@/components/showcase/ReviewGuide';
+import { ReviewConflictBar } from '@/components/showcase/ReviewConflictBar';
+import { PresenterChip } from '@/components/showcase/PresenterChip';
+import { isOtherPresenter } from '@/components/showcase/presenter-sync';
+import { useShowcasePresenter } from '@/components/showcase/useShowcasePresenter';
+import { ReviewExportDialog } from '@/components/showcase/ReviewExportDialog';
+import { useShowcaseRoom } from '@/components/showcase/useShowcaseRoom';
+import {
+  EMPTY_FILTERS,
+  FINISHED_STATUS,
+  PRESENTING_STATUS,
+  REOPENED_STATUS,
+  buildInviteText,
+  canDecide as canDecideInReview,
+  cleanRoomUrl,
+  clearAllFilters,
+  clearFilterChip,
+  effortTotals,
+  filterTasks,
+  isReviewSort,
+  normalizeReviewStatus,
+  openDecisionCount,
+  readinessOf,
+  sortTasks,
+  squadLabel,
+  squadOptions,
+  type ReviewFilters,
+  type ReviewSort,
+} from '@/components/showcase/review-room-logic';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
 // ─────────────────────────────────────────────
-// Main Room Component
+// Sala da Review
 // ─────────────────────────────────────────────
 export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -45,35 +66,45 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const searchParams = useSearchParams();
   const { session: authSession } = useAuth();
   const { userProfile } = useUserContext();
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships, stale: staleMemberships } = useMyMemberships();
   const { toast } = useToast();
 
-  const [session, setSession] = useState<ShowcaseSession | null>(null);
-  // Buffer local do título: permite selecionar-tudo-e-apagar antes de retitular sem
-  // disparar persist({ name: '' }) a cada tecla (backend rejeita name em branco).
-  const [nameDraft, setNameDraft] = useState('');
-  const [loading, setLoading] = useState(true);
+  const room = useShowcaseRoom(id);
+  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad, conflicts, resolveConflict, lastFailure, presenter, setPresenter } = room;
+
   const [isPresenting, setIsPresenting] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(-1);
+  // Acompanhando o apresentador: o card do Teatro segue o dele (ligado pelo chip "Acompanhar").
+  const [following, setFollowing] = useState(false);
+  const presenterCtl = useShowcasePresenter({ sessionId: id, meId: authSession?.id, presenter, setPresenter });
+  const [currentIndex, setCurrentIndexState] = useState(-1);
   const [isJiraOpen, setIsJiraOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // Evita reabrir o aviso a cada clique em "Iniciar" nesta visita — a
-  // primeira vez avisa, se a pessoa ignorar e clicar de novo, apresenta.
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [finishAsk, setFinishAsk] = useState(false);
+  const [reopenAsk, setReopenAsk] = useState(false);
+  const [inviteDraft, setInviteDraft] = useState<string | null>(null);
+  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
+  // Evita reabrir o aviso a cada clique em "Apresentar" nesta visita: a primeira vez avisa; se a pessoa ignorar
+  // e clicar de novo, apresenta.
   const [presentWarningShown, setPresentWarningShown] = useState(false);
   const [settingsWarningActive, setSettingsWarningActive] = useState(false);
+  // Sprint ativa da squad (id do Jira) para a predefinição "Review da sprint atual" do Importar do Jira.
+  const [jiraSprint, setJiraSprint] = useState<{ squad: string; sprintId?: string } | null>(null);
 
-  const [search, setSearch] = useState('');
-  const [filterDev, setFilterDev] = useState('all');
-  const [filterQa, setFilterQa] = useState('all');
-  const [filterType, setFilterType] = useState('all');
-  const [sortBy, setBy] = useState<'key' | 'type' | 'dev' | 'qa'>('key');
-
-  const PAGE_SIZE = 20;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [filters, setFilters] = useState<ReviewFilters>(EMPTY_FILTERS);
+  const [sortBy, setSortBy] = useState<ReviewSort>('key');
 
   const isMounted = React.useRef(false);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const orderedTasksRef = React.useRef<ShowcaseTask[]>([]);
+  // O slide em foco é lembrado pelo id do card: a lista muda sob os pés (outra pessoa adiciona, remove ou
+  // reordena) e o índice sozinho passaria a apontar para outro card.
+  const currentTaskIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -83,326 +114,107 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     };
   }, []);
 
-  const reloadSession = useCallback(async () => {
-    if (!id) return;
-    try {
-      const data = await showcaseApi.getSession(id);
-      if (data) {
-        const tasks = (data.tasks || []).map((t: any) => ({
-          ...t,
-          evidence: {
-            problem: t.evidence?.problem || t.description || '',
-            solution: t.evidence?.solution || t.evidence?.execution || '',
-            dev: t.evidence?.dev || t.assignee || '',
-            qa: t.evidence?.qa || '',
-            screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
-            video: t.evidence?.video || t.evidence?.videoLink || '',
-            // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
-            // existe no backend mas nunca chega na UI.
-            evidencePreference: t.evidence?.evidencePreference,
-            timeSpent: t.evidence?.timeSpent || 0,
-            timeEstimate: t.evidence?.timeEstimate || 0,
-            planned: t.evidence?.planned || null
-          },
-          preparationStatus: t.preparationStatus || 'todo',
-          decision: t.decision || 'open',
-          feedback: t.feedback || '',
-        }));
-        setSession({ 
-          ...data, tasks, 
-          coverImage: data.coverImage || '', 
-          squadName: data.squadName || '', 
-          period: data.period || '',
-          description: data.description || '',
-          members: data.members || []
-        } as ShowcaseSession);
-      }
-    } catch (e) {
-      console.error("Error loading session:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const followingRef = React.useRef(false);
+  followingRef.current = following;
+
+  const goToIndex = useCallback((i: number) => {
+    setCurrentIndexState(i);
+    currentTaskIdRef.current = i >= 0 ? orderedTasksRef.current[i]?.id ?? null : null;
+  }, []);
+
+  const baseSort: ReviewSort = isReviewSort(session?.defaultSort) ? session!.defaultSort! : 'key';
+  useEffect(() => {
+    if (isReviewSort(session?.defaultSort)) setSortBy(session!.defaultSort!);
+  }, [session?.defaultSort, session]);
 
   useEffect(() => {
-    if (!id) return;
-    reloadSession();
-
-    // WebSocket Nativo para tempo real
-    const wsUrl = showcaseApi.getWebSocketUrl(id);
-    console.log("Conectando ao WebSocket do Showcase:", id);
-    let socket = new WebSocket(wsUrl);
-
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'SESSION_UPDATED' && data.payload) {
-          const raw = data.payload;
-          const tasks = (raw.tasks || []).map((t: any) => ({
-            ...t,
-            evidence: {
-              problem: t.evidence?.problem || t.description || '',
-              solution: t.evidence?.solution || t.evidence?.execution || '',
-              dev: t.evidence?.dev || t.assignee || '',
-              qa: t.evidence?.qa || '',
-              screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
-              video: t.evidence?.video || t.evidence?.videoLink || '',
-              // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
-              // existe no backend mas nunca chega na UI.
-              evidencePreference: t.evidence?.evidencePreference,
-              timeSpent: t.evidence?.timeSpent || 0,
-              timeEstimate: t.evidence?.timeEstimate || 0,
-              planned: t.evidence?.planned || null
-            },
-            preparationStatus: t.preparationStatus || 'todo',
-            decision: t.decision || 'open',
-            feedback: t.feedback || '',
-          }));
-          setSession({ 
-            id: raw.id, ...raw, tasks, 
-            coverImage: raw.coverImage || '', 
-            squadName: raw.squadName || '', 
-            period: raw.period || '',
-            description: raw.description || '',
-            members: raw.members || []
-          } as ShowcaseSession);
-        } else {
-          reloadSession();
-        }
-      } catch (err) {
-        console.error("Erro ao processar mensagem do WebSocket do Showcase:", err);
-        reloadSession();
-      }
-    };
-
-    socket.onclose = () => {
-      console.warn("WebSocket desconectado. Tentando reconectar...");
-      setTimeout(() => {
-        reloadSession();
-      }, 5000);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [id, reloadSession]);
-
-  useEffect(() => {
-    if (session?.defaultSort) {
-      setBy(session.defaultSort);
-    }
-  }, [session?.defaultSort]);
-
-  useEffect(() => {
-    setNameDraft(session?.name || '');
-  }, [session?.name]);
-
-  useEffect(() => {
-    const baseTitle = "Portal Tech V&D";
-    const moduleName = "Sprint Showcase";
+    const moduleName = 'Review';
+    const baseTitle = 'Portal Tech V&D';
     const sessionName = session?.sprintName || session?.name;
-    
-    if (sessionName) {
-      document.title = `${sessionName} | ${moduleName} | ${baseTitle}`;
+    document.title = sessionName ? `${sessionName} | ${moduleName} | ${baseTitle}` : `${moduleName} | ${baseTitle}`;
+  }, [session?.sprintName, session?.name]);
+
+  const status = normalizeReviewStatus(session?.status, session?.updatedAt);
+  const tasks = useMemo(() => session?.tasks ?? [], [session?.tasks]);
+
+  // Quem registra veredito e feedback: a mesma regra do servidor (administrador, liderança da squad, PO/SME por vínculo;
+  // Review sem squad: administrador e criador). Sem dados de vínculos, o cargo do perfil, como antes.
+  const canDecide = useMemo(
+    () => canDecideInReview({
+      role: userProfile?.role,
+      isAdmin: userProfile?.role === 'admin',
+      memberships: memberships ?? staleMemberships,
+      squadId: session?.squadName,
+      isCreator: !!authSession?.id && !!session?.createdBy && session.createdBy === authSession.id,
+    }),
+    [userProfile?.role, memberships, staleMemberships, session?.squadName, session?.createdBy, authSession?.id]
+  );
+
+  const squadOpts = useMemo(
+    () => squadOptions(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName }, session?.squadName),
+    [memberships, activeSquadId, activeSquadName, session?.squadName]
+  );
+
+  // Sprint ativa da squad, lida só quando o Importar do Jira abre (falha em silêncio: a predefinição cai em "sprints abertas").
+  useEffect(() => {
+    const squad = session?.squadName?.trim();
+    if (!isJiraOpen || !squad || jiraSprint?.squad === squad) return;
+    let cancelled = false;
+    squadApi.getSquad(squad)
+      .then((s) => { if (!cancelled) setJiraSprint({ squad, sprintId: s?.activeSprintId || undefined }); })
+      .catch(() => { if (!cancelled) setJiraSprint({ squad }); });
+    return () => { cancelled = true; };
+  }, [isJiraOpen, session?.squadName, jiraSprint?.squad]);
+
+  // ── Nome e cópia do link ─────────────────────────────────────────────────────
+  const rename = useCallback((name: string) => {
+    if (name.trim() && name !== session?.name) void persist({ name });
+  }, [persist, session?.name]);
+
+  const copyLink = useCallback(async () => {
+    const url = cleanRoomUrl(window.location.href);
+    const ok = await copyToClipboard(url);
+    if (ok) {
+      toast({ title: 'Link copiado!', description: 'Compartilhe com sua squad para prepararem a sessão juntos.' });
     } else {
-      document.title = `${moduleName} | ${baseTitle}`;
+      toast({ title: 'Não foi possível copiar o link', description: url, variant: 'destructive' });
     }
-  }, [session]);
-
-  const persist = useCallback(async (updates: Partial<ShowcaseSession>) => {
-    if (!id || !session) return;
-    try {
-      const updatedSession = { ...session, ...updates };
-      await showcaseApi.saveSession(updatedSession);
-      // O backend dispara o REFRESH_SESSION para atualizar o state local via WS
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao salvar alterações', variant: 'destructive' });
-    }
-  }, [id, session, toast]);
-
-  const addTasks = async (issues: JiraIssue[]) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    const existing = new Set(currentTasks.map((t: any) => t.key));
-    const newTasks = issues.filter(i => !existing.has(i.key)).map(makeTask);
-    const addedCount = newTasks.length;
-
-    if (addedCount === 0) { toast({ title: 'Nenhuma tarefa nova' }); return; }
-    
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: [...currentTasks, ...newTasks]
-      });
-      toast({ title: `${addedCount} tarefas importadas!` });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao importar tarefas', description: 'Tente novamente.', variant: 'destructive' });
-    }
-  };
-
-  const addManualTask = async (cardKind: CardKind = 'story') => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    const manualCount = currentTasks.filter((t: any) => t.key.startsWith('MANUAL-')).length + 1;
-    const isMetrics = cardKind === 'metrics';
-    const newTask: ShowcaseTask = {
-      id: `manual_${Date.now()}`,
-      key: `MANUAL-${String(manualCount).padStart(3, '0')}`,
-      title: isMetrics ? 'Nova Métrica de Impacto' : 'Nova Tarefa Manual',
-      description: '',
-      acceptanceCriteria: '',
-      type: 'Evolução',
-      status: 'In Progress',
-      priority: 'Medium',
-      points: 0,
-      cardKind,
-      // Card de métricas nasce com uma linha campo/valor aberta — é o
-      // conteúdo principal desse tipo, não uma seção opcional pra descobrir.
-      metrics: isMetrics ? [{ field: '', value: 0 }] : undefined,
-      assignee: authSession?.name || userProfile?.name || '',
-      url: '',
-      evidence: {
-        problem: '',
-        solution: '',
-        dev: authSession?.name || userProfile?.name || '',
-        qa: '',
-        screenshot: '',
-        video: '',
-        timeSpent: 0,
-        timeEstimate: 0,
-        planned: null
-      },
-      decision: 'open',
-      preparationStatus: 'todo',
-      feedback: '',
-      project: '',
-      versionSuporte: '',
-      versionMaster: '',
-      versionRelease: '',
-      versionDevelop: '',
-    };
-
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: [...currentTasks, newTask]
-      });
-      toast({ title: 'Tarefa manual adicionada!' });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao adicionar tarefa', description: 'Tente novamente.', variant: 'destructive' });
-    }
-  };
-
-  const removeTask = useCallback(async (taskId: string) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: currentTasks.filter((t: any) => t.id !== taskId)
-      });
-      toast({ title: 'Tarefa removida' });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao remover tarefa', description: 'Tente novamente.', variant: 'destructive' });
-    }
-  }, [id, session, toast]);
-
-  const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    let updatedTaskContent: any = null;
-    const newTasks = currentTasks.map((t: any) => {
-      if (t.id === taskId) {
-        const result = typeof updates === 'function' ? updates(t) : { ...t, ...updates };
-        updatedTaskContent = result;
-        return result;
-      }
-      return t;
-    });
-
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: newTasks
-      });
-
-      // Phase 3: Backend decision push
-      if (updatedTaskContent && updatedTaskContent.key && updatedTaskContent.key.includes('-')) {
-        const hasDecisionChanged = typeof updates === 'object' && ('decision' in updates || 'feedback' in updates);
-        if (hasDecisionChanged) {
-          let backendStatus = 'committed';
-          if (updatedTaskContent.decision === 'approved') backendStatus = 'delivered';
-          else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
-          else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
-
-          const issueProjectKey = updatedTaskContent.key?.includes('-') ? updatedTaskContent.key.split('-')[0].toUpperCase() : '';
-          const activeSquad = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
-          if (activeSquad) {
-            const { workItemsApi } = await import('@/app/work-items-api');
-            workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '')
-              .catch(err => console.error('[Showcase] Falha ao registrar veredito em work_items:', err));
-          }
-        }
-      }
-
-    } catch (err) {
-      console.error(err);
-    }
-  }, [id, session]);
-
-
+  }, [toast]);
 
   const handleOpenRetro = async () => {
     const firstTaskKey = session?.tasks?.[0]?.key;
     const issueProjectKey = firstTaskKey?.includes('-') ? firstTaskKey.split('-')[0].toUpperCase() : '';
-    const squadId = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+    const squadId = session?.squadName || issueProjectKey || activeSquadId;
     if (!squadId) {
-      toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta review.", variant: "destructive" });
+      toast({ title: 'Squad não identificada', description: 'Não foi possível resolver a squad desta Review.', variant: 'destructive' });
       return;
     }
     try {
       const squad = await squadApi.getSquad(squadId);
       const sprintId = squad?.activeSprintId;
       if (!sprintId) {
-        toast({ title: "Sem sprint ativa", description: "Essa squad não tem sprint ativa configurada.", variant: "destructive" });
+        toast({ title: 'Sem sprint ativa', description: 'Essa squad não tem sprint ativa configurada.', variant: 'destructive' });
         return;
       }
       openOrCreateRetro(router, sprintId, squadId);
     } catch (err) {
       console.error('[Showcase] Falha ao resolver sprint ativa da squad:', err);
-      toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
+      toast({ title: 'Erro', description: 'Não foi possível abrir a retrospectiva.', variant: 'destructive' });
     }
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link copiado!",
-      description: "Compartilhe com sua squad para prepararem a sessão juntos.",
-    });
-  };
-
-  const tasks = session?.tasks || [];
-
-  // Primeira vez do usuário nesta sessão: dispara o tour guiado sozinho,
-  // sem exigir que alguém vá procurar um botão de ajuda.
+  // Primeira vez da pessoa nesta Review com cards: o tour abre sozinho, sem exigir que alguém procure um botão de ajuda.
   useEffect(() => {
     if (loading || tasks.length === 0) return;
     try {
       if (localStorage.getItem(TOUR_STORAGE_KEY)) return;
     } catch { return; }
-    const t = setTimeout(() => setIsGuideOpen(true), 600);
+    const t = setTimeout(() => setIsTourOpen(true), 600);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, tasks.length]);
 
-  // Sessão recém-criada (?setup=1, posto pela tela de criação): abre a
-  // config de cara em vez de deixar enterrada atrás do ícone de engrenagem
-  // — sem isso ninguém preenchia Objetivos/Capa/Squad antes de apresentar.
+  // Review recém-criada (?setup=1, posto pela tela de criação): abre a configuração de cara em vez de deixá-la
+  // escondida atrás do ícone, porque sem isso ninguém preenchia objetivos, capa e squad antes de apresentar.
   useEffect(() => {
     if (searchParams.get('setup') === '1') {
       setIsSettingsOpen(true);
@@ -411,87 +223,96 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalSecondsSpent = tasks.reduce((acc, t) => acc + (t.evidence.timeSpent || 0), 0);
-  const totalSecondsOriginal = tasks.reduce((acc, t) => acc + (t.evidence.timeEstimate || 0), 0);
+  // ?resumo=1 (hub: "Ver resumo" de uma Review finalizada): abre o resumo assim que a Review carrega.
+  const [resumoHandled, setResumoHandled] = useState(false);
+  useEffect(() => {
+    if (resumoHandled || loading || !session) return;
+    if (searchParams.get('resumo') !== '1') return;
+    setResumoHandled(true);
+    setIsSummaryOpen(true);
+    router.replace(pathname, { scroll: false });
+  }, [resumoHandled, loading, session, searchParams, router, pathname]);
 
-  const stats = {
-    total: tasks.length,
-    approved: tasks.filter(t => t.decision === 'approved').length,
-    open: tasks.filter(t => t.decision === 'open').length,
-    ready: tasks.filter(t => t.preparationStatus === 'done').length,
-    hoursSpent: formatTime(totalSecondsSpent),
-    hoursOriginal: formatTime(totalSecondsOriginal)
+  // ── Lista: ordem, busca e filtros ───────────────────────────────────────────
+  // Ordem da lista e da apresentação (chave em ordem natural: PROJ-2 antes de PROJ-10).
+  const orderedTasks = useMemo(() => sortTasks(tasks, sortBy), [tasks, sortBy]);
+  orderedTasksRef.current = orderedTasks;
+  const filteredTasks = useMemo(() => filterTasks(orderedTasks, filters), [orderedTasks, filters]);
+
+  // Se o card em foco mudou de posição (ou saiu da Review) enquanto se apresenta, o slide o acompanha.
+  useEffect(() => {
+    if (!isPresenting || currentIndex < 0) return;
+    const wantedId = currentTaskIdRef.current;
+    if (!wantedId || orderedTasks[currentIndex]?.id === wantedId) return;
+    const movedTo = orderedTasks.findIndex((t) => t.id === wantedId);
+    if (movedTo >= 0) {
+      setCurrentIndexState(movedTo);
+      return;
+    }
+    const clamped = Math.min(currentIndex, orderedTasks.length - 1);
+    setCurrentIndexState(clamped);
+    currentTaskIdRef.current = clamped >= 0 ? orderedTasks[clamped].id : null;
+    toast({ title: 'O card em foco saiu da Review', description: 'Mostrando o card que ocupa o lugar dele.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderedTasks, isPresenting, currentIndex]);
+
+  const isFiltered = filteredTasks.length !== tasks.length;
+  const readiness = useMemo(() => readinessOf(filteredTasks), [filteredTasks]);
+  const effort = useMemo(() => effortTotals(tasks), [tasks]);
+
+  const clearAll = () => {
+    const cleared = clearAllFilters(baseSort);
+    setFilters(cleared.filters);
+    setSortBy(cleared.sortBy);
+  };
+  const removeChip = (chip: Parameters<typeof clearFilterChip>[2]) => {
+    const next = clearFilterChip(filters, sortBy, chip, baseSort);
+    setFilters(next.filters);
+    setSortBy(next.sortBy);
   };
 
-  // Prontidão real (conteúdo preenchido) vs. status manual (dropdown por
-  // card) — os dois podem discordar sem aviso nenhum hoje. `readyCount` vira
-  // a verdade do conteúdo; `mismatch` sinaliza quando o manual não bate.
-  const readinessTasks = tasks.map(t => {
-    const contentComplete = isTaskContentComplete(t);
-    const mismatch = (t.preparationStatus === 'done') !== contentComplete;
-    return { task: t, contentComplete, mismatch };
-  });
-  const readyCount = readinessTasks.filter(r => r.contentComplete).length;
-  const mismatchCount = readinessTasks.filter(r => r.mismatch).length;
+  // ── Apresentar e finalizar ──────────────────────────────────────────────────
+  const beginPresenting = useCallback((opts: { follower?: boolean } = {}) => {
+    setIsPresenting(true);
+    goToIndex(-1);
+    // Apresentar grava "Ao vivo": é o que o servidor e a Home entendem como em andamento. Sair sem finalizar deixa assim.
+    // Quem só entra para acompanhar não grava nada: a Review já está ao vivo.
+    if (status !== 'finished' && !opts.follower) void persist({ status: PRESENTING_STATUS });
+  }, [goToIndex, persist, status]);
 
-  // ── Filtering Logic ──────────────────────────────────────────────────────────
-  const developers = Array.from(new Set(tasks.map(t => t.evidence.dev).filter(Boolean))).sort();
-  const qas = Array.from(new Set(tasks.map(t => t.evidence.qa).filter(Boolean))).sort();
-  const types = Array.from(new Set(tasks.map(t => t.type).filter(Boolean))).sort();
-
-  const filteredTasks = React.useMemo(() => {
-    let result = [...tasks];
-
-    // Search
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter(t => 
-        t.key.toLowerCase().includes(s) || 
-        t.title.toLowerCase().includes(s) || 
-        t.evidence.dev.toLowerCase().includes(s) ||
-        t.evidence.qa.toLowerCase().includes(s)
-      );
-    }
-
-    // Filter Dev
-    if (filterDev !== 'all') {
-      result = result.filter(t => t.evidence.dev === filterDev);
-    }
-
-    // Filter QA
-    if (filterQa !== 'all') {
-      result = result.filter(t => t.evidence.qa === filterQa);
-    }
-
-    // Filter Type
-    if (filterType !== 'all') {
-      result = result.filter(t => t.type === filterType);
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'key') return a.key.localeCompare(b.key);
-      if (sortBy === 'type') return a.type.localeCompare(b.type);
-      if (sortBy === 'dev') return a.evidence.dev.localeCompare(b.evidence.dev);
-      if (sortBy === 'qa') return a.evidence.qa.localeCompare(b.evidence.qa);
-      return 0;
-    });
-
-    return result;
-  }, [tasks, search, filterDev, filterQa, filterType, sortBy]);
-
-  // Filtro/busca mudou o resultado — volta pra primeira página em vez de
-  // manter um visibleCount alto que não corresponde mais ao que faz sentido
-  // pro novo recorte.
+  // Fechou o Teatro (ou finalizou): para de acompanhar e, se eu apresentava, encerra a apresentação.
+  const stopPresenter = presenterCtl.stop;
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [search, filterDev, filterQa, filterType, sortBy]);
+    if (isPresenting) return;
+    setFollowing(false);
+    stopPresenter();
+  }, [isPresenting, stopPresenter]);
 
-  const visibleTasks = filteredTasks.slice(0, visibleCount);
+  const followFromRoom = () => {
+    setFollowing(true);
+    void presenterCtl.refresh();
+    beginPresenting({ follower: true });
+  };
+  const toggleFollowing = (on: boolean) => {
+    setFollowing(on);
+    if (on) void presenterCtl.refresh();
+  };
+
+  const startPresenting = () => {
+    // A capa já nasce com a imagem padrão: o aviso cobra só os objetivos.
+    const missingSetup = !session?.description?.trim();
+    if (missingSetup && !presentWarningShown) {
+      setPresentWarningShown(true);
+      setSettingsWarningActive(true);
+      setIsSettingsOpen(true);
+      return;
+    }
+    beginPresenting();
+  };
 
   const handleDecision = async (taskId: string, decision: Decision, feedback = '') => {
     const now = new Date().toISOString();
-    await updateTask(taskId, {
+    const ok = await updateTask(taskId, {
       decision,
       feedback,
       approvedAt: decision === 'approved' ? now : undefined,
@@ -499,492 +320,263 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       decidedBy: authSession?.id || '',
       decidedByName: userProfile?.name || authSession?.name || authSession?.email || '',
     });
-    if (currentIndex < filteredTasks.length - 1) {
+    if (!ok) {
+      // Não avança: quem apresenta precisa saber que a decisão não foi gravada. Restrição e conflito a sala já explicou.
+      const explained = lastFailure();
+      if (explained !== 'restricted' && explained !== 'conflict') {
+        toast({ title: 'A decisão não foi gravada', description: 'Confira a conexão e decida de novo neste card.', variant: 'destructive' });
+      }
+      return;
+    }
+    const decidedIndex = orderedTasksRef.current.findIndex((t) => t.id === taskId);
+    if (decidedIndex >= 0 && decidedIndex < orderedTasksRef.current.length - 1) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
-        if (isMounted.current) setCurrentIndex(currentIndex + 1);
+        // Só avança se a pessoa não navegou para outro card nesse meio-tempo. Quem acompanha o apresentador
+        // não avança sozinho: quem apresenta é quem muda de card.
+        if (isMounted.current && currentTaskIdRef.current === taskId && !followingRef.current) goToIndex(decidedIndex + 1);
       }, 600);
     }
   };
 
+  const confirmFinish = () => {
+    setIsPresenting(false);
+    void persist({ status: FINISHED_STATUS });
+    setIsSummaryOpen(true);
+  };
+
+  const confirmReopen = () => {
+    void persist({ status: REOPENED_STATUS });
+    toast({ title: 'Review reaberta', description: 'Ela voltou para "Em preparação". As decisões já registradas ficaram como estão.' });
+  };
+
+  // Imprimir slides: o PrintSlidesView já está na página e só aparece no @media print. Fecha as janelas e dá um
+  // respiro para o navegador pintar antes de abrir a impressão.
+  const printSlides = () => {
+    setIsSummaryOpen(false);
+    setIsExportOpen(false);
+    setTimeout(() => window.print(), 250);
+  };
+
+  const openFeedback = () => setFeedbackSignal(Date.now());
+
+  // ── Estados da página ───────────────────────────────────────────────────────
   if (loading) return (
-    <div className="flex-1 w-full flex items-center justify-center bg-[#fafafa] dark:bg-slate-950">
-      <div className="flex flex-col items-center gap-4 text-slate-400 dark:text-slate-400">
-        <Loader2 className="h-10 w-10 animate-spin" />
-        <p className="text-[11px] font-black uppercase tracking-widest italic">Sincronizando Showcase...</p>
+    <div className="flex min-h-dvh flex-1 items-center justify-center bg-background p-6 text-foreground">
+      <div role="status" aria-label="Carregando a Review" className="flex flex-col items-center gap-4 text-muted-foreground">
+        <Loader2 className="h-10 w-10 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" />
+        <p className="m-0 text-[15px] font-semibold">Carregando a Review…</p>
       </div>
     </div>
   );
 
-  return (
-    <div className="flex-1 w-full flex flex-col bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
-      {!isPresenting && (
-        <RoomHeader
-          title={
-            // RoomHeader.title é tipado como `string`, mas o componente renderiza
-            // {title} como ReactNode. Mantemos o input editável inline (mesmo
-            // comportamento de runtime: persistência a cada tecla) via cast, pois
-            // RoomHeader está fora do escopo de edição aqui. Correção ideal: tipar
-            // RoomHeader.title como React.ReactNode, ou migrar para isEditable/onTitleChange.
-            (
-              <input
-                value={nameDraft}
-                onChange={(e) => {
-                  setNameDraft(e.target.value);
-                  if (e.target.value.trim()) persist({ name: e.target.value });
-                }}
-                placeholder="Nome da Sprint Review..."
-                className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 text-xs bg-transparent border-none outline-none w-[11rem] sm:w-[16rem] truncate focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
-              />
-            ) as unknown as string
-          }
-          toolIcon={<ShieldCheck className="h-4 w-4" />}
-          toolColorClass="text-violet-600 bg-violet-50"
-          badge={
-            <div className="hidden xl:flex items-center gap-6 px-2">
-              <div className="flex flex-col items-start">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide whitespace-nowrap">Esforço total</span>
-                <div className="flex items-center gap-1 text-xs font-bold text-violet-600 whitespace-nowrap">
-                  {stats.hoursSpent || '0h'}
-                  <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
-                  {stats.hoursOriginal || '0h'}
-                </div>
-              </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="flex flex-col items-start outline-none group">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase leading-none mb-1 tracking-wide flex items-center gap-1">
-                      Prontidão
-                      <ChevronDown className="h-2.5 w-2.5 text-slate-300 dark:text-slate-600 transition-transform group-data-[state=open]:rotate-180" />
-                    </span>
-                    <div className={cn(
-                      "flex items-center gap-1.5 text-xs font-bold whitespace-nowrap",
-                      readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100"
-                    )}>
-                      {readyCount}
-                      <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
-                      {stats.total}
-                      {mismatchCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title={`${mismatchCount} task(s) com status manual divergente`} />}
-                    </div>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[420px] rounded-2xl p-0 border-slate-200 dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-[11px] font-black uppercase italic tracking-tight text-slate-900 dark:text-slate-100">Prontidão da Sessão</h3>
-                      <span className={cn("text-[10px] font-black", readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100")}>
-                        {readyCount}/{stats.total} prontas
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all"
-                        style={{ width: `${stats.total ? Math.round((readyCount / stats.total) * 100) : 0}%` }}
-                      />
-                    </div>
-                    {mismatchCount > 0 && (
-                      <p className="text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        Status manual e conteúdo real divergem em {mismatchCount} {mismatchCount > 1 ? 'tasks' : 'task'} — veja abaixo.
-                      </p>
-                    )}
-                  </div>
-                  <div className="max-h-[360px] overflow-y-auto">
-                    {readinessTasks.length === 0 && (
-                      <p className="px-4 py-6 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Nenhuma task ainda</p>
-                    )}
-                    {readinessTasks.map(({ task: t, contentComplete, mismatch }) => {
-                      const meta = PREPARATION_STATUS[t.preparationStatus || 'todo'];
-                      return (
-                        <div key={t.id} className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
-                          <span
-                            className={cn("w-2 h-2 rounded-full shrink-0", contentComplete ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700")}
-                            title={contentComplete ? 'Conteúdo completo' : 'Conteúdo incompleto'}
-                          />
-                          <span className="bg-violet-600 text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{t.key}</span>
-                          <span className="flex-1 min-w-0 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">{t.title || 'Sem título'}</span>
-                          <span className={cn("text-[8.5px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shrink-0", meta.cls)}>{meta.label}</span>
-                          {mismatch && (
-                            <button
-                              type="button"
-                              title={t.preparationStatus === 'done' ? 'Marcada como pronta, mas falta conteúdo — clique pra corrigir o status' : 'Conteúdo completo — clique pra marcar como pronta'}
-                              onClick={() => updateTask(t.id, { preparationStatus: contentComplete ? 'done' : 'todo' })}
-                              className="w-5 h-5 rounded-md border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
-                            >
-                              <RefreshCw className="h-2.5 w-2.5" />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          }
-          actions={
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 shrink-0">
-                <Button
-                  data-tour="jira-import"
-                  variant="ghost"
-                  onClick={() => setIsJiraOpen(true)}
-                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
-                  title="Importar issues do Jira"
-                >
-                  <CloudDownload className="h-4 w-4" /> <span className="hidden md:inline">Jira</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={handleShare}
-                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
-                  title="Compartilhar a Review"
-                >
-                  <Share2 className="h-4 w-4" /> <span className="hidden md:inline">Compartilhar</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => { setSettingsWarningActive(false); setIsSettingsOpen(true); }}
-                  className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
-                  title="Configurações da Review"
-                  aria-label="Configurações da Review"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
-                      title="Mais ações"
-                      aria-label="Mais ações"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-60 rounded-xl dark:bg-slate-900 dark:border-slate-800">
-                    <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
-                      <FileText className="h-3.5 w-3.5 text-slate-400" /> Adicionar card padrão
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
-                      <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Adicionar card de métricas
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleOpenRetro} className="gap-2 text-xs font-semibold">
-                      <MessageSquareText className="h-3.5 w-3.5 text-slate-400" /> Retro desta sprint
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsGuideOpen(true)} className="gap-2 text-xs font-semibold">
-                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" /> Como funciona
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+  if (!session) return (
+    <div className="flex min-h-dvh flex-1 items-center justify-center bg-background p-6 text-foreground">
+      <div className="flex max-w-md flex-col items-center gap-3 text-center">
+        <IconTile icon={AlertTriangle} tone="warn" size="lg" className="h-14 w-14 rounded-2xl" />
+        <h2 className="m-0 text-[22px] font-bold">
+          {loadError === 'notfound' ? 'Review não encontrada' : 'Não foi possível carregar a Review'}
+        </h2>
+        <p className="m-0 text-sm leading-relaxed text-muted-foreground">
+          {loadError === 'notfound'
+            ? 'O link pode estar incompleto ou a Review foi removida. Confira o endereço ou volte para a lista.'
+            : 'Houve um problema de conexão com o servidor. Tente de novo em instantes.'}
+        </p>
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+          {loadError !== 'notfound' && (
+            <ModalButton variant="primary" className="gap-2" onClick={retryLoad}>
+              <RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Tentar de novo
+            </ModalButton>
+          )}
+          <ModalButton onClick={() => router.push('/showcase')}>Voltar para as Reviews</ModalButton>
+        </div>
+      </div>
+    </div>
+  );
 
-              <Button
-                data-tour="start-teatro"
-                onClick={() => {
-                  const missingSetup = !session?.description?.trim() && !session?.coverImage;
-                  if (missingSetup && !presentWarningShown) {
-                    setPresentWarningShown(true);
-                    setSettingsWarningActive(true);
-                    setIsSettingsOpen(true);
-                    return;
-                  }
-                  setIsPresenting(true); setCurrentIndex(-1);
-                }}
-                className="h-9 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2 shadow-lg shadow-violet-600/20 transition-all active:scale-95"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" /> Iniciar
-              </Button>
-            </div>
-          }
+  const openDecisions = openDecisionCount(tasks);
+  const shareUrl = typeof window !== 'undefined' ? cleanRoomUrl(window.location.href) : '';
+  const inviteText = inviteDraft ?? buildInviteText({ name: session.name, squadName: squadLabel(session.squadName, squadOpts), cardCount: tasks.length, url: shareUrl });
+
+  // O contêiner raiz não é posicionado de propósito: o PrintSlidesView usa position:absolute e, sem um
+  // ancestral posicionado ou com overflow, imprime todas as páginas em vez de ser cortado na altura da janela.
+  return (
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
+      {!isPresenting && (
+        <ReviewRoomBar
+          session={session}
+          status={status}
+          squadLabel={squadLabel(session.squadName, squadOpts)}
+          presenting={isPresenting}
+          onRename={rename}
+          onStartPresenting={startPresenting}
+          onShare={() => { setInviteDraft(null); setIsShareOpen(true); }}
+          onSettings={() => { setSettingsWarningActive(false); setIsSettingsOpen(true); }}
+          onGuide={() => setIsGuideOpen(true)}
+          onOpenRetro={handleOpenRetro}
+          onOpenSummary={() => setIsSummaryOpen(true)}
+          onPrint={printSlides}
+          onReopen={status === 'finished' ? () => setReopenAsk(true) : undefined}
+          onOpenFeedback={openFeedback}
         />
       )}
 
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex-1 overflow-y-auto scroll-smooth"
-      >
-        {tasks.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mx-auto w-full max-w-4xl px-4 py-10 md:py-16 flex flex-col items-center text-center"
-          >
-            <div className="h-16 w-16 rounded-3xl bg-violet-600 text-white flex items-center justify-center shadow-xl shadow-violet-600/30 mb-6">
-              <ShieldCheck className="h-8 w-8" />
-            </div>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-50">Sua Review está pronta</h2>
-            <p className="mt-2 max-w-xl text-sm md:text-base text-slate-500 dark:text-slate-400">
-              Falta só trazer as tarefas da sprint. Depois é preparar as evidências e apresentar para o PO.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
-              {session?.squadName && (
-                <span className="rounded-full bg-violet-600/10 text-violet-600 dark:text-violet-300 px-3 py-1">{session.squadName}</span>
-              )}
-              {session?.sprintName && (
-                <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1">{session.sprintName}</span>
-              )}
-            </div>
-
-            <ol className="mt-10 grid w-full grid-cols-1 md:grid-cols-3 gap-4 text-left">
-              <li className="rounded-3xl border border-violet-500/40 bg-violet-600/5 p-5 flex flex-col gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="h-7 w-7 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Importe as tarefas</span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Traga as issues da sprint direto do Jira ou crie os cards à mão.</p>
-                <div className="mt-auto flex flex-col gap-2">
-                  <Button onClick={() => setIsJiraOpen(true)} className="h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2">
-                    <CloudDownload className="h-4 w-4" /> Importar do Jira
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="h-10 rounded-xl font-bold text-xs gap-2">
-                        <Plus className="h-4 w-4" /> Criar card manual
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="dark:bg-slate-900 dark:border-slate-800">
-                      <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
-                        <FileText className="h-3.5 w-3.5 text-slate-400" /> Card padrão
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
-                        <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de métricas
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </li>
-              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
-                <div className="flex items-center gap-2.5">
-                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">2</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Prepare as evidências</span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em cada card, conte o problema e a solução e anexe vídeo ou print. Marque como pronto quando terminar.</p>
-              </li>
-              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
-                <div className="flex items-center gap-2.5">
-                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">3</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Apresente e colete o aceite</span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em <strong className="font-semibold">Iniciar</strong>, o Modo Teatro mostra uma entrega por vez e registra a decisão do PO.</p>
-              </li>
-            </ol>
-          </motion.div>
-        ) : (
-        <div className="w-full px-4 md:px-12 lg:px-20 py-6 space-y-8">
-          {/* ── Filtros e Busca ───────────────────────────────────────────────── */}
-          <div className="flex flex-col md:flex-row items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-sm">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                data-tour="search"
-                placeholder="Buscar por chave, título ou dev..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-11 h-11 bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-sm font-medium text-slate-900 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-violet-200/50 transition-all"
-              />
-            </div>
-
-            <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              {/* Filtro Dev */}
-              <div className="flex items-center gap-2 shrink-0">
-                <Users className="h-3.5 w-3.5 text-slate-400" />
-                <Select value={filterDev} onValueChange={setFilterDev}>
-                  <SelectTrigger className="h-11 w-[160px] bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-[11px] font-black uppercase tracking-tight dark:text-slate-300 dark:focus:bg-slate-950 focus:ring-0">
-                    <SelectValue placeholder="Dev: Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-xl">
-                    <SelectItem value="all" className="text-[11px] font-black uppercase">Todos os Devs</SelectItem>
-                    {developers.map(dev => (
-                      <SelectItem key={dev} value={dev} className="text-[11px] font-black uppercase">{dev}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Filtro QA */}
-              <div className="flex items-center gap-2 shrink-0">
-                <UserCheck className="h-3.5 w-3.5 text-slate-400" />
-                <Select value={filterQa} onValueChange={setFilterQa}>
-                  <SelectTrigger className="h-11 w-[160px] bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-[11px] font-black uppercase tracking-tight dark:text-slate-300 dark:focus:bg-slate-950 focus:ring-0">
-                    <SelectValue placeholder="QA: Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-xl">
-                    <SelectItem value="all" className="text-[11px] font-black uppercase">Todos os QAs</SelectItem>
-                    {qas.map(qa => (
-                      <SelectItem key={qa} value={qa} className="text-[11px] font-black uppercase">{qa}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Filtro Tipo */}
-              <div className="flex items-center gap-2 shrink-0">
-                <Tag className="h-3.5 w-3.5 text-slate-400" />
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="h-11 w-[140px] bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-[11px] font-black uppercase tracking-tight dark:text-slate-300 dark:focus:bg-slate-950 focus:ring-0">
-                    <SelectValue placeholder="Tipo: Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-xl">
-                    <SelectItem value="all" className="text-[11px] font-black uppercase">Todos os Tipos</SelectItem>
-                    {types.map(type => (
-                      <SelectItem key={type} value={type} className="text-[11px] font-black uppercase">{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 hidden md:block" />
-
-              {/* Ordenação */}
-              <div className="flex items-center gap-2 shrink-0">
-                <SortAsc className="h-3.5 w-3.5 text-slate-400" />
-                <Select value={sortBy} onValueChange={(v: any) => setBy(v)}>
-                  <SelectTrigger className="h-11 w-[140px] bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-[11px] font-black uppercase tracking-tight dark:text-slate-300 dark:focus:bg-slate-950 focus:ring-0">
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-xl">
-                    <SelectItem value="key" className="text-[11px] font-black uppercase">Chave Jira</SelectItem>
-                    <SelectItem value="type" className="text-[11px] font-black uppercase">Tipo de Issue</SelectItem>
-                    <SelectItem value="dev" className="text-[11px] font-black uppercase">Desenvolvedor</SelectItem>
-                    <SelectItem value="qa" className="text-[11px] font-black uppercase">Validador / QA</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Indicators of active filters */}
-          {(search || filterDev !== 'all' || filterType !== 'all') && (
-            <div className="flex flex-wrap items-center gap-2 px-2">
-              <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 mr-2 tracking-widest">Filtros Ativos:</span>
-              {search && (
-                <Badge variant="secondary" className="h-6 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-300 border-violet-100 dark:border-violet-800 text-[10px] font-bold px-3">
-                  Busca: {search}
-                  <button onClick={() => setSearch('')} className="ml-2 hover:text-rose-500">×</button>
-                </Badge>
-              )}
-              {filterDev !== 'all' && (
-                <Badge variant="secondary" className="h-6 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border-blue-100 dark:border-blue-800 text-[10px] font-bold px-3">
-                  Dev: {filterDev}
-                  <button onClick={() => setFilterDev('all')} className="ml-2 hover:text-rose-500">×</button>
-                </Badge>
-              )}
-              {filterType !== 'all' && (
-                <Badge variant="secondary" className="h-6 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border-amber-100 dark:border-amber-800 text-[10px] font-bold px-3">
-                  Tipo: {filterType}
-                  <button onClick={() => setFilterType('all')} className="ml-2 hover:text-rose-500">×</button>
-                </Badge>
-              )}
-              {sortBy !== 'key' && (
-                <Badge variant="secondary" className="h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 border-slate-200 dark:border-slate-700 text-[10px] font-bold px-3">
-                  Ordem: {sortBy === 'dev' ? 'Desenvolvedor' : 'Tipo'}
-                  <button onClick={() => setBy('key')} className="ml-2 hover:text-rose-500">×</button>
-                </Badge>
-              )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => { setSearch(''); setFilterDev('all'); setFilterType('all'); }}
-                className="h-6 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 hover:text-rose-500 transition-colors"
-              >
-                Limpar Tudo
-              </Button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-6">
-            {filteredTasks.length > 0 ? (
-              visibleTasks.map((task, idx) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  index={idx}
-                  members={session?.members || []}
-                  onUpdateTask={updateTask}
-                  onRemoveTask={removeTask}
-                />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-                <Filter className="h-12 w-12 mb-4 opacity-20" />
-                <p className="text-sm font-black uppercase tracking-widest italic">Nenhuma tarefa encontrada com esses filtros</p>
-                <Button variant="link" onClick={() => { setSearch(''); setFilterDev('all'); setFilterType('all'); }} className="text-violet-500 text-[10px] font-black uppercase mt-2">Limpar Filtros</Button>
-              </div>
-            )}
-          </div>
-
-          {visibleCount < filteredTasks.length && (
-            <div className="flex flex-col items-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                className="h-11 px-8 rounded-2xl border-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-              >
-                Carregar mais {Math.min(PAGE_SIZE, filteredTasks.length - visibleCount)} tarefas
-              </Button>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                {visibleCount} de {filteredTasks.length}
-              </span>
-            </div>
-          )}
-          <div className="h-20" />
+      {!isPresenting && isOtherPresenter(presenter, authSession?.id) && status !== 'finished' && (
+        <div className="flex shrink-0 px-3 pt-3 sm:px-4 xl:px-6">
+          <PresenterChip presenter={presenter} following={false} onToggle={followFromRoom} />
         </div>
+      )}
+      {!isPresenting && <ReviewConflictBar conflicts={conflicts} onResolve={(conflictId, action) => { void resolveConflict(conflictId, action); }} />}
+
+      <main id="conteudo" className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth">
+        {tasks.length === 0 ? (
+          <ReviewEmptyRoom onOpenJira={() => setIsJiraOpen(true)} onAddManualTask={addManualTask} />
+        ) : (
+          <>
+            <ReviewPrepBar
+              readiness={readiness}
+              isFiltered={isFiltered}
+              sessionTotal={tasks.length}
+              effort={effort}
+              connection={connection}
+              onlineCount={onlineIds ? onlineIds.size : null}
+              saveState={saveState}
+              onToggleTaskStatus={(taskId, markAsDone) => { void updateTask(taskId, { preparationStatus: markAsDone ? 'done' : 'todo' }); }}
+              onAddManualTask={addManualTask}
+              onOpenJira={() => setIsJiraOpen(true)}
+              onRetrySave={reload}
+            />
+            <ReviewCardsView
+              allTasks={tasks}
+              filteredTasks={filteredTasks}
+              filters={filters}
+              sortBy={sortBy}
+              baseSort={baseSort}
+              onFiltersChange={setFilters}
+              onSortChange={setSortBy}
+              onClearAll={clearAll}
+              onRemoveChip={removeChip}
+              members={session.members || []}
+              onUpdateTask={updateTask}
+              onRemoveTask={removeTask}
+              sessionId={session.id}
+              onUploadFile={uploadTaskFile}
+              onDeleteFile={deleteTaskFile}
+              canDecide={canDecide}
+            />
+          </>
         )}
-      </motion.div>
+      </main>
 
-      <PrintSlidesView session={session ? { ...session, tasks: filteredTasks } : null} />
+      <PrintSlidesView session={{ ...session, tasks: orderedTasks }} />
 
-      <AnimatePresence>
-        {isPresenting && (
-          <TeatroMode 
-            session={{ ...session!, tasks: filteredTasks }} 
-            currentIndex={currentIndex} 
-            sortBy={sortBy}
-            onIndexChange={(i) => setCurrentIndex(i)}
-            onDecision={handleDecision}
-            onClose={() => setIsPresenting(false)}
-            onFinish={() => { setIsPresenting(false); persist({ status: 'finished' }); setIsSummaryOpen(true); }}
-          />
-        )}
-      </AnimatePresence>
+      {isPresenting && (
+        <TeatroMode
+          session={{ ...session, tasks: orderedTasks }}
+          currentIndex={currentIndex}
+          sortBy={sortBy}
+          onIndexChange={goToIndex}
+          onDecision={handleDecision}
+          onClose={() => setIsPresenting(false)}
+          onFinish={() => setFinishAsk(true)}
+          keysDisabled={finishAsk}
+          canDecide={canDecide}
+          presenter={presenter}
+          meId={authSession?.id}
+          following={following}
+          onFollowingChange={toggleFollowing}
+          onPublishPresenter={presenterCtl.publish}
+        />
+      )}
 
-      <JiraImportDialog 
-        open={isJiraOpen} 
-        onClose={() => setIsJiraOpen(false)} 
-        onImport={addTasks} 
+      <JiraImportDialog
+        open={isJiraOpen}
+        onClose={() => setIsJiraOpen(false)}
+        onImport={(issues: JiraIssue[]) => { void addTasks(issues); }}
+        existingKeys={tasks.map((t) => t.key)}
+        squadKey={session.squadName || undefined}
+        sprintId={jiraSprint?.squad === session.squadName?.trim() ? jiraSprint?.sprintId : undefined}
+        squadJql={session.squadName?.trim() ? { squadId: session.squadName.trim(), label: squadLabel(session.squadName, squadOpts) } : undefined}
       />
 
       <SessionSettingsDialog
         open={isSettingsOpen}
         onClose={() => { setSettingsWarningActive(false); setIsSettingsOpen(false); }}
         session={session}
-        onUpdate={persist}
+        onUpdate={(updates: Partial<ShowcaseSession>) => { void persist(updates); }}
         presentWarning={settingsWarningActive}
+        taskCount={tasks.length}
+        onOpenJira={() => setIsJiraOpen(true)}
+        onAddManualTask={addManualTask}
+        onCopyLink={copyLink}
         onPresentAnyway={() => {
           setSettingsWarningActive(false);
           setIsSettingsOpen(false);
-          setIsPresenting(true);
-          setCurrentIndex(-1);
+          beginPresenting();
         }}
       />
 
-      <SummaryDialog 
-        open={isSummaryOpen} 
-        onClose={() => setIsSummaryOpen(false)} 
-        tasks={tasks} 
-        sessionName={session?.name || ''} 
-        session={session} 
+      <SummaryDialog
+        open={isSummaryOpen}
+        onClose={() => setIsSummaryOpen(false)}
+        tasks={tasks}
+        sessionName={session.name || ''}
+        session={session}
+        onExport={() => setIsExportOpen(true)}
+        onPrint={printSlides}
       />
 
-      <ShowcaseTour
-        open={isGuideOpen}
-        onClose={() => setIsGuideOpen(false)}
+      <ReviewExportDialog
+        open={isExportOpen}
+        onOpenChange={setIsExportOpen}
+        session={session}
+        tasks={tasks}
+        sessionName={session.name || ''}
+        onPrint={printSlides}
+      />
+
+      <ShareDialog
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
+        title="Compartilhar a Review"
+        description="Link, QR code e convite com a pauta."
+        url={shareUrl}
+        note="Quem receber o link e estiver logado entra e edita. Não há bloqueio por squad, por decisão de produto."
+        inviteText={inviteText}
+        onInviteTextChange={setInviteDraft}
+      />
+
+      <ReviewGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} onRedoTour={() => setIsTourOpen(true)} />
+
+      <ShowcaseTour open={isTourOpen} onClose={() => setIsTourOpen(false)} />
+
+      <ConfirmDialog
+        open={finishAsk}
+        onOpenChange={setFinishAsk}
+        tone="warn"
+        icon={openDecisions > 0 ? AlertTriangle : Flag}
+        title={openDecisions > 0 ? 'Finalizar a Review com cards sem decisão?' : 'Finalizar a Review?'}
+        description={
+          openDecisions > 0
+            ? `Ainda há ${openDecisions} ${openDecisions === 1 ? 'card sem decisão' : 'cards sem decisão'}. Finalizar marca a Review como finalizada e abre o resumo.`
+            : 'Finalizar marca a Review como finalizada e abre o resumo. Você pode reabri-la depois pelo menu Mais.'
+        }
+        cancelLabel="Continuar apresentando"
+        confirmLabel={openDecisions > 0 ? 'Finalizar mesmo assim' : 'Finalizar'}
+        onConfirm={confirmFinish}
+      />
+
+      <FeedbackWidget toolName={`Review: ${session.name || 'Review'}`} triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+
+      <ConfirmDialog
+        open={reopenAsk}
+        onOpenChange={setReopenAsk}
+        tone="warn"
+        icon={RotateCcw}
+        title="Reabrir a Review?"
+        description={'A Review volta para "Em preparação" e a apresentação pode recomeçar. As decisões já registradas ficam como estão.'}
+        confirmLabel="Reabrir"
+        onConfirm={confirmReopen}
       />
     </div>
   );

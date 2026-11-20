@@ -1,0 +1,232 @@
+/**
+ * Vínculos da pessoa (Pessoa × Squad × Papel), só leitura. Preferem `GET /me/memberships` (todos os papéis
+ * por squad, origem e alcance); sem o endpoint (backend antigo), vêm da sessão (`GET /auth/me` ->
+ * `accessibleProjects`), completados pelo que o `UserContext` já carrega (`/squads/by-user`).
+ * Funções puras, sem React, para serem testadas.
+ */
+
+import type { SquadMember } from '@/lib/types';
+import type { MembershipScope, MyMemberships } from '@/lib/memberships-api';
+import { hasMemberships, resolveActiveSquadId, scopeLabel, sourceLabel } from '@/lib/memberships';
+
+/** Projeto acessível como o `GET /auth/me` o devolve. */
+export interface SessionProject {
+  projectId: string;
+  projectName?: string;
+  segmentName?: string;
+  tribeName?: string;
+  roleName?: string;
+  directAssignment?: boolean;
+  leadership?: boolean;
+}
+
+export interface SessionLinks {
+  accessibleProjects?: SessionProject[];
+  activeProjectId?: string;
+  activeProjectName?: string;
+  activeProjectRole?: string;
+}
+
+/** Um papel da pessoa numa squad (uma squad pode ter vários). */
+export interface MyLinkRole {
+  name: string;
+  leadership: boolean;
+  /** Origem em pt-BR ("Importado do Jira", "Convite"...); `null` quando o servidor não informa. */
+  origin: string | null;
+  primary: boolean;
+}
+
+export interface MyLink {
+  /** Chave da squad (a mesma de `activeProjectId`). */
+  id: string;
+  name: string;
+  /** Papel PRIMÁRIO na squad; vazio quando o servidor não informou. */
+  role: string;
+  /** Todos os papéis na squad, o primário primeiro. Sem `/me/memberships`, só o `role`. */
+  roles: MyLinkRole[];
+  /** SQUAD = linha própria; TRIBE/SEGMENT = acesso derivado de liderança transversal. */
+  scope: MembershipScope;
+  /** "Liderança da tribo" / "Liderança do segmento" (vínculo derivado); `null` no vínculo direto. */
+  scopeLabel: string | null;
+  /** Origem do papel primário em pt-BR; `null` = não mostra. */
+  origin: string | null;
+  leadership: boolean;
+  /** `false` quando o acesso vem de uma liderança transversal (tribo/segmento), não de um vínculo direto. */
+  direct: boolean;
+  /** De onde vem o acesso indireto ("Tribo X"). */
+  via?: string;
+  tribe?: string;
+  segment?: string;
+  active: boolean;
+}
+
+/** Papéis de liderança, quando o servidor não manda a bandeira `leadership`. */
+const LEADERSHIP_ROLE_PATTERN = /(agile master|scrum master|product owner|tech lead|people lead|tribe lead|agile coach|\bpo\b)/i;
+
+export function isLeadershipRole(role?: string | null): boolean {
+  return !!role && LEADERSHIP_ROLE_PATTERN.test(role);
+}
+
+/** "Sem Time" é o marcador do servidor para quem ainda não tem squad: não é uma squad. */
+export function isRealSquadId(id?: string | null): id is string {
+  const value = (id ?? '').trim();
+  return !!value && value.toLowerCase() !== 'sem time';
+}
+
+function normalize(text: string): string {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function sortLinks(links: MyLink[]): MyLink[] {
+  return links.sort(
+    (a, b) => Number(b.active) - Number(a.active) || Number(b.leadership) - Number(a.leadership) || a.name.localeCompare(b.name, 'pt-BR'),
+  );
+}
+
+/** Vínculos a partir de `/me/memberships`: todos os papéis por squad, com origem e alcance. */
+function linksFromMemberships(m: MyMemberships, active: string): MyLink[] {
+  const seen = new Set<string>();
+  const links: MyLink[] = [];
+  for (const ms of m.memberships) {
+    const id = ms.projectId.trim();
+    if (!isRealSquadId(id) || seen.has(id.toLowerCase())) continue;
+    seen.add(id.toLowerCase());
+    const direct = ms.scope === 'SQUAD';
+    const roles: MyLinkRole[] = ms.roles.map((r, i) => ({
+      name: r.roleName,
+      leadership: r.leadership,
+      origin: sourceLabel(r.source),
+      primary: r.primary || i === 0,
+    }));
+    links.push({
+      id,
+      name: ms.projectName.trim() || id,
+      role: ms.roleName.trim() || roles[0]?.name || '',
+      roles,
+      scope: ms.scope,
+      scopeLabel: scopeLabel(ms.scope),
+      origin: sourceLabel(ms.source) ?? roles[0]?.origin ?? null,
+      leadership: ms.leadership || roles.some((r) => r.leadership),
+      direct,
+      via: direct ? undefined : ms.tribeName || ms.segmentName || undefined,
+      tribe: ms.tribeName || undefined,
+      segment: ms.segmentName || undefined,
+      active: id.toLowerCase() === active.toLowerCase(),
+    });
+  }
+  return sortLinks(links);
+}
+
+/**
+ * Monta a lista de vínculos: squad ativa primeiro, depois liderança, depois por nome.
+ * Com `/me/memberships` (`memberships` não nulo) ele é a fonte, inclusive quando vem vazio. Sem ele, usa a
+ * lista de projetos acessíveis da sessão; sem ela (conta de uma squad só), cai na squad ativa da sessão.
+ */
+export function buildMyLinks(
+  session: SessionLinks | null | undefined,
+  userSquads: SquadMember[] | undefined,
+  activeId?: string,
+  memberships?: MyMemberships | null,
+): MyLink[] {
+  if (!session) return [];
+  if (memberships) {
+    const active = (activeId ?? resolveActiveSquadId(session.activeProjectId, memberships)).trim();
+    return linksFromMemberships(memberships, hasMemberships(memberships) ? active : '');
+  }
+  const active = (activeId ?? session.activeProjectId ?? '').trim();
+  const roleBySquad = new Map<string, string>();
+  for (const s of userSquads ?? []) {
+    if (s?.squadId && s.role?.trim()) roleBySquad.set(s.squadId, s.role.trim());
+  }
+
+  const seen = new Set<string>();
+  const links: MyLink[] = [];
+  const push = (p: SessionProject) => {
+    const id = (p.projectId ?? '').trim();
+    if (!isRealSquadId(id) || seen.has(id)) return;
+    seen.add(id);
+    const role = (p.roleName ?? '').trim() || roleBySquad.get(id) || (id === session.activeProjectId ? (session.activeProjectRole ?? '').trim() : '');
+    const direct = p.directAssignment !== false;
+    const leadership = p.leadership ?? isLeadershipRole(role);
+    const scope: MembershipScope = direct ? 'SQUAD' : p.tribeName || !p.segmentName ? 'TRIBE' : 'SEGMENT';
+    links.push({
+      id,
+      name: (p.projectName ?? '').trim() || id,
+      role,
+      roles: role ? [{ name: role, leadership, origin: null, primary: true }] : [],
+      scope,
+      scopeLabel: scopeLabel(scope),
+      origin: null,
+      leadership,
+      direct,
+      via: direct ? undefined : p.tribeName || p.segmentName || undefined,
+      tribe: p.tribeName || undefined,
+      segment: p.segmentName || undefined,
+      active: id === active,
+    });
+  };
+
+  for (const p of session.accessibleProjects ?? []) push(p);
+  if (links.length === 0 && isRealSquadId(session.activeProjectId)) {
+    push({ projectId: session.activeProjectId, projectName: session.activeProjectName });
+  }
+
+  return sortLinks(links);
+}
+
+/** Vínculo da squad ativa, se houver. */
+export function activeLinkOf(links: MyLink[]): MyLink | undefined {
+  return links.find((l) => l.active);
+}
+
+/** Busca sem acento nem caixa por nome, chave, papel e tribo. Consulta vazia devolve tudo. */
+export function filterMyLinks(links: MyLink[], query: string): MyLink[] {
+  const q = normalize(query.trim());
+  if (!q) return links;
+  return links.filter((l) => normalize([l.name, l.id, l.role, ...l.roles.map((r) => r.name), l.tribe ?? '', l.segment ?? ''].join(' ')).includes(q));
+}
+
+const COMPACT_ORIGINS: Record<string, string> = {
+  'Importado do Jira': 'Jira',
+  Convite: 'convite',
+  Manual: 'manual',
+  Aprovado: 'pedido',
+  Reivindicado: 'pedido',
+  Migrado: 'migrado',
+};
+
+/** Origem em uma palavra para a lista compacta ("Jira", "convite", "manual", "pedido"); `null` se desconhecida. */
+export function compactOrigin(link: Pick<MyLink, 'roles' | 'origin'>): string | null {
+  const labels = link.roles.map((r) => r.origin).filter((o): o is string => !!o);
+  if (labels.length === 0 && link.origin) labels.push(link.origin);
+  const short = [...new Set(labels.map((o) => COMPACT_ORIGINS[o] ?? o.toLowerCase()))];
+  return short.length > 0 ? short.join(' / ') : null;
+}
+
+/** Rótulo do tipo de vínculo. */
+export function linkKindLabel(link: Pick<MyLink, 'leadership'>): 'Liderança' | 'Contribuidor' {
+  return link.leadership ? 'Liderança' : 'Contribuidor';
+}
+
+/** Duas letras para a placa da squad: a chave sem símbolos ("DDWMISSI" -> "DD"). */
+export function squadBadge(link: Pick<MyLink, 'id' | 'name'>): string {
+  const source = (link.id || link.name).replace(/[^A-Za-zÀ-ÿ0-9]/g, '');
+  return source.slice(0, 2).toUpperCase() || '?';
+}
+
+/** "1 vínculo" / "3 vínculos". */
+export function countLabel(n: number): string {
+  return `${n} ${n === 1 ? 'vínculo' : 'vínculos'}`;
+}
+
+/**
+ * Origem dos papéis para um texto curto: "Importado do Jira" quando todos têm a mesma; "Manual (Product Owner) ·
+ * Importado do Jira (Developer)" quando diferem; `null` quando nenhum tem origem conhecida.
+ */
+export function originSummary(link: Pick<MyLink, 'roles' | 'origin'>): string | null {
+  const known = link.roles.filter((r) => r.origin);
+  if (known.length === 0) return link.origin;
+  const distinct = new Set(known.map((r) => r.origin));
+  if (distinct.size === 1 && known.length === link.roles.length) return known[0].origin;
+  return known.map((r) => `${r.origin} (${r.name})`).join(' · ');
+}

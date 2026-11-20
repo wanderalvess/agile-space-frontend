@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,28 +15,17 @@ import {
   FileText, 
   Clock,
   FolderTree,
-  ChevronRight,
-  Database,
   FileUp,
   RefreshCw,
   Download,
-  BookOpen,
-  Star,
-  Hash,
   AlertTriangle,
+  ArchiveRestore,
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { sanitizeHtml } from '@/lib/sanitize-html';
+import { ArticleReader } from '@/components/knowledge/ArticleReader';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal, ModalButton } from '@/components/room-kit';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
@@ -49,8 +39,34 @@ import { ptBR } from 'date-fns/locale';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
 import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
+import { ConfirmTrashDialog, type TrashTarget } from '@/components/knowledge/ConfirmTrashDialog';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
+
+type KbStatusView = 'published' | 'draft' | 'archived';
+
+const STATUS_VIEWS: { id: KbStatusView; label: string }[] = [
+  { id: 'published', label: 'Publicados' },
+  { id: 'draft', label: 'Meus rascunhos' },
+  { id: 'archived', label: 'Arquivados' },
+];
+
+/** "Publicados" é a lista padrão do servidor (sem parâmetro); as outras visões usam `?status=`. */
+function statusFilterParam(view: KbStatusView): string | undefined {
+  return view === 'published' ? undefined : view;
+}
+
+const STATUS_COUNT_LABEL: Record<KbStatusView, string> = {
+  published: 'Artigos ativos',
+  draft: 'Meus rascunhos',
+  archived: 'Arquivados',
+};
+
+const EMPTY_LABEL: Record<KbStatusView, string> = {
+  published: 'Nenhum documento encontrado nesta busca',
+  draft: 'Você não tem rascunhos. Use "Salvar rascunho" no editor para guardar um artigo sem publicar.',
+  archived: 'Nenhum artigo arquivado que você possa editar.',
+};
 
 function KBExplorerContent() {
   const { session } = useAuth();
@@ -66,13 +82,14 @@ function KBExplorerContent() {
   const [isDownloadFormatOpen, setIsDownloadFormatOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<'md' | 'html' | 'txt'>('md');
   const [isSyncingDoc, setIsSyncingDoc] = useState(false);
-  const [readingProgress, setReadingProgress] = useState(0);
-  const readerRootRef = useRef<HTMLDivElement | null>(null);
-  const readerViewportRef = useRef<HTMLDivElement | null>(null);
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('kb_favorites');
-      return saved ? JSON.parse(saved) : [];
+      try {
+        const saved = JSON.parse(localStorage.getItem('kb_favorites') || '[]');
+        return Array.isArray(saved) ? saved : [];
+      } catch {
+        return []; // valor corrompido não pode derrubar a página
+      }
     }
     return [];
   });
@@ -88,7 +105,9 @@ function KBExplorerContent() {
   const { settings: tdnSettings } = useTdnSettings();
 
   useEffect(() => {
-    localStorage.setItem('kb_favorites', JSON.stringify(favorites));
+    try {
+      localStorage.setItem('kb_favorites', JSON.stringify(favorites));
+    } catch { /* armazenamento bloqueado: favoritos valem só nesta sessão */ }
   }, [favorites]);
 
   const toggleFavorite = (id: string) => {
@@ -156,7 +175,7 @@ function KBExplorerContent() {
       });
       
       // Atualizar o estado local
-      let cleanContent = parseConfluenceMacros(fullContent.content || '');
+      const cleanContent = parseConfluenceMacros(fullContent.content || '');
       const sourceInfo = `\n\n---\n*Documento importado do TDN (${fullContent.space || 'Wiki'})*\n*Link original: [${fullContent.link}](${fullContent.link})*`;
 
       const updated = {
@@ -280,30 +299,56 @@ function KBExplorerContent() {
     toast.success(`${selectedIds.size} downloads iniciados.`);
   };
 
-  const handleDeleteMultiple = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Tem certeza que deseja mover ${selectedIds.size} itens para a lixeira?`)) return;
+  // A exclusão pede confirmação num diálogo próprio (nada de window.confirm).
+  const [trashTarget, setTrashTarget] = useState<TrashTarget | null>(null);
+  const [isTrashing, setIsTrashing] = useState(false);
 
-    try {
-      for (const id of Array.from(selectedIds)) {
-        await knowledgeApi.deleteDocument(id, session?.id || 'user');
-      }
-      toast.success(`${selectedIds.size} documentos movidos para a lixeira.`);
-      setSelectedIds(new Set());
-      fetchDocuments();
-    } catch (err) {
-      toast.error("Erro ao excluir documentos.");
-    }
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) return;
+    setTrashTarget({ kind: 'batch', ids: Array.from(selectedIds) });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja mover este documento para a lixeira?")) return;
+  const handleDelete = (id: string) => {
+    const docItem = documents.find(d => d.id === id);
+    setTrashTarget({ kind: 'single', id, title: docItem?.title || 'Este artigo' });
+  };
+
+  const runTrashBatch = async (ids: string[]) => {
+    // Um a um: se algum falhar (ex.: não é o autor) os outros continuam e o resumo diz o que aconteceu.
+    let ok = 0;
+    let firstError = '';
+    for (const id of ids) {
+      try {
+        await knowledgeApi.deleteDocument(id);
+        ok++;
+      } catch (err: any) {
+        if (!firstError) firstError = err?.message || 'Erro desconhecido';
+      }
+    }
+    const failed = ids.length - ok;
+    if (ok > 0) toast.success(`${ok} documento(s) movido(s) para a lixeira.`);
+    if (failed > 0) toast.error(`${failed} documento(s) não puderam ser apagados: ${firstError}`);
+    setSelectedIds(new Set());
+  };
+
+  const confirmTrash = async () => {
+    if (!trashTarget || isTrashing) return;
+    setIsTrashing(true);
     try {
-      await knowledgeApi.deleteDocument(id, session?.id || 'user');
-      toast.success("Documento movido para a lixeira.");
+      if (trashTarget.kind === 'batch') {
+        await runTrashBatch(trashTarget.ids);
+      } else {
+        try {
+          await knowledgeApi.deleteDocument(trashTarget.id);
+          toast.success("Documento movido para a lixeira.");
+        } catch (err: any) {
+          toast.error(err?.message || "Erro ao excluir documento.");
+        }
+      }
       fetchDocuments();
-    } catch (err) {
-      toast.error("Erro ao excluir documento.");
+    } finally {
+      setIsTrashing(false);
+      setTrashTarget(null);
     }
   };
 
@@ -350,12 +395,16 @@ function KBExplorerContent() {
 
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Estado dos artigos listados: o servidor devolve "publicados" por padrão; "draft" são só os rascunhos de quem
+  // está logado (admin vê todos) e "archived" os arquivados que a pessoa pode editar.
+  const [statusView, setStatusView] = useState<KbStatusView>('published');
+  const [isUnarchiving, setIsUnarchiving] = useState(false);
 
   const fetchDocuments = React.useCallback(async () => {
     if (!session) return;
     setIsLoading(true);
     try {
-      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200);
+      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200, statusFilterParam(statusView));
       setDocuments(response.content);
     } catch (err) {
       console.error(err);
@@ -363,11 +412,33 @@ function KBExplorerContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, statusView]);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
+
+  const changeStatusView = (next: KbStatusView) => {
+    if (next === statusView) return;
+    setSelectedIds(new Set());
+    setStatusView(next);
+  };
+
+  // Artigo arquivado -> publicado (só quem edita; o servidor confere).
+  const unarchive = async (target: KnowledgeDocument, fromReader: boolean) => {
+    if (isUnarchiving) return;
+    setIsUnarchiving(true);
+    try {
+      const updated = await knowledgeApi.setDocumentStatus(target, 'published');
+      toast.success('Artigo restaurado e publicado.');
+      if (fromReader) setSelectedFile(updated);
+      fetchDocuments();
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao restaurar o artigo.');
+    } finally {
+      setIsUnarchiving(false);
+    }
+  };
 
   const filteredDocs = useMemo(() => {
     if (!documents) return [];
@@ -436,6 +507,19 @@ function KBExplorerContent() {
     }
   }, [initialDocId, documents]);
 
+  // Link direto para um artigo que a lista atual não traz (rascunho depois de salvar, arquivado, ou aberto de outra
+  // tela): busca pelo id. O servidor responde 404 para rascunho de outra pessoa.
+  const idFetchedRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialDocId || isLoading || !session) return;
+    if (documents.some(d => d.id === initialDocId) || selectedFile?.id === initialDocId) return;
+    if (idFetchedRef.current === initialDocId) return;
+    idFetchedRef.current = initialDocId;
+    knowledgeApi.getDocumentById(initialDocId)
+      .then(doc => setSelectedFile(doc))
+      .catch(() => toast.error('Não encontramos esse artigo, ou você não tem acesso a ele.'));
+  }, [initialDocId, isLoading, session, documents, selectedFile]);
+
   const formatDocDate = (updatedAt: any) => {
     if (!updatedAt) return '---';
     try {
@@ -444,53 +528,10 @@ function KBExplorerContent() {
     } catch (e) { return '---'; }
   };
 
-  // Extrai um sumário (H1/H2/H3) do conteúdo do artigo e injeta ids nos
-  // headings pra âncora do sumário funcionar dentro do HTML sanitizado.
-  const { tocItems, contentWithAnchors } = useMemo(() => {
-    if (typeof window === 'undefined' || !selectedFile?.content) {
-      return { tocItems: [] as { id: string; text: string; level: number }[], contentWithAnchors: selectedFile?.content || '' };
-    }
-    try {
-      const doc = new DOMParser().parseFromString(selectedFile.content, 'text/html');
-      const headings = Array.from(doc.querySelectorAll('h1, h2, h3'));
-      const seen = new Map<string, number>();
-      const items = headings.map((el) => {
-        const text = el.textContent?.trim() || '';
-        let slug = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'secao';
-        const count = seen.get(slug) || 0;
-        seen.set(slug, count + 1);
-        if (count > 0) slug = `${slug}-${count}`;
-        el.id = slug;
-        return { id: slug, text, level: Number(el.tagName[1]) };
-      });
-      return { tocItems: items, contentWithAnchors: doc.body.innerHTML };
-    } catch {
-      return { tocItems: [], contentWithAnchors: selectedFile.content };
-    }
-  }, [selectedFile?.content]);
-
-  useEffect(() => {
-    setReadingProgress(0);
-    const viewport = readerRootRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
-    readerViewportRef.current = viewport || null;
-    if (!viewport) return;
-    const onScroll = () => {
-      const max = viewport.scrollHeight - viewport.clientHeight;
-      setReadingProgress(max > 0 ? Math.min(100, (viewport.scrollTop / max) * 100) : 0);
-    };
-    viewport.addEventListener('scroll', onScroll);
-    onScroll();
-    return () => viewport.removeEventListener('scroll', onScroll);
-  }, [selectedFile?.id]);
-
-  const scrollToHeading = (id: string) => {
-    readerViewportRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50/30 dark:bg-slate-950/20 overflow-hidden relative">
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-150 dark:bg-cyan-950/20 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-150 dark:bg-indigo-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
+    <div className="flex flex-col h-full w-full bg-background/30 overflow-hidden relative">
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-hidden flex flex-col">
@@ -499,129 +540,21 @@ function KBExplorerContent() {
               <AgileSpinner size="md" variant="indigo" />
             </div>
           ) : selectedFile ? (
-            /* ========================================================================= */
-            /* 1. VISUALIZADOR DE ARTIGO EM TELA CHEIA                                  */
-            /* ========================================================================= */
-            <div className="h-full flex flex-col animate-in fade-in duration-300 bg-white/40 dark:bg-slate-950/20">
-              <header className="h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-300 dark:border-slate-800 px-6 lg:px-8 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={handleCloseReader}
-                      className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors tracking-widest leading-none"
-                    >
-                      Base de Conhecimento
-                    </button>
-                    <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-700" />
-                    <span className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100 leading-none truncate max-w-[250px] md:max-w-md">{selectedFile.title}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => toggleFavorite(selectedFile.id)}
-                    className="h-9 w-9 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all rounded-xl border border-slate-300 dark:border-slate-800"
-                  >
-                    <Star className={cn("h-4 w-4 transition-all", favorites.includes(selectedFile.id) ? "text-amber-500 fill-amber-500" : "text-slate-400 dark:text-slate-500")} />
-                  </Button>
-
-                  {selectedFile.tdnId && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleSyncActiveDocument}
-                      disabled={isSyncingDoc}
-                      className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 shadow-xs"
-                    >
-                      {isSyncingDoc ? <AgileSpinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />} 
-                      {isSyncingDoc ? 'Sincronizando...' : 'Sincronizar'}
-                    </Button>
-                  )}
-
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setIsDownloadFormatOpen(true)} 
-                    className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900"
-                  >
-                    Exportar <Download className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)} className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900">
-                    Editar <FileText className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </header>
-              <div className="h-[3px] bg-slate-100 dark:bg-slate-900 shrink-0">
-                <div className="h-full bg-cyan-600 transition-[width] duration-150" style={{ width: `${readingProgress}%` }} />
-              </div>
-
-              <ScrollArea className="flex-1" ref={readerRootRef}>
-                <div className={cn("max-w-[1300px] mx-auto px-6 md:px-12 pt-6 pb-32 min-h-screen", tocItems.length > 0 && "grid grid-cols-[180px_minmax(0,1fr)] gap-12 max-w-[1300px]")}>
-                {tocItems.length > 0 && (
-                  <nav className="hidden lg:block pt-2 sticky top-0 self-start">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nesta página</span>
-                    <ul className="mt-3 space-y-0.5 border-l border-slate-200 dark:border-slate-800">
-                      {tocItems.map(item => (
-                        <li key={item.id}>
-                          <button
-                            onClick={() => scrollToHeading(item.id)}
-                            className={cn(
-                              "block w-full text-left text-[10.5px] font-bold text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 -ml-px pl-3 py-1.5 border-l-2 border-transparent hover:border-cyan-600 transition-colors",
-                              item.level >= 3 && "pl-6"
-                            )}
-                          >
-                            {item.text}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </nav>
-                )}
-                <article>
-                  <div className="mb-8 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-600 dark:text-slate-400 shadow-xs">
-                          <Hash className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
-                          <span className="text-[8px] font-black uppercase tracking-widest">{selectedFile.category}</span>
-                        </div>
-                        {selectedFile.tags && selectedFile.tags.map(tag => (
-                          <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-900/30 rounded-lg text-[8px] font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-400 shadow-xs">
-                            <Hash className="h-2.5 w-2.5 opacity-60" /> {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <h1 className="text-3xl md:text-4xl font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-tight">{selectedFile.title}</h1>
-                    <div className="flex items-center gap-6 text-slate-400 dark:text-slate-500 pt-2 border-b border-slate-100 dark:border-slate-800 pb-6">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span className="text-[8px] font-black uppercase tracking-widest leading-none">Sync:</span>
-                        <span className="text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase">{formatDocDate(selectedFile.updatedAt)}</span>
-                      </div>
-                      <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800" />
-                      <div className="flex items-center gap-2">
-                        <Database className="h-3.5 w-3.5" />
-                        <span className="text-[8px] font-black uppercase tracking-widest leading-none">Tamanho:</span>
-                        <span className="text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase">{(selectedFile.byteSize / 1024).toFixed(1)} KB</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 pb-32">
-                    <div className="prose prose-slate dark:prose-invert max-w-none">
-                      <div
-                        className="text-[14px] leading-relaxed text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentWithAnchors) || "Carregando conteúdo..." }}
-                      />
-                    </div>
-                  </div>
-                </article>
-                </div>
-              </ScrollArea>
-            </div>
+            <ArticleReader
+              key={selectedFile.id}
+              document={selectedFile}
+              isFavorite={favorites.includes(selectedFile.id)}
+              onToggleFavorite={() => toggleFavorite(selectedFile.id)}
+              onBack={handleCloseReader}
+              onSync={handleSyncActiveDocument}
+              isSyncing={isSyncingDoc}
+              onExport={() => setIsDownloadFormatOpen(true)}
+              onEdit={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)}
+              tdnBaseUrl={tdnSettings?.baseUrl}
+              onRestored={(restored) => { setSelectedFile(restored); fetchDocuments(); }}
+              onUnarchive={() => unarchive(selectedFile, true)}
+              isUnarchiving={isUnarchiving}
+            />
           ) : (
             /* ========================================================================= */
             /* 2. PAINEL DE GESTÃO DE DOCUMENTOS — mesmo padrão visual do Prompt Hub     */
@@ -632,7 +565,7 @@ function KBExplorerContent() {
                 {/* Barra Lateral Widescreen: Módulo/Pasta, Categoria e Rótulos */}
                 <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
                   <div className="space-y-2">
-                    <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                    <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                       Módulo / Pasta
                     </span>
                     <div className="space-y-1">
@@ -649,7 +582,7 @@ function KBExplorerContent() {
                           <FolderTree className="h-4 w-4 shrink-0" />
                           <span>Todos os módulos</span>
                         </div>
-                        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                           {documents?.length || 0}
                         </span>
                       </button>
@@ -667,7 +600,7 @@ function KBExplorerContent() {
                             )}
                           >
                             <span className="truncate">{mod}</span>
-                            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0 ml-2">
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground shrink-0 ml-2">
                               {count}
                             </span>
                           </button>
@@ -678,7 +611,7 @@ function KBExplorerContent() {
 
                   {categoryCounts.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
-                      <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                      <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                         Categoria
                       </span>
                       <div className="space-y-1">
@@ -707,11 +640,11 @@ function KBExplorerContent() {
                   {availableTags.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
                       <div className="flex items-center justify-between px-2">
-                        <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground">
                           Rótulos
                         </span>
                         {selectedTags.length > 0 && (
-                          <button onClick={() => setSelectedTags([])} className="text-[10px] font-medium text-primary hover:underline">
+                          <button onClick={() => setSelectedTags([])} className="text-xs font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground hover:underline">
                             Limpar
                           </button>
                         )}
@@ -737,7 +670,7 @@ function KBExplorerContent() {
                                   key={tag}
                                   onClick={() => setSelectedTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag])}
                                   className={cn(
-                                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
                                     isSelected
                                       ? 'bg-primary text-primary-foreground font-semibold'
                                       : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -755,8 +688,8 @@ function KBExplorerContent() {
 
                 {/* Área Principal: Ações, Hero, Busca e Tabela */}
                 <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
-                  <ScrollArea className="flex-1">
-                    <div className="pt-6 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+                    <div className="pt-6 pb-32 space-y-6">
 
                       {/* Ações + Atalho de integração */}
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -768,7 +701,7 @@ function KBExplorerContent() {
                             onClick={() => {
                               if (!tdnSettings?.baseUrl || !tdnSettings?.token) {
                                 toast.error('Configure a URL e o Token do TDN primeiro em Configurações > Conexões.', {
-                                  action: { label: 'Configurar', onClick: () => router.push('/workspace') },
+                                  action: { label: 'Configurar', onClick: () => router.push('/workspace?aba=conta&sub=conectividade') },
                                 });
                                 return;
                               }
@@ -792,7 +725,7 @@ function KBExplorerContent() {
 
                       {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
                       {failedDocs.length > 0 && (
-                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-3">
                             <span className="flex items-center gap-2 text-xs font-semibold text-destructive">
                               <AlertTriangle className="h-3.5 w-3.5" />
@@ -821,8 +754,8 @@ function KBExplorerContent() {
                       <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                           <div className="max-w-2xl space-y-2.5">
-                            <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-primary font-semibold">
-                              <BookOpen className="h-3.5 w-3.5" />
+                            <div className="inline-flex items-center gap-2 font-mono text-xs tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground font-semibold">
+                              <ModuleIcon module="knowledge" className="h-3.5 w-3.5" />
                               Wiki Space
                             </div>
                             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
@@ -833,21 +766,21 @@ function KBExplorerContent() {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs backdrop-blur-sm">
+                          <div className="grid w-full grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs sm:w-auto sm:gap-4">
                             <div className="text-right">
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.length || 0}
                               </span>
-                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                Artigos ativos
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
+                                {STATUS_COUNT_LABEL[statusView]}
                               </span>
                             </div>
                             <div className="h-7 w-[1px] bg-border/80" />
                             <div className="text-right">
-                              <span className="block font-mono text-xl font-bold text-primary leading-none">
+                              <span className="block font-mono text-xl font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground leading-none">
                                 {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)}
                               </span>
-                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 MB usados
                               </span>
                             </div>
@@ -856,7 +789,7 @@ function KBExplorerContent() {
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.filter(d => d.tdnId).length || 0}
                               </span>
-                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 Do TDN
                               </span>
                             </div>
@@ -866,6 +799,25 @@ function KBExplorerContent() {
 
                       {/* Busca + filtros ativos + ações em lote */}
                       <div className="space-y-3">
+                        <div role="group" aria-label="Estado dos artigos" className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
+                          {STATUS_VIEWS.map(view => {
+                            const active = statusView === view.id;
+                            return (
+                              <button
+                                key={view.id}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => changeStatusView(view.id)}
+                                className={cn(
+                                  'h-9 rounded-lg px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+                                  active ? 'bg-card font-semibold text-foreground shadow-xs' : 'font-medium text-muted-foreground hover:text-foreground',
+                                )}
+                              >
+                                {view.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="relative flex-1 sm:max-w-md">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -878,14 +830,16 @@ function KBExplorerContent() {
                           </div>
 
                           {selectedIds.size > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in duration-300">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Button size="sm" className="gap-2" onClick={handleSyncMultiple} disabled={isSyncing}>
                                 {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
                               </Button>
                               <Button size="sm" variant="outline" className="gap-2" onClick={handleDownloadMultiple}>
                                 <Download className="h-4 w-4" /> Baixar ({selectedIds.size})
                               </Button>
-                              <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={handleDeleteMultiple}>
+                              <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={handleDeleteMultiple}
+                                disabled={Array.from(selectedIds).some(id => !documents.find(d => d.id === id)?.canEdit)}
+                                title={Array.from(selectedIds).some(id => !documents.find(d => d.id === id)?.canEdit) ? 'Você só pode excluir documentos que editaria (autor ou liderança)' : undefined}>
                                 <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.size})
                               </Button>
                             </div>
@@ -931,6 +885,7 @@ function KBExplorerContent() {
                                 <tr className="bg-muted/40 border-b border-border">
                                   <th className="px-4 py-3 text-left w-12">
                                     <Checkbox
+                                      aria-label="Selecionar todos os artigos"
                                       checked={selectedIds.size === finalDocs.length && finalDocs.length > 0}
                                       onCheckedChange={toggleSelectAll}
                                     />
@@ -950,6 +905,7 @@ function KBExplorerContent() {
                                     <tr key={docItem.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors group">
                                       <td className="px-4 py-3">
                                         <Checkbox
+                                          aria-label={`Selecionar ${docItem.title}`}
                                           checked={selectedIds.has(docItem.id)}
                                           onCheckedChange={() => toggleSelect(docItem.id)}
                                         />
@@ -958,16 +914,22 @@ function KBExplorerContent() {
                                         <div className="flex flex-col gap-1">
                                           <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
                                             {docItem.tdnId ? (
-                                              <FileUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                                              <FileUp className="h-3.5 w-3.5 text-primary [.theme-totvs:not(.dark)_&]:text-foreground shrink-0" />
                                             ) : (
                                               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                             )}
                                             {docItem.title}
+                                            {docItem.status === 'draft' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Rascunho</span>
+                                            )}
+                                            {docItem.status === 'archived' && (
+                                              <span className="ml-1 inline-flex h-5 items-center rounded-full border border-border bg-accent px-2 text-xs font-semibold text-foreground">Arquivado</span>
+                                            )}
                                           </span>
                                           {docItem.tags && docItem.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
                                               {docItem.tags.slice(0, 4).map(tag => (
-                                                <span key={tag} className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-medium text-muted-foreground">
+                                                <span key={tag} className="px-1.5 py-0.5 bg-muted rounded text-xs font-medium text-muted-foreground">
                                                   {tag}
                                                 </span>
                                               ))}
@@ -981,7 +943,7 @@ function KBExplorerContent() {
                                             <FolderTree className="h-3.5 w-3.5 text-muted-foreground" /> {moduleName}
                                           </span>
                                           {subFolder && (
-                                            <span className="text-[10px] text-muted-foreground ml-5">
+                                            <span className="text-xs text-muted-foreground ml-5">
                                               {subFolder}
                                             </span>
                                           )}
@@ -1003,12 +965,21 @@ function KBExplorerContent() {
                                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(docItem)} title="Baixar documento">
                                             <Download className="h-4 w-4" />
                                           </Button>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar">
-                                            <Edit className="h-4 w-4" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(docItem.id)} title="Excluir">
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                          {docItem.canEdit ? (
+                                            <>
+                                              {docItem.status === 'archived' && (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => unarchive(docItem, false)} disabled={isUnarchiving} title="Restaurar para publicado" aria-label={`Restaurar ${docItem.title}`}>
+                                                  <ArchiveRestore className="h-4 w-4" />
+                                                </Button>
+                                              )}
+                                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar" aria-label={`Editar ${docItem.title}`}>
+                                                <Edit className="h-4 w-4" />
+                                              </Button>
+                                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(docItem.id)} title="Excluir" aria-label={`Excluir ${docItem.title}`}>
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </>
+                                          ) : null}
                                         </div>
                                       </td>
                                     </tr>
@@ -1019,7 +990,7 @@ function KBExplorerContent() {
                                     <td colSpan={6} className="py-20 text-center">
                                       <div className="flex flex-col items-center justify-center gap-2">
                                         <ShieldAlert className="h-8 w-8 text-muted-foreground/50" />
-                                        <span className="text-xs text-muted-foreground">Nenhum documento encontrado nesta busca</span>
+                                        <span className="text-xs text-muted-foreground">{EMPTY_LABEL[statusView]}</span>
                                       </div>
                                     </td>
                                   </tr>
@@ -1050,67 +1021,55 @@ function KBExplorerContent() {
         />
       )}
 
+      {/* Confirmação de exclusão (mover para a lixeira) */}
+      <ConfirmTrashDialog
+        target={trashTarget}
+        loading={isTrashing}
+        onCancel={() => setTrashTarget(null)}
+        onConfirm={confirmTrash}
+      />
+
       {/* Modal Formato de Download */}
-      <Dialog open={isDownloadFormatOpen} onOpenChange={setIsDownloadFormatOpen}>
-        <DialogContent className="sm:max-w-[440px] rounded-[3rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100">
-              Escolher Formato
-            </DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
-              Selecione o tipo de arquivo para a leitura local
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-6">
-            <RadioGroup 
-              value={selectedFormat} 
-              onValueChange={(val: any) => setSelectedFormat(val)}
-              className="space-y-3"
-            >
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
-                <RadioGroupItem value="md" id="format-md" />
-                <Label htmlFor="format-md" className="flex-1 cursor-pointer">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Markdown (.md)</div>
-                  <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Formatado e limpo, ideal para ler e editar localmente.</div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
-                <RadioGroupItem value="html" id="format-html" />
-                <Label htmlFor="format-html" className="flex-1 cursor-pointer">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">HTML (.html)</div>
-                  <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Preserva a estrutura original do editor para leitura no navegador.</div>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
-                <RadioGroupItem value="txt" id="format-txt" />
-                <Label htmlFor="format-txt" className="flex-1 cursor-pointer">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Texto Puro (.txt)</div>
-                  <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Remove todas as formatações e mantém apenas o texto legível.</div>
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <DialogFooter className="border-t border-slate-100 dark:border-slate-800 pt-5 gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsDownloadFormatOpen(false)}
-              className="rounded-xl font-bold uppercase tracking-wider text-[10px] h-11 border-slate-200 dark:border-slate-800"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={executeDownload}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-black uppercase tracking-wider text-[10px] h-11 shadow-lg shadow-cyan-500/10 px-5"
-            >
-              Confirmar Download
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Modal
+        open={isDownloadFormatOpen}
+        onOpenChange={setIsDownloadFormatOpen}
+        icon={Download}
+        title="Exportar artigo"
+        description="Escolha o formato do arquivo para guardar uma cópia."
+        footer={
+          <>
+            <ModalButton onClick={() => setIsDownloadFormatOpen(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={executeDownload}>Baixar</ModalButton>
+          </>
+        }
+      >
+          <RadioGroup
+            value={selectedFormat}
+            onValueChange={(val: any) => setSelectedFormat(val)}
+            className="gap-3"
+          >
+            {([
+              ['md', 'Markdown (.md)', 'Para colar em outros documentos.'],
+              ['html', 'HTML (.html)', 'Com a formatação do artigo.'],
+              ['txt', 'Texto (.txt)', 'Só o texto, sem formatação.'],
+            ] as const).map(([value, title, description]) => (
+              <Label
+                key={value}
+                htmlFor={`format-${value}`}
+                className={cn(
+                  'flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                  selectedFormat === value ? 'border-primary bg-primary/10' : 'border-border bg-muted/30 hover:bg-muted/60'
+                )}
+              >
+                <RadioGroupItem value={value} id={`format-${value}`} />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-bold text-foreground">{title}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{description}</span>
+                </span>
+              </Label>
+            ))}
+          </RadioGroup>
+      </Modal>
     </div>
   );
 }
@@ -1118,7 +1077,7 @@ function KBExplorerContent() {
 export default function KBExplorerPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-slate-950">
+      <div className="flex h-full w-full items-center justify-center bg-card">
         <AgileSpinner size="md" variant="indigo" />
       </div>
     }>

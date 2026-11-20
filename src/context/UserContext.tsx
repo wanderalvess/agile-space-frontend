@@ -1,16 +1,22 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, GlobalRole, SquadMember } from '@/lib/types';
 import { userApi } from '@/app/users/api';
 import { useAuth } from '@/context/AuthContext';
 import { authFetch } from '@/lib/auth-client';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { resolveCargo } from '@/lib/cargo';
+import type { MyMemberships } from '@/lib/memberships-api';
+import { deriveMustOnboard, findMembership, isLegacyOnly, leadershipOfActiveSquad, resolveActiveSquadId } from '@/lib/memberships';
 
 interface UserContextType {
   userProfile: UserProfile | null;
-  setGuestProfile: (name: string, role: GlobalRole, squadId: string, email?: string, avatarSeed?: string) => void;
-  updateProfile: (updates: Partial<UserProfile>) => void;
+  setGuestProfile: (name: string, role: GlobalRole, email?: string) => void;
+  /** Atualiza o perfil da pessoa (nome, avatar). A squad ativa NÃO se grava aqui: vem dos vínculos e muda pelo `switchProject`. */
+  /** `keepOpen`: grava sem fechar o modal de identidade (a ficha salva campo a campo, na hora). */
+  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => void;
   logout: () => void;
   isInitializing: boolean;
   isIdentityRequested: boolean;
@@ -24,6 +30,12 @@ interface UserContextType {
   setIsPublicExploration: (value: boolean) => void;
   userSquads: SquadMember[];
   isLeadership: boolean;
+  /** Vínculos (`/me/memberships`) conferidos para a sessão atual; `null` se o endpoint não existe ou ainda não voltou. */
+  memberships: MyMemberships | null;
+  /** Sem vínculo nenhum, só com rastro do modelo antigo: o app mostra o aviso "peça à liderança da squad". */
+  legacyOnly: boolean;
+  /** Squad ativa: a da sessão validada contra os vínculos (`''` quando não há). */
+  activeSquadId: string;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -31,7 +43,8 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 const GUEST_STORAGE_KEY = 'agileSpace_guest_profile';
 const PUBLIC_EXPLORATION_KEY = 'agileSpace_public_exploration';
 
-type CachedProfile = { uid: string | null; profile: UserProfile };
+/** Cache local só de campos da pessoa (avatar, carga horária). A squad nunca entra: é derivada dos vínculos. */
+type CachedProfile = { uid: string | null; profile: Omit<UserProfile, 'squadId'> };
 
 function readCachedProfile(): CachedProfile | null {
   if (typeof window === 'undefined') return null;
@@ -50,13 +63,18 @@ function readCachedProfile(): CachedProfile | null {
 
 function writeCachedProfile(uid: string | null, profile: UserProfile) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile }));
+  // Descarta `squadId` (e o antigo `team`): cache de uma versão anterior também é limpo na próxima gravação.
+  const { squadId: _squadId, team: _team, ...rest } = profile as UserProfile & { team?: string };
+  try {
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile: rest }));
+  } catch {}
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { session, isLoading: isAuthLoading, logout: authLogout } = useAuth();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { memberships } = useMyMemberships();
+  const [baseProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isIdentityRequested, setIsIdentityRequested] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -71,8 +89,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [userSquads, setUserSquads] = useState<SquadMember[]>([]);
   const pendingCallback = useRef<(() => void) | null>(null);
 
-  // Perfil completo (squad/role definidos) até que o usuário finalize o onboarding pós-login
-  const mustOnboard = !!userProfile && !userProfile.squadId;
+  // Squad ativa = a da sessão validada contra os vínculos. É a única fonte: nada aqui troca a squad sozinho.
+  const activeSquadId = resolveActiveSquadId(session?.activeProjectId, memberships);
+  const activeMembership = findMembership(memberships, activeSquadId);
+  const activeMembershipRole = activeMembership?.roleName;
+
+  // O perfil vem da sessão; a squad e o papel ativos vêm dos vínculos quando o servidor os devolve.
+  const userProfile = useMemo<UserProfile | null>(() => {
+    if (!baseProfile) return null;
+    const isAdminProfile = baseProfile.role === 'admin';
+    return {
+      ...baseProfile,
+      squadId: activeSquadId || baseProfile.squadId,
+      role: (isAdminProfile ? 'admin' : activeMembershipRole || baseProfile.role) as GlobalRole,
+      cargo: resolveCargo(baseProfile.jobTitle),
+    };
+  }, [baseProfile, activeSquadId, activeMembershipRole]);
+
+  // Sem vínculo nenhum = tela de espera (onboarding). Com `/me/memberships`, vale a lista de vínculos; sem ele
+  // (backend antigo), o critério de antes: sem squad ativa.
+  const mustOnboard = !!userProfile && deriveMustOnboard({ memberships, sessionLegacyOnly: session?.legacyOnly, profileSquadId: userProfile.squadId });
+  const legacyOnly = !!session && isLegacyOnly(memberships, session.legacyOnly);
 
   const setIsPublicExploration = (value: boolean) => {
     setIsPublicExplorationState(value);
@@ -103,11 +140,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       name: session.name,
       email: session.email,
       role: (isSystemAdmin ? 'admin' : session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
-      squadId: session.activeProjectId || cachedForUser?.squadId || '',
+      // Sem cache local aqui: a squad vem só da sessão (e dos vínculos, no memo `userProfile`).
+      jobTitle: (session.jobTitle || undefined) as GlobalRole | undefined,
+      squadId: session.activeProjectId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
+      photoUrl: session.photoUrl ?? null,
       dailyHours: cachedForUser?.dailyHours,
     };
+
+    // Migração silenciosa: cache antigo que guardava `squadId`/`team` é reescrito sem eles.
+    if (cached && cachedForUser && ('squadId' in cachedForUser || 'team' in cachedForUser)) {
+      writeCachedProfile(cached.uid, cachedForUser as UserProfile);
+    }
 
     setUserProfile(profile);
     setIsInitializing(false);
@@ -122,7 +167,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [userProfile?.squadId]);
 
-  // Carrega automaticamente as Squads e papéis vinculados ao usuário logado (por e-mail ou ID)
+  // Carrega os papéis do roster do usuário logado (por e-mail ou ID), para completar "Meus vínculos" sem `/me/memberships`
   useEffect(() => {
     if (!userProfile?.email && !userProfile?.id) return;
     const identifier = userProfile.email || userProfile.id;
@@ -133,31 +178,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const res = await authFetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(identifier)}`);
         if (res.ok) {
           const data: SquadMember[] = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setUserSquads(data);
-            
-            // Sincroniza a Squad ativa e o papel caso pertença à Squad
-            const currentSquadMatch = data.find(s => s.squadId === userProfile.squadId) || data[0];
-            if (currentSquadMatch) {
-              const matchedRole = (currentSquadMatch.role && currentSquadMatch.role.trim() !== '') 
-                ? (currentSquadMatch.role as GlobalRole) 
-                : userProfile.role;
-              const isCurrentAdmin = userProfile.role === 'admin' || session?.role?.toUpperCase() === 'ADMIN';
-              if (userProfile.squadId !== currentSquadMatch.squadId || (!isCurrentAdmin && matchedRole && userProfile.role !== matchedRole)) {
-                setUserProfile(prev => prev ? {
-                  ...prev,
-                  squadId: currentSquadMatch.squadId,
-                  role: isCurrentAdmin ? 'admin' : matchedRole
-                } : null);
-                if (userProfile.squadId !== currentSquadMatch.squadId && userProfile.id) {
-                  userApi.saveUser({
-                    id: userProfile.id,
-                    squadId: currentSquadMatch.squadId,
-                  }).catch(err => console.warn("Aviso ao persistir squadId no backend:", err));
-                }
-              }
-            }
-          }
+          // Só alimenta a lista de papéis do roster. Não troca a squad ativa nem grava nada: quem troca é o
+          // `switchProject` (seletor de squad), e a squad ativa vem da sessão validada pelos vínculos.
+          if (Array.isArray(data) && data.length > 0) setUserSquads(data);
         }
       } catch (err) {
         console.warn("Erro ao buscar squads vinculadas ao usuário:", err);
@@ -180,8 +203,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Mantido pela assinatura consumida pelo UserProfileModal e pela tela de login
   // (conclusão de onboarding pós-login); e-mail não é aceito aqui — a identidade
   // vem da sessão autenticada, não de texto livre.
-  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string, avatarSeed?: string) => {
-    await updateProfile({ name, role, squadId, avatarSeed });
+  const setGuestProfile = async (name: string, role: GlobalRole, _email?: string) => {
+    // O avatarSeed já gravado no perfil não é exibido nem editado; segue como está (o merge em updateProfile o preserva).
+    await updateProfile({ name, role });
     if (pendingCallback.current) {
       const cb = pendingCallback.current;
       pendingCallback.current = null;
@@ -189,15 +213,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>, options?: { keepOpen?: boolean }) => {
     if (!userProfile) return;
 
-    // id/email são a identidade autenticada (JWT) — não editáveis via este formulário
-    const { id: _ignoredId, email: _ignoredEmail, ...safeUpdates } = updates;
+    // id/email são a identidade autenticada (JWT) — não editáveis via este formulário. `squadId` (e o antigo `team`)
+    // também não: o vínculo é a fonte da verdade, então nunca vai para a base nem para o cache local.
+    const { id: _ignoredId, email: _ignoredEmail, squadId: _ignoredSquad, team: _ignoredTeam, ...safeUpdates } = updates as typeof updates & {
+      id?: string;
+      squadId?: string;
+      team?: string;
+    };
     const newProfile = { ...userProfile, ...safeUpdates };
-    setUserProfile(newProfile);
-    setIsIdentityRequested(false);
-    setIsEditProfileOpen(false);
+    setUserProfile((prev) => (prev ? { ...prev, ...safeUpdates } : prev));
+    if (!options?.keepOpen) {
+      setIsIdentityRequested(false);
+      setIsEditProfileOpen(false);
+    }
     setIsPublicExploration(true);
     writeCachedProfile(newProfile.id, newProfile);
 
@@ -206,7 +237,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         id: newProfile.id,
         name: newProfile.name,
         role: newProfile.role,
-        squadId: newProfile.squadId,
         email: newProfile.email,
         isGuest: false,
         avatarSeed: newProfile.avatarSeed,
@@ -226,8 +256,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     console.log("Login com Google desativado (usando modo local com PostgreSQL).");
   };
 
+  // Liderança na squad ativa: a bandeira do vínculo (qualquer papel dela). Sem dados de vínculos, a lista por nome.
   const LEADERSHIP_ROLES = ['Product Owner', 'Agile Master', 'People Lead', 'Tech Lead', 'Tribe Lead', 'Agile Coach', 'SME', 'admin'];
-  const isLeadership = LEADERSHIP_ROLES.includes(userProfile?.role || '');
+  const isLeadership =
+    userProfile?.role === 'admin' || (leadershipOfActiveSquad(memberships, activeSquadId) ?? LEADERSHIP_ROLES.includes(userProfile?.role || ''));
 
   const isProfileComplete = true;
 
@@ -249,6 +281,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setIsPublicExploration,
       userSquads,
       isLeadership,
+      memberships,
+      legacyOnly,
+      activeSquadId,
     }}>
       {children}
     </UserContext.Provider>

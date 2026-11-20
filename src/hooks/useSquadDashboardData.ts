@@ -4,14 +4,19 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@/context/UserContext";
 import { squadApi } from "@/app/squad/api";
 import { projectService } from "@/services/projectService";
+import { useSquadConfig } from "@/hooks/useSquadConfig";
+import { formatShortDate, isAssignedTo, isBugIssue, isDoneIssue, isInProgressIssue, issuesOfSprint } from "@/lib/squad-metrics";
 import type {
   SquadMetricsRollup,
   SquadIssueSnapshot,
   SquadMember,
+  SquadSprintHistoryEntry,
 } from "@/lib/types";
 
 export interface SquadDashboardData {
   squadId: string;
+  /** false quando a pessoa ainda não está em nenhuma squad: os painéis dizem isso em vez de mostrar zeros. */
+  hasSquad: boolean;
   loading: boolean;
   error: string | null;
   rollup: SquadMetricsRollup | null;
@@ -25,151 +30,181 @@ export interface SquadDashboardData {
   refresh: () => Promise<void>;
 }
 
+const UNMAPPED = "UNMAPPED";
+
+/** Placar calculado das issues da sprint, para sprint sem rollup gravado (usa a categoria do Jira, não o texto do status). */
+function rollupFromIssues(squadId: string, sprintId: string, sprintName: string, issues: SquadIssueSnapshot[]): SquadMetricsRollup {
+  return {
+    squadId,
+    sprintId,
+    sprintName,
+    totalIssues: issues.length,
+    doneIssues: issues.filter(isDoneIssue).length,
+    inProgressIssues: issues.filter(isInProgressIssue).length,
+    bugIssues: issues.filter(isBugIssue).length,
+  } as SquadMetricsRollup;
+}
+
+export type SprintOption = { label: string; value: string };
+
+/**
+ * Lista do seletor de sprint: a atual, depois o histórico da squad (a mesma lista do Squad Hub, com a data de
+ * encerramento) e, por fim, sprints que só aparecem nas issues sincronizadas.
+ */
+export function buildSprintOptions(args: {
+  currentSprintId: string;
+  currentSprintName?: string;
+  history?: SquadSprintHistoryEntry[] | null;
+  issues: { sprintId?: string | null; sprintName?: string | null }[];
+}): SprintOption[] {
+  const { currentSprintId, currentSprintName, issues } = args;
+  // O backend manda `null` quando a squad ainda não tem histórico; o valor padrão de desestruturação só cobre `undefined`.
+  const history = args.history ?? [];
+  const options: SprintOption[] = [];
+  const has = (value: string) => options.some((o) => o.value === value);
+
+  options.push(
+    currentSprintName
+      ? { label: `${currentSprintName} (Atual)`, value: currentSprintId || "current" }
+      : { label: "Sprint atual", value: "current" },
+  );
+
+  for (const h of history) {
+    if (!h.sprintId || h.sprintId === UNMAPPED || has(h.sprintId)) continue;
+    const closed = h.closedAt ? formatShortDate(h.closedAt) : "";
+    const name = h.sprintName || `Sprint ${h.sprintId}`;
+    options.push({ label: closed ? `${name} (${closed})` : name, value: h.sprintId });
+  }
+
+  const fromIssues = new Map<string, string>();
+  for (const iss of issues) {
+    if (iss.sprintName && iss.sprintId && iss.sprintId !== UNMAPPED) fromIssues.set(iss.sprintId, iss.sprintName);
+  }
+  fromIssues.forEach((name, id) => {
+    if (!has(id)) options.push({ label: name, value: id });
+  });
+  return options;
+}
+
 export function useSquadDashboardData(): SquadDashboardData {
   const { userProfile } = useUser();
-  const squadId = userProfile?.squadId || "";
+  const rawSquadId = userProfile?.squadId || "";
+  const hasSquad = !!rawSquadId && rawSquadId !== "Sem Time";
+  const squadId = hasSquad ? rawSquadId : "";
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(hasSquad);
   const [error, setError] = useState<string | null>(null);
   const [rawRollup, setRawRollup] = useState<SquadMetricsRollup | null>(null);
   const [allIssues, setAllIssues] = useState<SquadIssueSnapshot[]>([]);
   const [members, setMembers] = useState<SquadMember[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<string>("current");
+  const { config: squadConfig } = useSquadConfig(squadId);
+  const [pastRollup, setPastRollup] = useState<{ sprintId: string; rollup: SquadMetricsRollup | null } | null>(null);
 
   const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Busca paralela de Rollup, Issues da Squad e Membros
-      const [fetchedRollup, fetchedIssues, fetchedMembers] = await Promise.all([
-        squadApi.getRollup(squadId).catch(() => null),
-        squadApi.getIssues(squadId).catch(() => []),
-        squadApi.getMembers(squadId).catch(() => []),
-      ]);
-
-      let teamMembers: SquadMember[] = Array.isArray(fetchedMembers) ? fetchedMembers : [];
-      // Sem pessoas sincronizadas do Jira, usa o cadastro do projeto (mesma fonte do Painel) para os dashboards
-      // não dizerem "0 pessoas" de um time que existe.
-      if (teamMembers.length === 0 && squadId) {
-        const detail = await projectService.getProjectByKey(squadId).catch(() => null);
-        teamMembers = (detail?.members || []).map((m) => ({
-          dbId: m.id || `${squadId}_${m.email || m.displayName}`,
-          squadId,
-          jiraAccountId: m.jiraAccountId || m.email || m.displayName,
-          displayName: m.displayName,
-          email: m.email,
-          role: m.roleName,
-        }));
-      }
-
-      setRawRollup(fetchedRollup);
-      setAllIssues(Array.isArray(fetchedIssues) ? fetchedIssues : []);
-      setMembers(teamMembers);
-    } catch (err: any) {
-      console.warn("Erro ao buscar dados reais do dashboard:", err);
-      setError(err?.message || "Erro ao conectar com o serviço de métricas");
-    } finally {
+    if (!squadId) {
       setLoading(false);
+      return;
     }
+    setLoading(true);
+    setError(null);
+    // Sem Promise.all que engole tudo: se as issues falharem (sem permissão, servidor fora), a tela diz isso
+    // em vez de mostrar uma squad "vazia".
+    const [rollupRes, issuesRes, membersRes] = await Promise.allSettled([
+      squadApi.getRollup(squadId),
+      squadApi.getIssues(squadId),
+      squadApi.getMembers(squadId),
+    ]);
+
+    if (issuesRes.status === "rejected") {
+      setError(issuesRes.reason?.message || "Não foi possível carregar os dados da squad agora.");
+    }
+    setRawRollup(rollupRes.status === "fulfilled" ? rollupRes.value : null);
+    setAllIssues(issuesRes.status === "fulfilled" && Array.isArray(issuesRes.value) ? issuesRes.value : []);
+
+    let teamMembers: SquadMember[] = membersRes.status === "fulfilled" && Array.isArray(membersRes.value) ? membersRes.value : [];
+    // Sem pessoas sincronizadas do Jira, usa o cadastro do projeto (mesma fonte do Painel) para os dashboards
+    // não dizerem "0 pessoas" de um time que existe.
+    if (teamMembers.length === 0) {
+      const detail = await projectService.getProjectByKey(squadId).catch(() => null);
+      teamMembers = (detail?.members || []).map((m) => ({
+        dbId: m.id || `${squadId}_${m.email || m.displayName}`,
+        squadId,
+        jiraAccountId: m.jiraAccountId || m.email || m.displayName,
+        displayName: m.displayName,
+        email: m.email,
+        role: m.roleName,
+      }));
+    }
+    setMembers(teamMembers);
+    setLoading(false);
   }, [squadId]);
 
   useEffect(() => {
+    // Troca de squad: zera a sprint escolhida e o que sobrou da squad anterior.
+    setSelectedSprint("current");
+    setPastRollup(null);
+    setRawRollup(null);
+    setAllIssues([]);
+    setMembers([]);
     fetchData();
   }, [fetchData]);
 
-  // Identificar lista de sprints a partir das issues
-  const sprintOptions = useMemo(() => {
-    const sprintMap = new Map<string, string>();
-    allIssues.forEach((iss) => {
-      if (iss.sprintName) {
-        sprintMap.set(iss.sprintId || iss.sprintName, iss.sprintName);
-      }
-    });
+  const currentSprintId = rawRollup?.sprintId && rawRollup.sprintId !== UNMAPPED ? rawRollup.sprintId : "";
+  const isCurrentSelected = !selectedSprint || selectedSprint === "current" || (!!currentSprintId && selectedSprint === currentSprintId);
 
-    const options: { label: string; value: string }[] = [];
-    if (rawRollup?.sprintName) {
-      options.push({
-        label: `${rawRollup.sprintName} (Atual)`,
-        value: rawRollup.sprintId || "current",
-      });
-    } else {
-      options.push({ label: "Sprint Atual", value: "current" });
-    }
+  // Mesma lista do seletor do Squad Hub (histórico da squad), mais o que só aparece nas issues sincronizadas.
+  const sprintOptions = useMemo(
+    () =>
+      buildSprintOptions({
+        currentSprintId,
+        currentSprintName: rawRollup?.sprintName,
+        history: squadConfig?.sprintHistory,
+        issues: allIssues,
+      }),
+    [allIssues, rawRollup, currentSprintId, squadConfig?.sprintHistory],
+  );
 
-    sprintMap.forEach((name, id) => {
-      if (!options.some((opt) => opt.value === id)) {
-        options.push({ label: name, value: id });
-      }
-    });
+  // Sprint escolhida que não é a atual: busca o placar gravado dela no servidor.
+  useEffect(() => {
+    if (!squadId || isCurrentSelected) return;
+    let alive = true;
+    squadApi.getRollup(squadId, selectedSprint)
+      .then((r) => alive && setPastRollup({ sprintId: selectedSprint, rollup: r }))
+      .catch(() => alive && setPastRollup({ sprintId: selectedSprint, rollup: null }));
+    return () => { alive = false; };
+  }, [squadId, selectedSprint, isCurrentSelected]);
 
-    return options;
-  }, [allIssues, rawRollup]);
-
-  // Filtragem dinâmica de issues por Sprint selecionada
+  // Issues da sprint em foco. Antes "atual" trazia as issues de TODAS as sprints da squad.
   const activeIssues = useMemo(() => {
-    if (!selectedSprint || selectedSprint === "current" || (rawRollup?.sprintId && selectedSprint === rawRollup.sprintId)) {
-      return allIssues;
-    }
-    return allIssues.filter(
-      (iss) => iss.sprintId === selectedSprint || iss.sprintName === selectedSprint
-    );
-  }, [allIssues, selectedSprint, rawRollup?.sprintId]);
+    const sprintId = isCurrentSelected ? currentSprintId : selectedSprint;
+    return sprintId ? issuesOfSprint(allIssues, sprintId) : allIssues;
+  }, [allIssues, isCurrentSelected, currentSprintId, selectedSprint]);
 
-  // Rollup recalculado dinamicamente para a sprint ativa
-  const activeRollup = useMemo(() => {
-    if (!selectedSprint || selectedSprint === "current" || (rawRollup?.sprintId && selectedSprint === rawRollup.sprintId)) {
-      return rawRollup;
-    }
-    const totalIssues = activeIssues.length;
-    const doneIssues = activeIssues.filter((i) => i.status?.toLowerCase().includes("done") || i.status?.toLowerCase().includes("concluído")).length;
-    const inProgressIssues = activeIssues.filter((i) => i.status?.toLowerCase().includes("progress")).length;
-    const bugIssues = activeIssues.filter((i) => i.type?.toLowerCase() === "bug").length;
-    const totalPoints = activeIssues.reduce((acc, i) => acc + ((i as any).storyPoints || 0), 0);
-    const completedPoints = activeIssues
-      .filter((i) => i.status?.toLowerCase().includes("done") || i.status?.toLowerCase().includes("concluído"))
-      .reduce((acc, i) => acc + ((i as any).storyPoints || 0), 0);
+  const activeRollup = useMemo<SquadMetricsRollup | null>(() => {
+    if (isCurrentSelected) return rawRollup;
+    const label = sprintOptions.find((o) => o.value === selectedSprint)?.label || selectedSprint;
+    if (pastRollup && pastRollup.sprintId === selectedSprint && pastRollup.rollup) return pastRollup.rollup;
+    // Ainda carregando o placar gravado, ou a sprint não tem um: calcula das issues (sem copiar o da sprint atual por cima).
+    return activeIssues.length > 0 ? rollupFromIssues(squadId, selectedSprint, label, activeIssues) : null;
+  }, [isCurrentSelected, rawRollup, pastRollup, selectedSprint, sprintOptions, activeIssues, squadId]);
 
-    return {
-      squadId,
-      sprintId: selectedSprint,
-      sprintName: sprintOptions.find((o) => o.value === selectedSprint)?.label || selectedSprint,
-      totalIssues,
-      doneIssues,
-      inProgressIssues,
-      bugIssues,
-      totalPoints,
-      completedPoints,
-      lastSyncAt: (rawRollup as any)?.lastSyncAt || new Date().toISOString(),
-      ...(rawRollup || {})
-    } as any;
-  }, [selectedSprint, rawRollup, activeIssues, squadId, sprintOptions]);
-
-  // Filtrar issues atribuídas ao usuário logado (por nome, email ou jiraAccountId)
-  const currentUserName = userProfile?.name?.toLowerCase().trim() || "";
-  const currentUserEmail = userProfile?.email?.toLowerCase().trim() || "";
-  const currentJiraId = userProfile?.jiraAccountId || "";
-
-  const myIssues = useMemo(() => {
-    return activeIssues.filter((issue) => {
-      const assignee = (issue.assigneeName || "").toLowerCase().trim();
-      const assigneeId = issue.assigneeId || "";
-      if (currentJiraId && assigneeId === currentJiraId) return true;
-      if (currentUserName && assignee.includes(currentUserName)) return true;
-      if (currentUserEmail && assignee.includes(currentUserEmail.split("@")[0])) return true;
-      return false;
-    });
-  }, [activeIssues, currentJiraId, currentUserName, currentUserEmail]);
+  // Issues da própria pessoa: id do Jira ou nome completo igual (nunca "contém").
+  const myIssues = useMemo(
+    () => activeIssues.filter((issue) => isAssignedTo(issue, { jiraAccountId: userProfile?.jiraAccountId, name: userProfile?.name })),
+    [activeIssues, userProfile?.jiraAccountId, userProfile?.name],
+  );
 
   return {
     squadId,
+    hasSquad,
     loading,
     error,
     rollup: activeRollup,
     issues: activeIssues,
     members,
     myIssues,
-    sprintName: activeRollup?.sprintName || "Sprint Atual",
+    sprintName: activeRollup?.sprintName || "Sprint atual",
     sprintOptions,
     selectedSprint,
     setSelectedSprint,

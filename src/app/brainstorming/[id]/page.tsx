@@ -2,41 +2,59 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { brainstormingApi } from '../api';
-import type { 
-  BrainstormingBoard, 
-  BrainstormingIdea, 
+import { brainstormingApi, type BrainstormingBoardPatch } from '../api';
+import type {
+  BrainstormingBoard,
+  BrainstormingIdea,
   BrainstormingGroup,
   BrainstormingPhase,
-  TimerState 
+  Participant,
 } from '@/lib/types';
-import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
+import { useStableCallback } from '@/hooks/use-stable-callback';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
+import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
+import { connectRoomSocket } from '@/lib/room-socket';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
+import { applyGroupDeleted, applyIdeaDeleted, upsertById } from '@/lib/brainstorming-utils';
 import { FeedbackWidget } from '@/components/feedback-widget';
-import { MuralPhase } from '@/components/brainstorming/MuralPhase';
-import { DiagramPhase } from '@/components/brainstorming/DiagramPhase';
-import { BrainstormingToolbar } from '@/components/brainstorming/Toolbar';
-import { GroupingPhase } from '@/components/brainstorming/GroupingPhase';
-import { PrioritizationPhase } from '@/components/brainstorming/PrioritizationPhase';
-import { ActionsPhase } from '@/components/brainstorming/ActionsPhase';
-import { EliteSidebar } from '@/components/shared/EliteSidebar';
-import { EliteParticipantList } from '@/components/shared/EliteParticipantList';
-import { type Participant } from '@/lib/types';
+import { squadLabel as resolveSquadLabel, squadOptions } from '@/components/showcase/review-room-logic';
+import { BrainstormRoom } from '@/components/brainstorming/BrainstormRoom';
+import { BrainstormRoomState } from '@/components/brainstorming/BrainstormRoomState';
+import { SEM_CARGO } from '@/lib/cargo';
+import { effectiveFacilitatorId, isEndpointUnavailable, type CeremonyAction } from '@/components/brainstorming/brainstorm-ceremony';
+import {
+  INITIAL_CONNECTION,
+  nextConnection,
+  nextGroupColor,
+  pausedTimer,
+  resetTimer,
+  resumedTimer,
+  runningTimer,
+  stoppedTimer,
+  type RoomConnectionState,
+} from '@/components/brainstorming/brainstorm-room-logic';
+
+/** Depois de apagada pelo facilitador, a sala mostra o aviso por este tempo e volta ao Brainstorming. */
+const DELETED_REDIRECT_MS = 4000;
 
 export default function BrainstormingRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const boardId = resolvedParams.id;
-  
+
   const router = useRouter();
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
 
   const [boardData, setBoardData] = useState<BrainstormingBoard | null>(null);
   const [ideas, setIdeas] = useState<BrainstormingIdea[]>([]);
@@ -47,186 +65,204 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const [areIdeasLoading, setAreIdeasLoading] = useState(true);
   const [areGroupsLoading, setAreGroupsLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
+  // 'notfound' = o servidor disse que o mural não existe; 'failed' = não deu para carregar (rede, sessão, 5xx).
+  const [loadError, setLoadError] = useState<null | 'notfound' | 'failed'>(null);
+  const [deleted, setDeleted] = useState(false);
+  const [connection, setConnection] = useState<RoomConnectionState>(INITIAL_CONNECTION);
+  // Quem está com a sala aberta agora (null = o servidor não informa; a sala mostra só o total, como antes).
+  const presence = useRoomPresence({ module: 'brainstorming', roomId: boardId });
+  const presenceBindings = presence.bindings;
 
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  // Encerrar/assumir/passar: ocupado enquanto a chamada roda; indisponível quando o servidor não tem a rota (backend antigo).
+  const [ceremonyBusy, setCeremonyBusy] = useState(false);
+  const [ceremonyUnavailable, setCeremonyUnavailable] = useState(false);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
-  useEffect(() => {
-    const storedSoundPref = localStorage.getItem('brainstorming-sound-enabled');
-    if (storedSoundPref !== null) {
-      setIsSoundEnabled(storedSoundPref === 'true');
-    }
-  }, []);
+  // Só a recarga mais recente vale: uma resposta lenta de uma recarga antiga não pode sobrescrever a nova.
+  const reloadSeq = useRef(0);
+  const joinAttempted = useRef(false);
+  const boardLoaded = useRef(false);
+  // O facilitador que apaga o mural também recebe BOARD_DELETED: para ele não é "a sessão foi encerrada".
+  const deletingSelf = useRef(false);
+  // Facilitador atual: `facilitatorId` (backend novo, muda ao assumir/passar), ou o criador (mural e servidor antigos).
+  const isFacilitator = !!userProfile && !!boardData && effectiveFacilitatorId(boardData) === userProfile.id;
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
 
-  const handleSetIsSoundEnabled = useCallback((enabled: boolean) => {
-    localStorage.setItem('brainstorming-sound-enabled', String(enabled));
-    setIsSoundEnabled(enabled);
-  }, []);
+  useEffect(() => {
+    // O estado da sala não pode vazar de uma sala para outra ao trocar o id na URL.
+    reloadSeq.current += 1;
+    setBoardData(null);
+    setIdeas([]);
+    setGroups([]);
+    setParticipants([]);
+    setMergingSourceId(null);
+    setLoadError(null);
+    setDeleted(false);
+    setConnection(INITIAL_CONNECTION);
+    setCeremonyBusy(false);
+    setCeremonyUnavailable(false);
+    setIsBoardLoading(true);
+    setAreIdeasLoading(true);
+    setAreGroupsLoading(true);
+    setAreParticipantsLoading(true);
+    joinAttempted.current = false;
+    boardLoaded.current = false;
+    deletingSelf.current = false;
+    lastVisibilityKey.current = null;
+  }, [boardId]);
 
   const reloadBoardData = useCallback(async () => {
     if (!isAuthenticated) return;
+    const seq = ++reloadSeq.current;
     try {
       const [board, ideasList, groupsList, partsList] = await Promise.all([
         brainstormingApi.getBoard(boardId),
         brainstormingApi.getIdeas(boardId),
         brainstormingApi.getGroups(boardId),
-        brainstormingApi.getParticipants(boardId)
+        brainstormingApi.getParticipants(boardId),
       ]);
+      if (seq !== reloadSeq.current) return;
+      boardLoaded.current = true;
       setBoardData(board);
       setIdeas(ideasList);
       setGroups(groupsList);
       setParticipants(partsList);
+      setLoadError(null);
     } catch (e) {
-      console.error("Erro ao recarregar dados do Brainstorming:", e);
+      if (seq !== reloadSeq.current) return;
+      console.error('Erro ao recarregar dados do Brainstorming:', e);
+      // Já com o mural na tela, uma falha de rede passageira não derruba nada: o próximo evento ou reconexão ressincroniza.
+      if (!boardLoaded.current) setLoadError(e instanceof CeremonyApiError && e.status === 404 ? 'notfound' : 'failed');
     } finally {
-      setIsBoardLoading(false);
-      setAreIdeasLoading(false);
-      setAreGroupsLoading(false);
-      setAreParticipantsLoading(false);
+      if (seq === reloadSeq.current) {
+        setIsBoardLoading(false);
+        setAreIdeasLoading(false);
+        setAreGroupsLoading(false);
+        setAreParticipantsLoading(false);
+      }
     }
   }, [boardId, isAuthenticated]);
 
-  // Conexão WebSocket Nativa e Carga Inicial
+  // Conexão WebSocket (com reconexão e ressincronização) e carga inicial
   useEffect(() => {
     if (!isAuthenticated) return;
 
     reloadBoardData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId
-      + '?token=' + encodeURIComponent(getAuthToken() || '');
+    const wsBase = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId;
 
-    let socket: WebSocket | null = null;
-    let isSubscribed = true;
+    return connectRoomSocket({
+      buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
+      ...presenceBindings,
+      onOpen: () => setConnection((c) => nextConnection(c, 'open')),
+      onClose: () => setConnection((c) => nextConnection(c, 'close')),
+      onReconnect: reloadBoardData,
+      onError: () => reloadBoardData(),
+      onMessage: (message) => {
+        const payload = message.payload as any;
+        switch (message.type) {
+          case 'BOARD_UPDATED':
+            if (payload) setBoardData(payload);
+            break;
 
-    try {
-      socket = new WebSocket(wsUrl);
-
-      socket.onmessage = (event) => {
-        if (!isSubscribed) return;
-        try {
-          const payload = JSON.parse(event.data);
-          switch (payload.type) {
-            case 'BOARD_UPDATED':
-              if (payload.payload) {
-                setBoardData(payload.payload);
-              }
+          case 'BOARD_DELETED':
+            if (deletingSelf.current) {
+              router.push('/brainstorming');
               break;
+            }
+            toast({ title: 'Esta sessão foi encerrada', description: 'O facilitador apagou o mural.', variant: 'destructive' });
+            setDeleted(true);
+            break;
 
-            case 'PARTICIPANT_JOINED':
-              if (payload.payload) {
-                setParticipants(prev => {
-                  const idx = prev.findIndex(p => p.id === payload.payload.id);
-                  if (idx >= 0) {
-                    const copy = [...prev];
-                    copy[idx] = payload.payload;
-                    return copy;
-                  }
-                  return [...prev, payload.payload];
-                });
-              }
-              break;
+          case 'PARTICIPANT_JOINED':
+            if (payload) setParticipants(prev => upsertById(prev, payload));
+            break;
 
-            case 'PARTICIPANT_LEFT':
-              if (payload.payload?.userId) {
-                setParticipants(prev => prev.filter(p => p.id !== payload.payload.userId));
-              }
-              break;
+          case 'PARTICIPANT_LEFT':
+            if (payload?.userId) {
+              setParticipants(prev => prev.filter(p => p.id !== payload.userId));
+            }
+            break;
 
-            case 'IDEA_SAVED':
-              if (payload.payload) {
-                setIdeas(prev => {
-                  const idx = prev.findIndex(i => i.id === payload.payload.id);
-                  if (idx >= 0) {
-                    const copy = [...prev];
-                    copy[idx] = payload.payload;
-                    return copy;
-                  }
-                  return [...prev, payload.payload];
-                });
-              }
-              break;
+          case 'IDEA_SAVED':
+            if (payload) setIdeas(prev => upsertById(prev, payload));
+            break;
 
-            case 'IDEA_DELETED':
-              if (payload.payload?.ideaId) {
-                setIdeas(prev => prev.filter(i => i.id !== payload.payload.ideaId));
-              }
-              break;
+          case 'IDEA_DELETED':
+            if (payload?.ideaId) {
+              setIdeas(prev => applyIdeaDeleted(prev, payload.ideaId));
+              setMergingSourceId(current => (current === payload.ideaId ? null : current));
+            }
+            break;
 
-            case 'GROUP_SAVED':
-              if (payload.payload) {
-                setGroups(prev => {
-                  const idx = prev.findIndex(g => g.id === payload.payload.id);
-                  if (idx >= 0) {
-                    const copy = [...prev];
-                    copy[idx] = payload.payload;
-                    return copy;
-                  }
-                  return [...prev, payload.payload];
-                });
-              }
-              break;
+          case 'GROUP_SAVED':
+            if (payload) setGroups(prev => upsertById(prev, payload));
+            break;
 
-            case 'GROUP_DELETED':
-              if (payload.payload?.groupId) {
-                setGroups(prev => prev.filter(g => g.id !== payload.payload.groupId));
-              }
-              break;
+          case 'GROUP_DELETED':
+            if (payload?.groupId) {
+              // o servidor também publica cada ideia solta; isto cobre o intervalo até esses eventos chegarem
+              setGroups(prev => prev.filter(g => g.id !== payload.groupId));
+              setIdeas(prev => prev.map(i => (i.groupId === payload.groupId ? { ...i, groupId: null } : i)));
+            }
+            break;
 
-            case 'REFRESH_BOARD':
-            default:
-              reloadBoardData();
-              break;
-          }
-        } catch (e) {
-          console.error("Erro ao processar mensagem do WebSocket do Brainstorming:", e);
-          reloadBoardData();
+          case 'REFRESH_BOARD':
+          default:
+            reloadBoardData();
+            break;
         }
-      };
+      },
+    });
+  }, [boardId, reloadBoardData, isAuthenticated, router, toast, presenceBindings]);
 
-      socket.onerror = (err) => {
-        console.warn("WebSocket Brainstorming warning:", err);
-      };
-    } catch (err) {
-      console.warn("Falha ao inicializar WebSocket do Brainstorming:", err);
-    }
-
-    return () => {
-      isSubscribed = false;
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
-  }, [boardId, reloadBoardData, isAuthenticated]);
-
-  // Sincroniza informações do participante
+  // Sessão apagada pelo facilitador: mostra o aviso e volta ao Brainstorming sozinho.
   useEffect(() => {
-    if (!isAuthenticated || !boardData || !userProfile || !participants) return;
+    if (!deleted) return;
+    const timer = setTimeout(() => router.push('/brainstorming'), DELETED_REDIRECT_MS);
+    return () => clearTimeout(timer);
+  }, [deleted, router]);
 
-    const isAlreadyPart = participants.some(p => p.id === userProfile.id);
-    if (isAlreadyPart) return;
+  // Entra na sala uma vez por sala (o servidor usa a identidade do login; o corpo só dá apelido e papel)
+  useEffect(() => {
+    if (!isAuthenticated || !boardData || !userProfile || areParticipantsLoading) return;
+    if (joinAttempted.current || participants.some(p => p.id === userProfile.id)) return;
+    joinAttempted.current = true;
 
-    const newParticipant = {
-      id: userProfile.id,
-      boardId,
+    brainstormingApi.joinBoard(boardId, {
       nickname: userProfile.name,
-      role: userProfile.role || 'DEV',
-      isCreator: boardData.creatorId === userProfile.id,
-      lastActive: new Date().toISOString()
-    };
+      // Cargo exibido no mural: o da administração (lib/cargo.ts).
+      role: userProfile.cargo || SEM_CARGO,
+    } as any).then(joined => {
+      setParticipants(prev => upsertById(prev, joined as any));
+    }).catch(e => {
+      joinAttempted.current = false;
+      console.error("Erro ao entrar no mural:", e);
+      toast({ title: 'Não foi possível entrar na lista de participantes', description: errorMessage(e, 'Recarregue a página para tentar de novo.'), variant: 'destructive' });
+    });
+  }, [isAuthenticated, boardData, userProfile, participants, areParticipantsLoading, boardId, toast]);
 
-    brainstormingApi.joinBoard(boardId, newParticipant as any).catch(e => console.error("Erro ao entrar no mural:", e));
-  }, [isAuthenticated, boardData, userProfile, participants, boardId]);
+  // Revelar/ocultar ideias, autores anônimos ou trocar o facilitador muda o que o servidor envia a cada pessoa (o texto
+  // das ideias ocultas vai para o facilitador): recarrega só as ideias, trocando a lista inteira de uma vez (sem piscar).
+  // Não roda na primeira carga.
+  const visibilityKey = boardData ? `${boardData.settings.isRevealed === false}|${!!boardData.settings.isAnonymous}|${effectiveFacilitatorId(boardData) ?? ''}` : null;
+  const lastVisibilityKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated || visibilityKey === null) return;
+    const previous = lastVisibilityKey.current;
+    lastVisibilityKey.current = visibilityKey;
+    if (previous === null || previous === visibilityKey) return;
+    brainstormingApi.getIdeas(boardId).then(setIdeas).catch(e => console.error("Erro ao recarregar as ideias:", e));
+  }, [visibilityKey, isAuthenticated, boardId]);
 
   // Título Dinâmico da Aba
   useEffect(() => {
     const baseTitle = "Portal Tech V&D";
     const moduleName = "Brainstorming";
     const sessionName = boardData?.title || boardData?.team;
-    
+
     if (sessionName) {
       document.title = `${sessionName} | ${moduleName} | ${baseTitle}`;
     } else {
@@ -234,358 +270,306 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     }
   }, [boardData]);
 
-  // Handlers
-  const handleAddIdea = useCallback((content: string) => {
-    if (!isAuthenticated || !userProfile || !boardId) return;
-    const newIdea: Partial<BrainstormingIdea> = {
-      boardId,
-      content,
-      authorId: userProfile.id,
-      votes: JSON.parse("[]"),
-      position: JSON.parse(JSON.stringify({ x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 })),
-      parentId: undefined,
-      createdAt: new Date().toISOString()
-    };
-    brainstormingApi.saveOrUpdateIdea(boardId, newIdea).catch(e => console.error(e));
-  }, [isAuthenticated, userProfile, boardId]);
+  // Nome da squad para o chip: o vínculo dá o nome; sem ele, a chave que o mural guarda.
+  const squadLabel = useMemo(
+    () => resolveSquadLabel(boardData?.team, squadOptions(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName })),
+    [boardData?.team, memberships, activeSquadId, activeSquadName]
+  );
 
-  const handleDeleteIdea = useCallback((ideaId: string) => {
-    if (!boardId) return;
-    brainstormingApi.deleteIdea(boardId, ideaId).catch(e => console.error(e));
-  }, [boardId]);
+  // --- Handlers ---
+  // useStableCallback: identidade fixa e sempre a versão mais recente (nada de closure velha sobre `ideas`),
+  // então a teia e as listas não re-renderizam à toa nem agem sobre um estado antigo.
 
-  const handleToggleVote = useCallback((ideaId: string) => {
-    if (!boardId || !isAuthenticated || !userProfile || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
+  /**
+   * Erro vira aviso na tela (com a mensagem do servidor), nunca só console. Um 409 pode ser o mural encerrado, o limite
+   * de votos ou a facilitação que mudou: recarrega só o mural para a tela alcançar o estado do servidor.
+   */
+  const fail = (title: string, error: unknown, fallback = 'Tente novamente.') => {
+    console.error(title, error);
+    toast({ title, description: errorMessage(error, fallback), variant: 'destructive' });
+    if (error instanceof CeremonyApiError && error.status === 409) {
+      brainstormingApi.getBoard(boardId).then((board) => { if (board?.id) setBoardData(board); }).catch(() => undefined);
+    }
+  };
 
-    const currentVotes = Array.isArray(idea.votes) ? (idea.votes as unknown as string[]) : [];
-    const existingIndex = currentVotes.indexOf(userProfile.id);
-    const newVotes = existingIndex !== -1
-      ? currentVotes.filter((_, i) => i !== existingIndex)
-      : [...currentVotes, userProfile.id];
+  const applyIdea = (idea: BrainstormingIdea) => setIdeas(prev => upsertById(prev, idea));
 
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      votes: JSON.parse(JSON.stringify(newVotes))
-    }).catch(e => console.error(e));
-  }, [boardId, isAuthenticated, userProfile, ideas]);
-
-  const handleMergeIdeas = useCallback(async (sourceId: string, targetId: string) => {
-    if (!boardId || !ideas) return;
-    
-    const sourceIdea = ideas.find(i => i.id === sourceId);
-    const targetIdea = ideas.find(i => i.id === targetId);
-    
-    if (!sourceIdea || !targetIdea) return;
-
-    const currentTargetVotes = Array.isArray(targetIdea.votes) ? (targetIdea.votes as unknown as string[]) : [];
-    const currentSourceVotes = Array.isArray(sourceIdea.votes) ? (sourceIdea.votes as unknown as string[]) : [];
-
-    const newContent = `${targetIdea.content}\n- ${sourceIdea.content}`;
-    const combinedVotes = [...currentTargetVotes, ...currentSourceVotes];
-
+  /** Devolve true quando salvou; a tela só limpa o campo digitado nesse caso (o texto não se perde se falhar). */
+  const handleAddIdea = useStableCallback(async (content: string): Promise<boolean> => {
+    if (!isAuthenticated || !userProfile || !boardId) return false;
     try {
-      await brainstormingApi.saveOrUpdateIdea(boardId, {
-        ...targetIdea,
-        content: newContent,
-        votes: JSON.parse(JSON.stringify(combinedVotes))
+      const created = await brainstormingApi.saveOrUpdateIdea(boardId, {
+        content,
+        position: { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 },
       });
-      await brainstormingApi.deleteIdea(boardId, sourceId);
+      applyIdea(created);
+      return true;
+    } catch (e) {
+      fail('Não foi possível lançar a ideia', e, 'Seu texto foi mantido no campo. Tente novamente.');
+      return false;
+    }
+  });
+
+  const handleDeleteIdea = useStableCallback(async (ideaId: string) => {
+    try {
+      await brainstormingApi.deleteIdea(boardId, ideaId);
+      setIdeas(prev => applyIdeaDeleted(prev, ideaId));
+    } catch (e) {
+      fail('Não foi possível apagar a ideia', e);
+    }
+  });
+
+  const handleToggleVote = useStableCallback(async (ideaId: string) => {
+    try {
+      applyIdea(await brainstormingApi.toggleVote(boardId, ideaId));
+    } catch (e) {
+      fail('Não foi possível registrar o voto', e);
+    }
+  });
+
+  const handleMergeIdeas = useStableCallback(async (sourceId: string, targetId: string) => {
+    try {
+      const merged = await brainstormingApi.mergeIdeas(boardId, targetId, sourceId);
+      setIdeas(prev => applyIdeaDeleted(prev, sourceId).map(i => (i.id === merged.id ? merged : i)));
+      setMergingSourceId(null);
       toast({
-        title: "Ideias Fundidas!",
+        title: "Ideias fundidas!",
         description: "Os textos e votos foram combinados com sucesso.",
       });
-      setMergingSourceId(null);
-    } catch (error) {
-      console.error("Merge failure:", error);
-      toast({
-        title: "Erro na Fusão",
-        description: "Não foi possível combinar as ideias no banco de dados.",
-        variant: "destructive"
-      });
+    } catch (e) {
+      fail('Erro na fusão', e, 'Não foi possível combinar as ideias.');
     }
-  }, [boardId, ideas, toast]);
+  });
 
-  const handleUpdateIdeaPosition = useCallback((ideaId: string, x: number, y: number) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
-    
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      position: JSON.parse(JSON.stringify({ x, y }))
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  const patchIdea = async (ideaId: string, patch: Parameters<typeof brainstormingApi.patchIdea>[2], errorTitle: string): Promise<boolean> => {
+    try {
+      applyIdea(await brainstormingApi.patchIdea(boardId, ideaId, patch));
+      return true;
+    } catch (e) {
+      fail(errorTitle, e);
+      return false;
+    }
+  };
 
-  const handleUpdateIdea = useCallback((ideaId: string, content: string) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
+  const handleUpdateIdeaPosition = useStableCallback((ideaId: string, x: number, y: number) =>
+    patchIdea(ideaId, { position: { x, y } }, 'Não foi possível salvar a posição da ideia'));
 
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      content
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  /** Devolve true quando salvou; o card só sai do modo de edição nesse caso (o texto editado não se perde). */
+  const handleUpdateIdea = useStableCallback((ideaId: string, content: string) =>
+    patchIdea(ideaId, { content }, 'Não foi possível salvar a ideia'));
 
-  const handleConnectIdeas = useCallback((sourceId: string, targetId: string) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === targetId);
-    if (!idea) return;
-    
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      parentId: sourceId
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  const handleConnectIdeas = useStableCallback((sourceId: string, targetId: string) =>
+    patchIdea(targetId, { parentId: sourceId }, 'Não foi possível ligar as ideias'));
 
-  const handleDisconnectIdea = useCallback((ideaId: string) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
+  const handleDisconnectIdea = useStableCallback((ideaId: string) =>
+    patchIdea(ideaId, { parentId: null }, 'Não foi possível remover a ligação'));
 
-    // Em vez de delete, enviamos o parentId nulo para desassociar na árvore
-    const payload = { ...idea };
-    delete (payload as any).parentId; // No Jackson do backend, parentId nulo remove a associação
-    
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      parentId: undefined
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  const handleMoveIdeaToGroup = useStableCallback((ideaId: string, groupId: string | null) =>
+    patchIdea(ideaId, { groupId }, 'Não foi possível mover a ideia'));
 
-  const handleAddGroup = useCallback(async (title: string) => {
-    if (!boardId) return;
-    const newGroup = {
-      boardId,
-      title,
-      order: groups?.length || 0,
-      createdAt: new Date().toISOString()
-    };
-    brainstormingApi.saveOrUpdateGroup(boardId, newGroup).catch(e => console.error(e));
-  }, [boardId, groups?.length]);
+  const handleUpdateIdeaQualifiers = useStableCallback((ideaId: string, qualifiers: { roi?: number, effort?: number }) =>
+    patchIdea(ideaId, { qualifiers }, 'Não foi possível salvar a priorização'));
 
-  const handleDeleteGroup = useCallback(async (groupId: string) => {
-    if (!boardId) return;
-    brainstormingApi.deleteGroup(boardId, groupId).catch(e => console.error(e));
-  }, [boardId]);
+  /** Cada grupo novo recebe uma cor da paleta (o servidor guarda; Matriz e Plano usam a mesma). */
+  const handleAddGroup = useStableCallback(async (title: string): Promise<boolean> => {
+    try {
+      const created = await brainstormingApi.saveOrUpdateGroup(boardId, { title, color: nextGroupColor(groups) });
+      setGroups(prev => upsertById(prev, created));
+      return true;
+    } catch (e) {
+      fail('Não foi possível criar o grupo', e, 'O nome foi mantido no campo. Tente novamente.');
+      return false;
+    }
+  });
 
-  const handleMoveIdeaToGroup = useCallback((ideaId: string, groupId: string | null) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
+  const handleDeleteGroup = useStableCallback(async (groupId: string) => {
+    try {
+      await brainstormingApi.deleteGroup(boardId, groupId);
+      const result = applyGroupDeleted(groups, ideas, groupId);
+      setGroups(result.groups);
+      setIdeas(result.ideas);
+    } catch (e) {
+      fail('Não foi possível apagar o grupo', e);
+    }
+  });
 
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      groupId: groupId || undefined
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  /** Mudança do facilitador: só os campos do patch são gravados (nada de regravar o mural inteiro). */
+  const patchBoard = async (patch: BrainstormingBoardPatch) => {
+    try {
+      const updated = await brainstormingApi.patchBoard(boardId, patch);
+      if (updated?.id) setBoardData(updated);
+    } catch (e) {
+      fail('Não foi possível salvar a alteração da sessão', e);
+    }
+  };
 
-  const handleUpdateIdeaQualifiers = useCallback((ideaId: string, qualifiers: { roi?: number, effort?: number }) => {
-    if (!boardId || !ideas) return;
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
+  const handlePhaseChange = useStableCallback((phase: BrainstormingPhase) => patchBoard({ phase }));
 
-    brainstormingApi.saveOrUpdateIdea(boardId, {
-      ...idea,
-      qualifiers: JSON.parse(JSON.stringify(qualifiers))
-    }).catch(e => console.error(e));
-  }, [boardId, ideas]);
+  const handleRename = useStableCallback((title: string) => patchBoard({ title }));
 
-  const handlePhaseChange = useCallback((phase: BrainstormingPhase) => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      phase
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleSetTimerDuration = useStableCallback((duration: number) => patchBoard({ timer: stoppedTimer(duration) }));
 
-  const handleSetTimerDuration = useCallback((duration: number) => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: JSON.parse(JSON.stringify({ status: 'stopped', initialDuration: duration, remainingOnPause: duration, endTime: null }))
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleStartTimer = useStableCallback((duration: number) => patchBoard({ timer: runningTimer(duration, Date.now()) }));
 
-  const handleStartTimer = useCallback((duration: number) => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: JSON.parse(JSON.stringify({ status: 'running', endTime: Date.now() + duration * 1000, initialDuration: duration, remainingOnPause: duration }))
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handlePauseTimer = useStableCallback(() => {
+    const next = pausedTimer(boardData?.timer, Date.now());
+    if (next) return patchBoard({ timer: next });
+  });
 
-  const handlePauseTimer = useCallback(() => {
-    if (!boardData || !boardData.timer || !boardData.timer.endTime) return;
-    const remaining = Math.max(0, Math.round((boardData.timer.endTime - Date.now()) / 1000));
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: JSON.parse(JSON.stringify({ ...boardData.timer, status: 'paused', remainingOnPause: remaining }))
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleResumeTimer = useStableCallback(() => {
+    const next = resumedTimer(boardData?.timer, Date.now());
+    if (next) return patchBoard({ timer: next });
+  });
 
-  const handleResumeTimer = useCallback(() => {
-    if (!boardData || !boardData.timer) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: JSON.parse(JSON.stringify({ ...boardData.timer, status: 'running', endTime: Date.now() + boardData.timer.remainingOnPause * 1000 }))
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleResetTimer = useStableCallback(() => {
+    const next = resetTimer(boardData?.timer);
+    if (next) return patchBoard({ timer: next });
+  });
 
-  const handleResetTimer = useCallback(() => {
-    if (!boardData || !boardData.timer) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: JSON.parse(JSON.stringify({ ...boardData.timer, status: 'stopped', endTime: null, remainingOnPause: boardData.timer.initialDuration }))
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleToggleAnonymous = useStableCallback(() =>
+    patchBoard({ settings: { isAnonymous: !boardData?.settings.isAnonymous } }));
 
-  const handleToggleAnonymous = useCallback(() => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      settings: {
-        ...boardData.settings,
-        isAnonymous: !boardData.settings.isAnonymous
+  const handleTogglePresentationMode = useStableCallback(() =>
+    patchBoard({ settings: { isPresentationMode: !boardData?.settings.isPresentationMode } }));
+
+  const handleToggleReveal = useStableCallback(() =>
+    patchBoard({ settings: { isRevealed: boardData?.settings.isRevealed === false } }));
+
+  const handleVoteLimitChange = useStableCallback((value: number | null) => patchBoard({ votesPerParticipant: value }));
+
+  const handleRestrictEditsChange = useStableCallback((value: boolean) => patchBoard({ settings: { restrictEdits: value } }));
+
+  /**
+   * Encerrar, reabrir, assumir e passar: o servidor devolve o mural novo. 404/405 = backend antigo (a função some, sem
+   * erro na tela); 403/409 mostram a mensagem do servidor em português ("O facilitador está online.", etc.).
+   */
+  const runCeremony = async (action: CeremonyAction, call: () => Promise<BrainstormingBoard>, errorTitle: string, doneTitle: string) => {
+    setCeremonyBusy(true);
+    try {
+      const updated = await call();
+      if (updated?.id) setBoardData(updated);
+      toast({ title: doneTitle });
+    } catch (e) {
+      if (isEndpointUnavailable(action, e)) {
+        setCeremonyUnavailable(true);
+        toast({ title: 'Função indisponível neste servidor', description: 'Ela entra quando o servidor for atualizado.' });
+      } else {
+        fail(errorTitle, e);
       }
-    }).catch(e => console.error(e));
-  }, [boardData]);
+    } finally {
+      setCeremonyBusy(false);
+    }
+  };
 
-  const handleTogglePresentationMode = useCallback(() => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      settings: {
-        ...boardData.settings,
-        isPresentationMode: !boardData.settings.isPresentationMode
-      }
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleFinish = useStableCallback(() => runCeremony('finish', () => brainstormingApi.finishBoard(boardId), 'Não foi possível encerrar o brainstorming', 'Brainstorming encerrado'));
 
-  const handleToggleReveal = useCallback(() => {
-    if (!boardData) return;
-    brainstormingApi.saveOrUpdateBoard({
-      ...boardData,
-      settings: {
-        ...boardData.settings,
-        isRevealed: boardData.settings.isRevealed === false
-      }
-    }).catch(e => console.error(e));
-  }, [boardData]);
+  const handleReopen = useStableCallback(() => runCeremony('reopen', () => brainstormingApi.reopenBoard(boardId), 'Não foi possível reabrir o brainstorming', 'Brainstorming reaberto'));
+
+  const handleClaimFacilitation = useStableCallback(() =>
+    runCeremony('claim', () => brainstormingApi.claimFacilitation(boardId), 'Não foi possível assumir a facilitação', 'Você agora facilita a sessão'));
+
+  const handleTransferFacilitation = useStableCallback((userId: string) =>
+    runCeremony('transfer', () => brainstormingApi.transferFacilitation(boardId, userId), 'Não foi possível passar a facilitação', 'Facilitação passada'));
+
+  const handleRemoveParticipant = useStableCallback(async (participantId: string) => {
+    try {
+      await brainstormingApi.leaveBoard(boardId, participantId);
+      setParticipants(prev => prev.filter(p => p.id !== participantId));
+    } catch (e) {
+      fail('Não foi possível remover o participante', e);
+    }
+  });
+
+  /** Apaga o mural (só o facilitador); o servidor avisa a sala com BOARD_DELETED. */
+  const handleDeleteBoard = useStableCallback(async () => {
+    deletingSelf.current = true;
+    try {
+      await brainstormingApi.deleteBoard(boardId);
+      toast({ title: 'Brainstorming apagado', description: boardData?.title });
+      router.push('/brainstorming');
+    } catch (e) {
+      deletingSelf.current = false;
+      fail('Não foi possível apagar o brainstorming', e);
+    }
+  });
+
+  const handleOpenFeedback = useCallback(() => setFeedbackSignal(Date.now()), []);
+
+  const retryLoad = () => {
+    setLoadError(null);
+    setIsBoardLoading(true);
+    setAreIdeasLoading(true);
+    setAreGroupsLoading(true);
+    setAreParticipantsLoading(true);
+    void reloadBoardData();
+  };
+
+  const goBack = () => router.push('/brainstorming');
+
+  if (deleted) return <BrainstormRoomState kind="deleted" onBack={goBack} />;
+
+  if (loadError === 'failed' && !boardData) return <BrainstormRoomState kind="error" onRetry={retryLoad} onBack={goBack} />;
 
   if (isLoading || isInitializing || isBoardLoading || areIdeasLoading || areGroupsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
-     if (!userProfile) {
-       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sessão" />;
-     }
-     return <LoadingScreen message="Brainstorming" submessage="Inspirando mentes e conectando ideias..." />;
+    if (!userProfile) {
+      return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sessão" />;
+    }
+    return <BrainstormRoomState kind="loading" />;
   }
 
-  if (!boardData) return <NotFound resourceName="sessão de brainstorming" />;
+  if (!boardData) return <BrainstormRoomState kind="notfound" onBack={goBack} />;
 
   return (
-    <div className="flex flex-col h-dvh w-full overflow-hidden bg-slate-50">
-      <BrainstormingToolbar
+    <>
+      <BrainstormRoom
+        boardId={boardId}
         boardData={boardData}
-        ideas={ideas || []}
-        groups={groups || []}
-        isCreator={boardData.creatorId === userProfile?.id}
+        ideas={ideas}
+        groups={groups}
+        participants={participants}
+        onlineIds={presence.online}
+        currentUserId={userProfile.id}
+        isFacilitator={isFacilitator}
+        mergingSourceId={mergingSourceId}
+        connection={connection.status}
+        squadLabel={squadLabel}
+        onAddIdea={handleAddIdea}
+        onDeleteIdea={handleDeleteIdea}
+        onUpdateIdea={handleUpdateIdea}
+        onVoteIdea={handleToggleVote}
+        onStartMerge={setMergingSourceId}
+        onExecuteMerge={handleMergeIdeas}
+        onUpdateIdeaPosition={handleUpdateIdeaPosition}
+        onConnectIdeas={handleConnectIdeas}
+        onDisconnectIdea={handleDisconnectIdea}
+        onMoveIdeaToGroup={handleMoveIdeaToGroup}
+        onUpdateIdeaQualifiers={handleUpdateIdeaQualifiers}
+        onAddGroup={handleAddGroup}
+        onDeleteGroup={handleDeleteGroup}
         onPhaseChange={handlePhaseChange}
+        onRename={handleRename}
         onToggleAnonymous={handleToggleAnonymous}
-        onExportImage={() => setIsExporting(true)}
-        isParticipantsOpen={isParticipantsOpen}
-        onToggleParticipants={setIsParticipantsOpen}
-        timer={boardData.timer}
-        onSetTimerDuration={handleSetTimerDuration}
+        onToggleReveal={handleToggleReveal}
+        onTogglePresentation={handleTogglePresentationMode}
         onStartTimer={handleStartTimer}
         onPauseTimer={handlePauseTimer}
         onResumeTimer={handleResumeTimer}
-        onToggleReveal={handleToggleReveal}
         onResetTimer={handleResetTimer}
-        isSoundEnabled={isSoundEnabled}
-        onSetIsSoundEnabled={handleSetIsSoundEnabled}
-        onTogglePresentationMode={handleTogglePresentationMode}
+        onSetTimerDuration={handleSetTimerDuration}
+        onRemoveParticipant={handleRemoveParticipant}
+        onDeleteBoard={handleDeleteBoard}
+        onOpenFeedback={handleOpenFeedback}
+        isAdmin={isAdmin}
+        ceremonyBusy={ceremonyBusy}
+        ceremonyUnavailable={ceremonyUnavailable}
+        onFinish={handleFinish}
+        onReopen={handleReopen}
+        onClaimFacilitation={handleClaimFacilitation}
+        onTransferFacilitation={handleTransferFacilitation}
+        onVoteLimitChange={handleVoteLimitChange}
+        onRestrictEditsChange={handleRestrictEditsChange}
       />
-
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 relative overflow-hidden">
-          {boardData.phase === 'ideation' ? (
-            <MuralPhase
-              ideas={ideas || []}
-              currentUserId={userProfile?.id}
-              onAddIdea={handleAddIdea}
-              onDeleteIdea={handleDeleteIdea}
-              onUpdateIdea={handleUpdateIdea}
-              onVoteIdea={handleToggleVote}
-              onStartMerge={setMergingSourceId}
-              onExecuteMerge={handleMergeIdeas}
-              mergingSourceId={mergingSourceId}
-              isAnonymous={boardData.settings.isAnonymous}
-              isRevealed={boardData.settings.isRevealed}
-              isPresentationMode={boardData.settings.isPresentationMode}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
-            />
-          ) : boardData.phase === 'diagram' ? (
-            <DiagramPhase
-              ideas={ideas || []}
-              boardId={boardId}
-              isAnonymous={boardData.settings.isAnonymous}
-              isRevealed={boardData.settings.isRevealed}
-              onVoteIdea={handleToggleVote}
-              onUpdateIdea={handleUpdateIdea}
-              onUpdatePosition={handleUpdateIdeaPosition}
-              onConnectIdeas={handleConnectIdeas}
-              onDisconnectIdea={handleDisconnectIdea}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
-            />
-          ) : boardData.phase === 'grouping' ? (
-            <GroupingPhase
-              ideas={ideas || []}
-              groups={groups || []}
-              onAddGroup={handleAddGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onMoveIdeaToGroup={handleMoveIdeaToGroup}
-              isAnonymous={boardData.settings.isAnonymous}
-              onVoteIdea={handleToggleVote}
-            />
-          ) : boardData.phase === 'prioritization' ? (
-            <PrioritizationPhase
-              ideas={ideas || []}
-              groups={groups || []}
-              onUpdateQualifiers={handleUpdateIdeaQualifiers}
-              isAnonymous={boardData.settings.isAnonymous}
-            />
-          ) : (
-            <ActionsPhase
-              ideas={ideas || []}
-              groups={groups || []}
-              boardData={boardData}
-              onUpdateIdea={handleUpdateIdea}
-              onMoveIdea={handleMoveIdeaToGroup}
-            />
-          )}
-        </main>
-
-        <EliteSidebar
-          isOpen={isParticipantsOpen}
-          onClose={() => setIsParticipantsOpen(false)}
-          title="PARTICIPANTES"
-          participantsCount={participants?.length || 0}
-          onCopyLink={() => {}}
-        >
-          <EliteParticipantList
-            participants={participants || []}
-            currentUserId={userProfile?.id || ''}
-            isFacilitator={boardData.creatorId === userProfile?.id}
-            onRemoveParticipant={() => {}}
-          />
-        </EliteSidebar>
-      </div>
-
       <FeedbackWidget toolName="Brainstorming" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
-    </div>
+    </>
   );
 }

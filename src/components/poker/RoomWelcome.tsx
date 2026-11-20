@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import QRCode from 'qrcode';
-import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2, WalletCards, Zap } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { DECKS, type DeckType, type Participant } from '@/lib/types';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
+import React, { useEffect, useRef } from 'react';
+import { Check, CloudDownload, Copy, Layers, ListPlus, Lock, Play, Share2 } from 'lucide-react';
+import type { DeckType, Participant } from '@/lib/types';
+import { getDeckCards } from '@/lib/poker-deck';
+import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
+import { canonicalCargo } from '@/lib/cargo';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { FOCUS_RING, PersonAvatar, StatusChip } from '@/components/room-kit';
 
 // Cartas exibidas no leque de boas-vindas, por baralho (a do meio é a destacada).
 const FAN_FACES: Record<DeckType, readonly string[]> = {
@@ -17,58 +19,10 @@ const FAN_FACES: Record<DeckType, readonly string[]> = {
   tshirt: ['PP', 'P', 'M', 'G', 'GG'],
 };
 
-// Rotação (graus) e deslocamento X (px) de cada carta no leque.
-const FAN_ROTATE = [-18, -9, 0, 9, 18];
-const FAN_X = [-132, -66, 0, 66, 132];
-const FAN_Y = [26, 8, 0, 8, 26];
-
-function getInitials(name: string): string {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map(part => part[0])
-      .join('')
-      .toUpperCase() || '?'
-  );
-}
-
-interface RoomWelcomeProps {
-  deck: DeckType;
-  deckLabel: string;
-  roomTeam?: string | null;
-  participants: Participant[];
-  onlineIds: Set<string>;
-  roomUrl: string;
-  onShare: () => void;
-  onImportJira: () => void;
-  onAddManual: () => void;
-}
-
-const Kbd = ({ children }: { children: React.ReactNode }) => (
-  <kbd className="ml-2 hidden rounded border border-current px-1.5 py-px font-code text-[9px] font-bold leading-none opacity-60 md:inline-block">
-    {children}
-  </kbd>
-);
-
-// QR gerado localmente (a URL da sala nunca sai do navegador).
-function RoomQr({ url }: { url: string }) {
-  const [src, setSrc] = useState<string>('');
-  useEffect(() => {
-    if (!url) return;
-    let alive = true;
-    QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: '#312e81', light: '#ffffff' } })
-      .then(data => alive && setSrc(data))
-      .catch(() => alive && setSrc(''));
-    return () => {
-      alive = false;
-    };
-  }, [url]);
-  if (!src) return <div className="h-28 w-28 shrink-0 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" aria-hidden />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="QR code para entrar na sala" className="h-28 w-28 shrink-0 rounded-xl border border-slate-200 bg-white p-1 dark:border-white/10" />;
-}
+// Rotação (graus), deslocamento X e Y (px) de cada carta no leque.
+const FAN_ROTATE = [-16, -8, 0, 8, 16];
+const FAN_X = [-168, -84, 0, 84, 168];
+const FAN_Y = [30, 10, 0, 10, 30];
 
 // Avisa quando alguém entra depois da montagem (a lista inicial não gera toast).
 function useJoinToasts(participants: Participant[]) {
@@ -76,13 +30,13 @@ function useJoinToasts(participants: Participant[]) {
   const seen = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (seen.current === null) {
-      seen.current = new Set(participants.map(p => p.id));
+      seen.current = new Set(participants.map((p) => p.id));
       return;
     }
     for (const p of participants) {
       if (!seen.current.has(p.id)) {
         seen.current.add(p.id);
-        toast({ title: `${p.nickname} entrou na sala`, description: 'Time se juntando — falta só montar a fila.' });
+        toast({ title: `${p.nickname} entrou na sala` });
       }
     }
   }, [participants, toast]);
@@ -94,112 +48,129 @@ function isTypingTarget(t: EventTarget | null): boolean {
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || !!el.closest('[role="dialog"]');
 }
 
-function CardFan({ deck }: { deck: DeckType }) {
-  const reduce = useReducedMotion();
-  const faces = FAN_FACES[deck] ?? DECKS[deck].slice(0, 5);
+/** Escolhe até `n` itens espalhados ao longo da lista, do menor ao maior. */
+function pickEvenly(list: readonly string[], n: number): string[] {
+  if (list.length <= n) return [...list];
+  return Array.from({ length: n }, (_, i) => list[Math.round(((i + 1) * (list.length - 1)) / n)]);
+}
 
+/** Leque de cartas do baralho da sala; abre em 320 ms e afasta no hover. */
+function CardFan({ deck, maxHours }: { deck: DeckType; maxHours?: number | null }) {
+  const cards = getDeckCards(deck, maxHours);
+  const preset = FAN_FACES[deck] ?? cards.slice(0, 5);
+  // Com limite baixo no baralho de horas, o leque usa cartas que existem de fato.
+  const faces = preset.every((f) => cards.includes(f)) ? preset : [...pickEvenly(cards.filter((c) => Number(c) > 0), 4), '☕'];
   return (
-    <motion.div
-      className="relative mx-auto h-44 w-full max-w-md select-none"
-      initial="rest"
-      animate="fan"
-      whileHover="spread"
-      aria-hidden
-    >
-      {/* halo atrás do leque */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/25 blur-3xl dark:bg-indigo-500/30" />
+    <div className="group/fan relative mx-auto h-[190px] w-full max-w-[470px] select-none [@media(max-height:820px)]:-mb-10 [@media(max-height:820px)]:origin-top [@media(max-height:820px)]:scale-[0.8]" aria-hidden="true">
       {faces.map((face, i) => {
-        const isHero = i === 2;
+        const hero = i === 2;
         return (
-          <motion.div
+          <div
             key={`${face}-${i}`}
-            className="absolute left-1/2 top-4 h-32 w-[5.25rem] -ml-[2.625rem]"
-            style={{ zIndex: isHero ? 10 : 5 - Math.abs(i - 2), transformOrigin: '50% 140%' }}
-            variants={{
-              rest: { opacity: 0, x: 0, y: 40, rotate: 0, scale: 0.8 },
-              fan: {
-                opacity: 1,
-                x: FAN_X[i],
-                y: FAN_Y[i],
-                rotate: FAN_ROTATE[i],
-                scale: 1,
-                transition: { type: 'spring', stiffness: 120, damping: 14, delay: 0.1 + i * 0.07 },
-              },
-              spread: {
-                x: FAN_X[i] * 1.28,
-                y: FAN_Y[i] - (isHero ? 14 : 0),
-                rotate: FAN_ROTATE[i] * 1.2,
-                transition: { type: 'spring', stiffness: 220, damping: 16 },
-              },
+            className="absolute left-1/2 top-3 -ml-[47px] h-[132px] w-[94px] transition-transform duration-slow ease-room motion-reduce:transition-none"
+            style={{
+              transform: `translate(${FAN_X[i]}px, ${FAN_Y[i]}px) rotate(${FAN_ROTATE[i]}deg)`,
+              transformOrigin: '50% 140%',
+              zIndex: hero ? 10 : 5 - Math.abs(i - 2),
             }}
           >
-            <motion.div
+            <div
               className={cn(
-                'relative flex h-full w-full items-center justify-center rounded-xl border shadow-xl',
-                isHero
-                  ? 'border-white/30 bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 text-white shadow-indigo-600/40'
-                  : 'border-slate-200 bg-gradient-to-br from-white to-slate-100 text-slate-700 shadow-slate-900/10 dark:border-white/10 dark:from-slate-800 dark:to-slate-900 dark:text-slate-200 dark:shadow-black/40',
+                'room-rise relative flex h-full w-full items-center justify-center rounded-xl border text-4xl font-bold tabular-nums',
+                hero
+                  ? 'border-primary bg-primary text-primary-foreground shadow-[0_16px_36px_hsl(var(--primary)/0.45)] [.theme-leitura_&]:shadow-none'
+                  : 'border-border bg-card text-card-foreground shadow-[0_8px_20px_rgba(15,23,42,0.1)] dark:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
               )}
-              animate={reduce || !isHero ? undefined : { y: [0, -7, 0] }}
-              transition={reduce ? undefined : { duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ animationDelay: `${i * 70}ms` }}
             >
-              <span className="absolute left-2 top-1.5 text-[11px] font-black leading-none opacity-70">{face}</span>
-              <span className="absolute bottom-1.5 right-2 rotate-180 text-[11px] font-black leading-none opacity-70">{face}</span>
-              <span className={cn('font-black italic tracking-tighter', face.length > 2 ? 'text-2xl' : 'text-4xl')}>{face}</span>
-              {isHero && (
-                <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-60" />
-              )}
-            </motion.div>
-          </motion.div>
+              <span className="absolute left-2 top-1.5 text-xs font-semibold leading-none opacity-70">{face === '☕' ? '' : face}</span>
+              <span className="absolute bottom-1.5 right-2 rotate-180 text-xs font-semibold leading-none opacity-70">{face === '☕' ? '' : face}</span>
+              {face === '☕' ? <span className="text-base font-semibold">pausa</span> : <span className={face.length > 2 ? 'text-2xl' : undefined}>{face}</span>}
+            </div>
+          </div>
         );
       })}
-    </motion.div>
+    </div>
   );
 }
 
-function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked' }) {
+const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
+const KEY = 'rounded border border-current/40 px-1.5 py-px text-xs tabular-nums';
+
+interface RoomWelcomeProps {
+  deck: DeckType;
+  maxHours?: number | null;
+  deckLabel: string;
+  roomTeam?: string | null;
+  participants: Participant[];
+  onlineIds: Set<string>;
+  roomUrl: string;
+  /** Código curto da sala (o mesmo do "Entrar com o ID" do lobby). */
+  roomCode: string;
+  currentUserId: string;
+  /** Cargos que votam nesta sala (rótulo "vota" ao lado de cada pessoa e o resumo da sessão). */
+  votingCargos: readonly string[];
+  onShare: () => void;
+  onImportJira: () => void;
+  onAddManual: () => void;
+  onOpenSettings?: () => void;
+  /**
+   * Fila montada, sessão ainda não iniciada ("Pronto para começar"): a mesa mostra a primeira tarefa e o botão
+   * de iniciar; o convite dá lugar ao aviso de que o baralho abre no início.
+   */
+  ready?: { firstKey?: string | null; firstTitle: string; queueCount: number; onStart: () => void } | null;
+}
+
+/** Lugares da mesa em miniatura: quem já chegou senta em volta; sobram cadeiras tracejadas até 4. */
+function MiniTable({ participants, onlineIds, currentUserId, center }: { participants: Participant[]; onlineIds: Set<string>; currentUserId: string; center?: React.ReactNode }) {
+  const shown = participants.slice(0, 8);
+  const seats = Math.max(4, shown.length);
+  const placed = Array.from({ length: seats }, (_, i) => {
+    // Começa à esquerda e gira no sentido horário, como na mesa da votação.
+    const angle = Math.PI + (i * 2 * Math.PI) / seats;
+    return { x: 50 + 42 * Math.cos(angle), y: 50 + 38 * Math.sin(angle), p: shown[i] ?? null };
+  });
   return (
-    <span
-      className={cn(
-        'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
-        state === 'done' && 'bg-emerald-500 text-white',
-        state === 'active' && 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40',
-        state === 'locked' && 'bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-500',
+    <div className="relative flex min-h-[260px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-border bg-card">
+      <div aria-hidden="true" className="room-dots-bg pointer-events-none absolute inset-0" />
+      <div aria-hidden="true" className="absolute h-[44%] w-[62%] max-w-[460px] rounded-[50%] border border-border bg-background shadow-[0_0_0_8px_hsl(var(--border)/0.35),0_0_60px_hsl(var(--primary)/0.10)]" />
+      <div className="relative z-[1] flex flex-col items-center gap-1 text-center">
+        {center ?? (
+          <>
+            <span className="text-[15px] font-semibold">{participants.length} {participants.length === 1 ? 'lugar ocupado' : 'lugares ocupados'}</span>
+            <span className="text-[13px] text-muted-foreground">Quem entrar pelo link senta aqui</span>
+          </>
+        )}
+      </div>
+      {placed.map(({ x, y, p }, i) =>
+        p ? (
+          <span key={p.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5" style={{ left: `${x}%`, top: `${y}%` }}>
+            <span className={cn('relative rounded-full', p.id === currentUserId && 'ring-2 ring-primary ring-offset-2 ring-offset-card', !onlineIds.has(p.id) && 'opacity-50')}>
+              <PersonAvatar name={p.nickname} userId={p.id} size="lg" />
+            </span>
+            <span className="max-w-[7rem] truncate text-xs font-semibold">{p.nickname.split(' ')[0]}</span>
+          </span>
+        ) : (
+          <span key={`empty-${i}`} aria-hidden="true" className="absolute h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] border-dashed border-border" style={{ left: `${x}%`, top: `${y}%` }} />
+        )
       )}
-    >
-      {state === 'active' && <span className="absolute inset-0 animate-ping rounded-full bg-indigo-500/40" />}
-      <span className="relative">{state === 'done' ? <Check className="h-3.5 w-3.5" /> : state === 'locked' ? <Lock className="h-3 w-3" /> : n}</span>
-    </span>
+    </div>
   );
 }
 
-const stepCard =
-  'relative flex h-full flex-col gap-3 rounded-2xl border p-4 text-left backdrop-blur transition-all duration-300';
-
-export function RoomWelcome({
-  deck,
-  deckLabel,
-  roomTeam,
-  participants,
-  onlineIds,
-  roomUrl,
-  onShare,
-  onImportJira,
-  onAddManual,
-}: RoomWelcomeProps) {
+/** Facilitador, fila vazia: passos em trilha, a mesa com quem já chegou, o convite e, ao lado, quem está e como a sessão está. */
+export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds, roomUrl, roomCode, currentUserId, votingCargos, onShare, onImportJira, onAddManual, onOpenSettings, ready }: RoomWelcomeProps) {
   const { toast } = useToast();
-  const others = participants.length > 1;
-  const onlineCount = participants.filter(p => onlineIds.has(p.id)).length;
   useJoinToasts(participants);
 
   const copyInline = async () => {
-    try {
-      await navigator.clipboard.writeText(roomUrl);
-      toast({ title: 'Link copiado!', description: 'Cole no chat do time para convidar.' });
-    } catch {
-      onShare();
-    }
+    if (await copyToClipboard(roomUrl)) toast({ title: 'Link copiado' });
+    else onShare();
   };
+  const votingLabels = votingCargos.map((c) => canonicalCargo(c) || c);
+  const hasQaOnline = participants.some((p) => onlineIds.has(p.id) && getParticipantCategory(p) === 'QA');
+  const hasDevOnline = participants.some((p) => onlineIds.has(p.id) && getParticipantCategory(p) === 'Developer');
+  const missing = !hasDevOnline ? 'um DEV' : !hasQaOnline ? 'um QA' : null;
 
   // Atalhos do facilitador: I importar, N nova tarefa, S compartilhar.
   useEffect(() => {
@@ -214,280 +185,213 @@ export function RoomWelcome({
     return () => window.removeEventListener('keydown', onKey);
   }, [onImportJira, onAddManual, onShare]);
 
-  const stepItem = (i: number) => ({
-    initial: { opacity: 0, y: 18 },
-    animate: { opacity: 1, y: 0 },
-    transition: { delay: 0.45 + i * 0.1, duration: 0.5, ease: 'easeOut' as const },
-  });
-
+  const STEP = 'flex items-center gap-2.5 rounded-xl px-3.5 py-3';
+  const DONE_STEP = 'border border-emerald-500/40 bg-emerald-500/5';
+  const DONE_DOT = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white dark:text-emerald-950';
   return (
-    <div className="relative w-full max-w-4xl">
-      {/* aurora ambiente */}
-      <div className="pointer-events-none absolute -inset-x-20 -top-10 bottom-0 -z-10 overflow-hidden" aria-hidden>
-        <div className="animate-aurora-drift absolute left-[8%] top-0 h-72 w-72 rounded-full bg-indigo-500/15 blur-3xl" />
-        <div className="animate-aurora-drift absolute right-[8%] top-24 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-3xl [animation-delay:-8s]" />
-      </div>
+    <div className="grid h-full w-full gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section aria-label="Primeiros passos" className="flex min-w-0 flex-col gap-[18px]">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="m-0 text-[30px] font-extrabold leading-tight tracking-[-0.02em]">{ready ? 'Tudo pronto para começar' : 'Sua sala está pronta'}</h1>
+          <p className="m-0 text-[15px] text-muted-foreground">
+            {ready
+              ? `${ready.queueCount} ${ready.queueCount === 1 ? 'tarefa' : 'tarefas'} na fila e o time na sala. Quando você iniciar, a primeira vai para a mesa e o baralho abre para todos.`
+              : 'Chame o time e monte a fila. A votação começa quando a primeira tarefa entrar.'}
+          </p>
+        </div>
 
-      <CardFan deck={deck} />
+        <ol aria-label="Passos" className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 md:grid-cols-3">
+          <li className={cn(STEP, DONE_STEP)}>
+            <span aria-hidden="true" className={DONE_DOT}><Check className="h-4 w-4" strokeWidth={2.25} /></span>
+            <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Sala criada</span><span className="truncate text-xs text-muted-foreground">{deckLabel}{roomTeam ? ` · ${roomTeam}` : ''}</span></span>
+          </li>
+          {ready ? (
+            <li className={cn(STEP, DONE_STEP)}>
+              <span aria-hidden="true" className={DONE_DOT}><Check className="h-4 w-4" strokeWidth={2.25} /></span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Time e fila</span><span className="text-xs text-muted-foreground">{participants.length} na sala · {ready.queueCount} {ready.queueCount === 1 ? 'tarefa' : 'tarefas'}</span></span>
+            </li>
+          ) : (
+            <li aria-current="step" className={cn(STEP, 'border-[1.5px] border-primary bg-primary/5')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">2</span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Chame o time e monte a fila</span><span className="text-xs text-muted-foreground">{participants.length} na sala · 0 tarefas</span></span>
+            </li>
+          )}
+          {ready ? (
+            <li aria-current="step" className={cn(STEP, 'border-[1.5px] border-primary bg-primary/5')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-primary-foreground">3</span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold">Comece a votar</span><span className="text-xs text-muted-foreground">Inicie o refinamento na mesa</span></span>
+            </li>
+          ) : (
+            <li className={cn(STEP, 'border border-dashed border-border')}>
+              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-border text-sm font-extrabold text-muted-foreground"><Lock className="h-3.5 w-3.5" strokeWidth={1.5} /></span>
+              <span className="flex min-w-0 flex-col"><span className="text-sm font-semibold text-muted-foreground">Comece a votar</span><span className="text-xs text-muted-foreground">Libera com a primeira tarefa</span></span>
+            </li>
+          )}
+        </ol>
 
-      {/* HERO */}
-      <motion.div
-        className="mt-3 space-y-3 text-center"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        <h2 className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text inline-block px-2 pb-1.5 pt-1 text-3xl font-black uppercase italic leading-tight tracking-tighter text-transparent dark:from-indigo-300 dark:via-violet-300 dark:to-fuchsia-300 sm:text-5xl">
-          Sua sala está pronta
-        </h2>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
-            <WalletCards className="h-3 w-3" /> {deckLabel}
+        {!ready && <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onImportJira} className={cn(BTN, 'w-auto bg-primary px-4 font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
+            <CloudDownload className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira <kbd className={KEY}>I</kbd>
+          </button>
+          <button type="button" onClick={onAddManual} className={cn(BTN, 'w-auto border border-border px-4 font-medium hover:bg-accent', FOCUS_RING)}>
+            <ListPlus className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Adicionar manualmente <kbd className={KEY}>N</kbd>
+          </button>
+        </div>}
+
+        <MiniTable
+          participants={participants}
+          onlineIds={onlineIds}
+          currentUserId={currentUserId}
+          center={ready ? (
+            <div className="flex max-w-[360px] flex-col items-center gap-2.5 px-4">
+              <span className="text-xs font-bold tracking-[0.08em] text-muted-foreground">PRIMEIRA NA MESA</span>
+              <span className="line-clamp-2 text-base font-semibold leading-snug">
+                {ready.firstKey && <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{ready.firstKey} · </span>}
+                {ready.firstTitle}
+              </span>
+              <button type="button" onClick={ready.onStart} className={cn(BTN, 'mt-1 w-auto bg-primary px-5 font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
+                <Play className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} aria-hidden="true" /> Iniciar refinamento
+              </button>
+            </div>
+          ) : undefined}
+        />
+
+        {ready ? (
+          <div className="flex items-center gap-3 rounded-[14px] border border-dashed border-border px-[18px] py-3.5 text-sm text-muted-foreground">
+            <Layers className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            <span>O baralho abre quando o refinamento começar. Para o time, a sala mostra &quot;Aguardando o facilitador iniciar&quot;.</span>
+          </div>
+        ) : (
+        <div className="flex flex-wrap items-center gap-3.5 rounded-2xl border border-border bg-card px-[18px] py-4">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[15px] font-semibold">Chame o time</span>
+            <span className="text-xs text-muted-foreground">Mande no chat da reunião</span>
           </span>
-          {roomTeam && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600 dark:bg-slate-900 dark:text-slate-400">
-              {roomTeam}
+          <div className="flex h-[42px] min-w-[16rem] flex-1 items-center overflow-hidden rounded-[11px] border border-border bg-background">
+            <label htmlFor="room-welcome-link" className="sr-only">Link da sala</label>
+            <input id="room-welcome-link" readOnly value={roomUrl.replace(/^https?:\/\//, '')} onFocus={(e) => e.currentTarget.select()} className="h-[42px] min-w-0 flex-1 bg-transparent px-3 font-mono text-[13px] text-muted-foreground outline-none" />
+            <button type="button" onClick={copyInline} className={cn('inline-flex h-[42px] items-center gap-2 border-l border-border bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90', FOCUS_RING)}>
+              <Copy className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Copiar link
+            </button>
+          </div>
+          {/* Código curto (salas antigas): dá para ditar. Os identificadores longos ficam só no link. */}
+          {roomCode.length <= 12 && (
+            <span className="flex flex-col items-center gap-0.5 rounded-[11px] border border-border px-3 py-1">
+              <span className="text-xs text-muted-foreground">Código</span>
+              <span className="font-mono text-[15px] font-medium tracking-[0.08em]">{roomCode}</span>
             </span>
           )}
+          <button type="button" onClick={onShare} className={cn('inline-flex h-[42px] items-center gap-2 rounded-[11px] border border-border px-3.5 text-sm font-semibold hover:bg-accent', FOCUS_RING)}>
+            <Share2 className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Convite e QR <kbd className={KEY}>S</kbd>
+          </button>
         </div>
-        <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-bold text-slate-500 dark:text-muted-foreground" aria-label="Progresso da sala">
-          <li className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> Sala criada</li>
-          <li className="inline-flex items-center gap-1.5">
-            {others ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <span className="h-2 w-2 rounded-full bg-indigo-500" />}
-            {others ? `${onlineCount} online agora` : 'Convide o time'}
-          </li>
-          <li className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-500" /> Fila vazia — adicione a 1ª tarefa e a votação abre sozinha</li>
-        </ul>
-      </motion.div>
+        )}
+      </section>
 
-      {/* PASSOS */}
-      <div className="relative mt-7">
-        {/* trilho que conecta os passos (desktop) */}
-        <div className="pointer-events-none absolute left-[16%] right-[16%] top-[2.1rem] hidden h-px md:block" aria-hidden>
-          <div className="h-full w-full bg-gradient-to-r from-indigo-500/60 via-indigo-400/30 to-slate-300/30 dark:to-slate-700/40" />
-        </div>
-
-        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3">
-          <motion.div {...stepItem(0)}>
-            <div className={cn(stepCard, 'border-slate-100 bg-white/90 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.35)] hover:-translate-y-0.5 hover:border-indigo-300/60 dark:border-border/60 dark:bg-card/80')}>
-              <div className="flex items-center gap-2.5">
-                <StepBadge n={1} state={others ? 'done' : 'active'} />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-foreground">Convide o time</h3>
-              </div>
-              {participants.length > 0 ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex shrink-0 -space-x-3">
-                    <AnimatePresence initial={false}>
-                      {participants.slice(0, 5).map(p => {
-                        const online = onlineIds.has(p.id);
-                        return (
-                          <motion.span
-                            key={p.id}
-                            className="relative"
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-                          >
-                            <Avatar className={cn('h-8 w-8 border-2 border-white dark:border-card', !online && 'opacity-50')}>
-                              <AvatarFallback className="bg-indigo-100 text-[10px] font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                                {getInitials(p.nickname)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 dark:border-card" />}
-                          </motion.span>
-                        );
-                      })}
-                    </AnimatePresence>
-                    {participants.length > 5 && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-black text-slate-500 dark:border-card dark:bg-slate-800 dark:text-slate-400">
-                        +{participants.length - 5}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-muted-foreground">
-                    {participants.length} já {participants.length === 1 ? 'entrou' : 'entraram'} · {onlineCount} online
+      <aside className="flex min-w-0 flex-col gap-3.5">
+        <section aria-labelledby="room-welcome-people" className="flex flex-col gap-2">
+          <h2 id="room-welcome-people" className="m-0 text-[15px] font-semibold">Na sala · {participants.length}</h2>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {participants.slice(0, 8).map((p) => {
+              const votes = canParticipantVote(p, votingCargos);
+              const role = canonicalCargo(p.globalRole) || 'Sem cargo';
+              return (
+                <li key={p.id} className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-2.5">
+                  <span className="relative">
+                    <PersonAvatar name={p.nickname} userId={p.id} size="md" />
+                    {onlineIds.has(p.id) && <span aria-label="online" className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />}
                   </span>
-                </div>
-              ) : (
-                <span className="text-[11px] font-medium italic text-slate-400 dark:text-muted-foreground/70">Ninguém entrou ainda</span>
-              )}
-              <div className="flex items-center gap-3">
-                <RoomQr url={roomUrl} />
-                <p className="text-[11px] font-medium leading-relaxed text-slate-500 dark:text-muted-foreground">
-                  Aponte a câmera do celular ou copie o link.
-                </p>
-              </div>
-              <div className="mt-auto flex flex-col gap-2">
-                <Button
-                  size="sm"
-                  onClick={copyInline}
-                  className="h-9 w-full rounded-xl bg-indigo-600 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-700"
-                >
-                  <Copy className="mr-2 h-3.5 w-3.5" /> Copiar link
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onShare}
-                  className="h-8 w-full rounded-xl border-indigo-200 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900/50 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
-                >
-                  <Share2 className="mr-2 h-3.5 w-3.5" /> Mais opções <Kbd>S</Kbd>
-                </Button>
-              </div>
-            </div>
-          </motion.div>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] font-semibold">{p.nickname}{p.id === currentUserId ? ' (você)' : ''}</span>
+                    <span className={cn('truncate text-xs', votes ? 'text-foreground/80' : 'text-muted-foreground')}>
+                      {role} · {p.isFacilitator ? 'facilitador' : votes ? 'vota' : 'observa'}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+            {participants.length > 8 && <li className="px-1 text-xs text-muted-foreground">+ {participants.length - 8} na sala</li>}
+          </ul>
+          {missing && <span className="text-xs leading-relaxed text-muted-foreground">Ainda falta {missing} online para votar.</span>}
+        </section>
 
-          <motion.div {...stepItem(1)}>
-            <div className={cn(stepCard, 'border-indigo-300/70 bg-white/95 shadow-[0_24px_60px_-22px_rgba(79,70,229,0.55)] ring-1 ring-indigo-500/20 hover:-translate-y-0.5 dark:border-indigo-500/40 dark:bg-card/90')}>
-              <div className="flex items-center gap-2.5">
-                <StepBadge n={2} state="active" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-foreground">Monte a fila</h3>
-              </div>
-              <p className="-mt-1 text-[11px] font-medium leading-relaxed text-slate-500 dark:text-muted-foreground">
-                Importe direto do Jira ou adicione tarefas manualmente.
-              </p>
-              <div className="mt-auto flex flex-col gap-2">
-                <Button
-                  size="sm"
-                  onClick={onImportJira}
-                  className="h-auto min-h-9 w-full whitespace-normal rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-700 hover:to-violet-700"
-                >
-                  <CloudDownload className="mr-2 h-3.5 w-3.5" /> Importar do Jira <Kbd>I</Kbd>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onAddManual}
-                  className="h-auto min-h-8 w-full whitespace-normal rounded-xl border-indigo-200 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900/50 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
-                >
-                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Adicionar Manualmente <Kbd>N</Kbd>
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div {...stepItem(2)}>
-            <div className={cn(stepCard, 'border-dashed border-slate-200 bg-slate-50/60 dark:border-border/60 dark:bg-slate-900/30')}>
-              <div className="flex items-center gap-2.5">
-                <StepBadge n={3} state="locked" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-muted-foreground">Comece a votar</h3>
-              </div>
-              <p className="text-[11px] font-medium leading-relaxed text-slate-400 dark:text-muted-foreground/70">
-                A primeira tarefa adicionada já cai na mesa — a votação começa automaticamente, sem passo extra.
-              </p>
-              <span className="mt-auto inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                <Play className="h-3 w-3" /> Libera sozinho
-              </span>
-            </div>
-          </motion.div>
-        </div>
-      </div>
+        <section aria-labelledby="room-welcome-config" className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-card p-3.5">
+          <div className="flex items-center">
+            <h2 id="room-welcome-config" className="m-0 flex-1 text-sm font-semibold">Como a sessão está</h2>
+            {onOpenSettings && (
+              <button type="button" onClick={onOpenSettings} className={cn('rounded text-[13px] font-medium text-primary underline-offset-2 hover:underline [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}>
+                Ajustar
+              </button>
+            )}
+          </div>
+          <dl className="m-0 grid grid-cols-[6rem_minmax(0,1fr)] gap-y-2 text-[13px]">
+            <dt className="text-muted-foreground">Baralho</dt>
+            <dd className="m-0">{deckLabel}{deck === 'hours' && maxHours ? `, até ${maxHours}h` : ''}</dd>
+            <dt className="text-muted-foreground">Quem vota</dt>
+            <dd className="m-0">{votingLabels.length ? votingLabels.join(', ') : 'Desenvolvedor(a) e QA'}</dd>
+            {roomTeam && (<><dt className="text-muted-foreground">Squad</dt><dd className="m-0 truncate">{roomTeam}</dd></>)}
+          </dl>
+        </section>
+      </aside>
     </div>
   );
 }
 
 interface RoomWaitingProps {
   deck: DeckType;
+  maxHours?: number | null;
   deckLabel: string;
   roomTeam?: string | null;
   participants: Participant[];
   onlineIds: Set<string>;
 }
 
-// Visão do participante enquanto o facilitador ainda não montou a fila.
-export function RoomWaiting({ deck, deckLabel, roomTeam, participants, onlineIds }: RoomWaitingProps) {
-  const facilitator = participants.find(p => p.isFacilitator);
+/** Participante: aguardando o facilitador montar a fila. */
+export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds }: RoomWaitingProps) {
+  const facilitator = participants.find((p) => p.isFacilitator);
   return (
-    <div className="relative w-full max-w-xl">
-      <div className="pointer-events-none absolute -inset-x-16 -top-10 bottom-0 -z-10 overflow-hidden" aria-hidden>
-        <div className="animate-aurora-drift absolute left-[10%] top-0 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
-        <div className="animate-aurora-drift absolute right-[10%] top-20 h-56 w-56 rounded-full bg-fuchsia-500/10 blur-3xl [animation-delay:-8s]" />
+    <div className="relative w-full max-w-xl text-center">
+      <div aria-hidden="true" className="room-halo room-breathe pointer-events-none absolute left-1/2 top-0 -z-10 h-[420px] w-[720px] -translate-x-1/2" />
+
+      <CardFan deck={deck} maxHours={maxHours} />
+
+      <div className="mt-2 flex flex-col items-center gap-3.5">
+        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Boas-vindas à sala</h2>
+        <div className="flex items-center gap-2">
+          <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><ModuleIcon module="poker" className="h-3 w-3" /> {deckLabel}</StatusChip>
+          {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
+        </div>
       </div>
 
-      <CardFan deck={deck} />
-
-      <motion.div
-        className="mt-3 space-y-4 text-center"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        <h2 className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text inline-block px-2 pb-1.5 pt-1 text-3xl font-black uppercase italic leading-tight tracking-tighter text-transparent dark:from-indigo-300 dark:via-violet-300 dark:to-fuchsia-300 sm:text-5xl">
-          Boas-vindas à sala
-        </h2>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
-            <WalletCards className="h-3 w-3" /> {deckLabel}
-          </span>
-          {roomTeam && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600 dark:bg-slate-900 dark:text-slate-400">
-              {roomTeam}
-            </span>
-          )}
-        </div>
-        <p className="mx-auto max-w-sm text-sm font-medium leading-relaxed text-slate-500 dark:text-muted-foreground">
-          O facilitador está montando a fila. Assim que a primeira tarefa entrar na mesa, suas cartas aparecem aqui para votar.
-        </p>
-      </motion.div>
-
-      <motion.div
-        className="mx-auto mt-6 flex max-w-md flex-col items-center gap-4 rounded-2xl border border-slate-100 bg-white/90 p-4 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.35)] backdrop-blur dark:border-border/60 dark:bg-card/80"
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.5 }}
-      >
+      <div className="mx-auto mt-6 flex max-w-md flex-col items-center gap-4 rounded-[14px] border border-border bg-card p-4">
         {participants.length > 0 && (
           <div className="flex items-center gap-3">
-            <div className="flex shrink-0 -space-x-3">
-              {participants.slice(0, 6).map(p => {
-                const online = onlineIds.has(p.id);
-                return (
-                  <span key={p.id} className="relative">
-                    <Avatar className={cn('h-9 w-9 border-2 border-white dark:border-card', !online && 'opacity-50')}>
-                      <AvatarFallback className="bg-indigo-100 text-[10px] font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                        {getInitials(p.nickname)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 dark:border-card" />}
-                  </span>
-                );
-              })}
-              {participants.length > 6 && (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-black text-slate-500 dark:border-card dark:bg-slate-800 dark:text-slate-400">
-                  +{participants.length - 6}
-                </div>
-              )}
+            <div className="flex items-center">
+              {participants.slice(0, 6).map((p, i) => (
+                <span key={p.id} className={cn('relative rounded-full border-2 border-card', i > 0 && '-ml-2', !onlineIds.has(p.id) && 'opacity-50')}>
+                  <PersonAvatar name={p.nickname} userId={p.id} size="lg" />
+                </span>
+              ))}
+              {participants.length > 6 && <span className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-bold text-muted-foreground">+{participants.length - 6}</span>}
             </div>
-            <span className="text-[11px] font-bold text-slate-500 dark:text-muted-foreground">
-              {participants.length} {participants.length === 1 ? 'pessoa na sala' : 'pessoas na sala'}
-            </span>
+            <span className="text-[13px] text-muted-foreground">{participants.length} {participants.length === 1 ? 'pessoa na sala' : 'pessoas na sala'}</span>
           </div>
         )}
         {facilitator && (
-          <span className="text-[11px] font-bold text-slate-500 dark:text-muted-foreground">
-            Facilitador: <span className="text-slate-800 dark:text-foreground">{facilitator.nickname}</span>
-            {onlineIds.has(facilitator.id) ? ' · online' : ' · offline'}
+          <span className="text-[13px] text-muted-foreground">
+            Facilitador: <span className="font-semibold text-foreground">{facilitator.nickname}</span>
+            {onlineIds.has(facilitator.id) ? ' · online' : ' · ausente'}
           </span>
         )}
         <div className="flex flex-wrap justify-center gap-1.5" aria-label="Cartas do baralho">
-          {(DECKS[deck] ?? []).map(face => (
-            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-slate-200 bg-white px-1.5 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300">
-              {face}
+          {getDeckCards(deck, maxHours).map((face) => (
+            <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
+              {face === '☕' ? 'café' : face}
             </span>
           ))}
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 dark:bg-indigo-950/30">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Aguardando início</span>
-        </div>
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-400 dark:text-muted-foreground/70">
-          <Zap className="h-3 w-3" /> A tela atualiza sozinha, não precisa recarregar.
-        </span>
-      </motion.div>
+        <StatusChip dot className="h-8 px-4 text-xs">Aguardando início</StatusChip>
+      </div>
     </div>
   );
 }

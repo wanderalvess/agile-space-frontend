@@ -19,7 +19,7 @@ interface RequestEditorProps {
 }
 
 const tabTrigger =
-  'h-9 rounded-none border-b-2 border-transparent px-1 text-[10px] font-black uppercase tracking-widest shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none';
+  'h-9 rounded-none border-b-2 border-transparent px-1 text-xs font-bold shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none';
 
 // Editor de requisição (método, URL, params, headers e corpo) usado pelo Cliente HTTP e pelos Snippets.
 export function RequestEditor({ value, onChange, urlAction, className }: RequestEditorProps) {
@@ -30,7 +30,7 @@ export function RequestEditor({ value, onChange, urlAction, className }: Request
     <section className={cn('flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm', className)}>
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 p-2">
         <Select value={value.method} onValueChange={method => set({ method })}>
-          <SelectTrigger className="h-9 w-[110px] rounded-xl text-[11px] font-black uppercase tracking-wider" aria-label="Método HTTP">
+          <SelectTrigger className="h-9 w-[110px] rounded-xl text-xs font-bold" aria-label="Método HTTP">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -92,7 +92,7 @@ function KvList({ items, onChange, addLabel }: { items: KeyValue[]; onChange: (n
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, emptyKv()])} className="h-8 w-full gap-1.5 rounded-lg border-dashed text-[10px] font-black uppercase tracking-wider">
+      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...items, emptyKv()])} className="h-8 w-full gap-1.5 rounded-lg border-dashed text-xs font-bold">
         <Plus className="h-3.5 w-3.5" /> {addLabel}
       </Button>
     </div>

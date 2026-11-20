@@ -1,0 +1,99 @@
+# Chaves de API (REST v1) e servidor MCP
+
+Estado do `develop` em 2026-10-09.
+
+## Objetivo e quem usa
+
+Dar acesso **de máquina** (scripts, agentes de IA, clientes MCP como Claude/IDEs) a partes do Portal sem sessão de usuário: Base de Conhecimento, Prompt Hub (Biblioteca de IA), dados de squad e Scrum Poker.
+
+- **Qualquer pessoa logada** gera e revoga as **próprias** chaves (`/api/api-keys`).
+- **Admin/LEAD** têm também a visão global (`/api/admin/api-keys`): listam e revogam a chave de qualquer pessoa e criam chaves com todos os escopos.
+
+## Telas
+
+| Tela | Onde |
+|---|---|
+| Minhas chaves | configurações do espaço de trabalho (cliente `lib/my-api-keys-client.ts`) |
+| Todas as chaves | `/admin` → API Keys (`components/admin/ApiKeysManager.tsx`) |
+
+A chave **crua aparece uma única vez**, na resposta da criação (`rawKey`); depois só existe o hash.
+
+## Fluxo principal
+
+```mermaid
+sequenceDiagram
+    participant U as Pessoa logada
+    participant B as Backend
+    participant C as Cliente (script / MCP)
+    U->>B: POST /api/api-keys {name, scopes, squadId?}
+    B->>B: valida escopos pelo papel, guarda só o SHA-256
+    B-->>U: rawKey (única vez) + id
+    U->>C: configura X-Api-Key: ask_...
+    C->>B: GET /api/v1/... ou /mcp/sse (header X-Api-Key)
+    B->>B: hash da chave, busca não revogada, dono ativo, escopos
+    B-->>C: dados dentro do escopo (e da squad, se restrita)
+```
+
+## Regras
+
+- **Formato e armazenamento:** `ask_` + 64 hex (256 bits de entropia). No banco fica só o **SHA-256** (índice único), nunca a chave. Hash rápido é adequado porque a chave já é aleatória e longa.
+- **Escopos** (`ApiKeyScope`): `KNOWLEDGE_READ`, `KNOWLEDGE_WRITE`, `SQUAD_READ`, `PROMPTHUB_READ`, `PROMPTHUB_WRITE`, `POKER_READ`, `POKER_WRITE`.
+  - **MEMBER** só pode gerar `KNOWLEDGE_READ` e `SQUAD_READ`; `SQUAD_READ` fica **travado na squad ativa da pessoa** (e exige ter uma).
+  - **ADMIN/LEAD** geram qualquer escopo e podem restringir a uma squad (ou deixar sem restrição).
+  - A chave criada no painel admin (`/api/admin/api-keys`) recebe **todos os escopos e nenhuma restrição de squad**, em nome do admin.
+- **Papel do dono:** gravado na criação e **reavaliado a cada renovação ou rotação** (ver abaixo). Entre uma renovação e outra, rebaixar a pessoa não reduz os escopos da chave.
+- **Chaves antigas (anteriores ao campo `ownerRole`)** são tratadas como acesso total ("grandfathered"), para não quebrar integrações em produção.
+- **Revogação:** `POST /{id}/revoke`; efeito imediato (a consulta da chave filtra revogadas). O dono só revoga as próprias; admin revoga qualquer uma.
+- **Dono desativado:** a chave deixa de valer (401) enquanto a conta estiver inativa.
+- **`lastUsedAt`** é atualizado a cada uso.
+- **Nome da chave:** obrigatório, até 100 caracteres.
+- **Limite de taxa:** `/api/**` tem o limite geral por IP (300/min). `/mcp/**` **não** passa por esse limite.
+
+## Rotas e autenticação
+
+| Prefixo | Autenticação | Observação |
+|---|---|---|
+| `/api/v1/**` | `X-Api-Key` (sem JWT) | `KnowledgeApiV1Controller`, `PromptHubApiV1Controller` etc. conferem o escopo (`ApiKeyAccess.requireScope`) |
+| `/mcp/sse`, `/mcp/message` | `X-Api-Key` no handshake e em cada mensagem | Tools MCP chamam `ApiKeyContext.from(...)` e conferem escopo e squad (`requireScope`, `requireSquad`) |
+| `/api/api-keys`, `/api/admin/api-keys` | JWT de sessão | gestão das chaves |
+
+O atributo de escopo é lido uma vez no filtro e repassado ao controller/tool; não há segunda consulta ao banco.
+
+## Validade, renovação e rotação
+
+- **Toda chave vence.** Padrão **90 dias** na criação; quem cria escolhe 30, 90 ou 180. **"Sem expiração" só o ADMIN** cria (a tela avisa que não é recomendado). A API recusa com 403 um não-admin que peça isso e com 400 qualquer outro valor.
+- **Chave vencida:** o filtro responde **401** com a mensagem "Chave de API expirada em dd/mm/aaaa. Renove a chave no Portal (Configurações > Chaves de API) ou gere uma nova." (REST e MCP).
+- **Chaves que já existiam** ganharam `expires_at` = data do deploy + 90 dias na migration **V56** (só as ativas e sem validade), para não quebrar integração no primeiro dia. Integrações em uso precisam de **renovação até lá**.
+- **Renovar** (`POST /api/api-keys/{id}/renew` para o dono; `POST /api/admin/api-keys/{id}/renew` para o admin): estende por 90 dias (ou 30/180) e **reavalia o dono**: o papel da chave passa a ser o papel ATUAL da pessoa e os escopos são limitados ao que esse papel permite (MEMBER: `KNOWLEDGE_READ` e `SQUAD_READ`, esta travada na squad dele). É aqui que o "acesso total" das chaves legadas e o papel congelado deixam de valer além da validade. Chave revogada ou de dono inativo/inexistente não renova.
+- **Rotacionar** (`POST /api/api-keys/{id}/rotate`): cria uma chave nova com o mesmo nome, escopos e squad (reavaliados como na renovação) e **revoga a antiga na hora**; a chave crua nova só aparece nessa resposta. Use quando suspeitar de vazamento.
+- **Aviso na tela:** as telas de chaves (minhas e do admin) mostram "expira em N dias" em cada chave e um alerta no topo quando alguma chave ativa vence em menos de **14 dias** ou já venceu.
+
+## Dados guardados
+
+Chave (nome, hash, dono, papel do dono na criação, escopos, squad opcional, criada/último uso/revogada em). Nada da chave crua.
+
+## Pontos frágeis e erros de fluxo conhecidos
+
+**Corrigido nesta rodada:** chave de conta desativada continuava valendo; `/api/v1` sem barra final não era exigido pelo filtro de chave; nome de chave sem limite virava erro 500.
+
+**Não corrigido / decisão:**
+
+1. **Chave do painel admin tem todos os escopos sem restrição de squad** (enquanto o dono continuar admin), e chaves legadas também até a primeira renovação/rotação, que reavalia o papel do dono. Quem quiser acesso mínimo deve criar a chave pelo self-service com os escopos necessários.
+2. **Papel congelado até a renovação:** rebaixar uma pessoa não reduz na hora os escopos de uma chave que ela já tem; a redução acontece quando a chave é renovada/rotacionada (no máximo a cada 30/90/180 dias) ou revogada. Desativar a conta invalida as chaves na hora.
+4. **Sem limite de chaves por pessoa.**
+5. **`/mcp/**` sem limite de taxa** e a chave vai em cabeçalho (não em URL), o que é bom para logs. Como a chave tem 256 bits, força bruta não é viável; o risco é abuso por chave legítima.
+6. **Roteamento do MCP no Caddy:** o `Caddyfile` do backend ganhou `handle /mcp/*` (proxy para `backend:8002`, `flush_interval -1` por causa do SSE). Até o proxy ser reiniciado na VM (o Caddyfile é bind mount; `caddy reload` não basta), `/mcp/*` ainda cai no frontend.
+
+## Endereço do servidor MCP
+
+- Transporte SSE: `https://<domínio do portal>/mcp/sse` (em homologação: `https://app.espacoagil.com.br/mcp/sse`); as mensagens vão para `/mcp/message` (anunciado pelo próprio SSE).
+- Autenticação: cabeçalho `X-Api-Key` com uma chave criada no admin. Sem chave ou com chave inválida/revogada/vencida a resposta é 401; nada do MCP é público.
+- Serviço: Spring Boot do backend (porta interna 8002), configurado em `application.yml` (`spring.ai.mcp.server`).
+7. **`lastUsedAt` grava no banco a cada requisição** (uma escrita por chamada); com tráfego alto isso pesa.
+8. A tela de chaves pessoais espelha `scopesAllowedForRole` no cliente; a regra real é do servidor.
+
+## Onde olhar no código
+
+- Backend: `security/ApiKeyAuthenticationFilter`, `ApiKeyHashing`, `ApiKeyAccess`; `controller/ApiKeyController`, `ApiKeyAdminController`; `domain/ApiKey`, `ApiKeyScope`; pasta `mcp/` (`ApiKeyContext`, `ApiKeyTransportContextExtractor`, `McpServerConfig`, `Mcp*Tools`); migration `V1__create_api_keys_tables.sql`.
+- Frontend: `lib/my-api-keys-client.ts`, `components/admin/ApiKeysManager.tsx`, `app/admin/api.ts`.
+- Testes: `ApiKeyAuthenticationFilterTest`, `ApiKeyAccessTest`, `ApiKeyIntegrationTest`, `mcp/ApiKeyContextTest`, `AccessControlsHardeningTest`.

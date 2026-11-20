@@ -1,0 +1,216 @@
+{
+  "planId": "p1",
+  "status": "DISTRIBUICAO",
+  "syncedAt": "2026-10-20T12:00:00-03:00",
+  "canEditPlan": false,
+  "myAccountId": "acc-carla",
+  "sprint": {
+    "startDate": "2026-10-21",
+    "endDate": "2026-11-03",
+    "holidays": [
+      {
+        "day": "2026-11-02",
+        "label": "Finados"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "itemId": "i1",
+      "parentKey": "DDWMISSI-5810",
+      "title": "Troca de produto no caixa",
+      "devHours": 18,
+      "qaHours": 6,
+      "subtasks": [
+        {
+          "key": "DDWMISSI-5811",
+          "title": "Codificação da troca",
+          "typeId": "t-Cod",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "codeReview": false,
+          "estimateH": 8,
+          "remainingH": 8,
+          "countedH": 8,
+          "assigneeId": "acc-carla",
+          "assigneeName": "Carla Mendes",
+          "startDate": "2026-10-21",
+          "endDate": "2026-10-23",
+          "startsAfterKey": null,
+          "minStartDate": "2026-10-21",
+          "canClaim": false,
+          "canEditDates": true,
+          "status": "A fazer"
+        },
+        {
+          "key": "DDWMISSI-5812",
+          "title": "Code Review da troca",
+          "typeId": "t-Cod",
+          "typeName": "Code Review",
+          "cls": "DEV",
+          "codeReview": true,
+          "estimateH": 2,
+          "remainingH": 2,
+          "countedH": 2,
+          "assigneeId": "acc-ana",
+          "assigneeName": "Ana Souza",
+          "startDate": "2026-10-26",
+          "endDate": "2026-10-26",
+          "startsAfterKey": "DDWMISSI-5811",
+          "minStartDate": "2026-10-26",
+          "canClaim": false,
+          "canEditDates": false,
+          "status": "A fazer"
+        },
+        {
+          "key": "DDWMISSI-5813",
+          "title": "Teste da troca",
+          "typeId": "t-Tes",
+          "typeName": "Teste",
+          "cls": "QA",
+          "codeReview": false,
+          "estimateH": 6,
+          "remainingH": 6,
+          "countedH": 6,
+          "assigneeId": "acc-fabio",
+          "assigneeName": "Fábio Nunes",
+          "startDate": "2026-10-27",
+          "endDate": "2026-10-28",
+          "startsAfterKey": "DDWMISSI-5812",
+          "minStartDate": "2026-10-27",
+          "canClaim": false,
+          "canEditDates": false,
+          "status": "A fazer"
+        },
+        {
+          "key": "DDWMISSI-5814",
+          "title": "Documentar",
+          "typeId": "t-Doc",
+          "typeName": "Documentação",
+          "cls": "SEM",
+          "codeReview": false,
+          "estimateH": 1,
+          "remainingH": 1,
+          "countedH": 1,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": null,
+          "minStartDate": null,
+          "canClaim": false,
+          "canEditDates": false,
+          "status": "A fazer"
+        }
+      ]
+    },
+    {
+      "itemId": "i2",
+      "parentKey": "DDWMISSI-5820",
+      "title": "Fechamento por forma de pagamento",
+      "devHours": 10,
+      "qaHours": 4,
+      "subtasks": [
+        {
+          "key": "DDWMISSI-5821",
+          "title": "Codificação do fechamento",
+          "typeId": "t-Cod",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "codeReview": false,
+          "estimateH": 10,
+          "remainingH": 10,
+          "countedH": 10,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": null,
+          "minStartDate": null,
+          "canClaim": true,
+          "canEditDates": false,
+          "status": "A fazer"
+        },
+        {
+          "key": "DDWMISSI-5822",
+          "title": "Teste do fechamento",
+          "typeId": "t-Tes",
+          "typeName": "Teste",
+          "cls": "QA",
+          "codeReview": false,
+          "estimateH": 4,
+          "remainingH": 4,
+          "countedH": 4,
+          "assigneeId": null,
+          "assigneeName": null,
+          "startDate": null,
+          "endDate": null,
+          "startsAfterKey": "DDWMISSI-5821",
+          "minStartDate": null,
+          "canClaim": false,
+          "canEditDates": false,
+          "status": "A fazer"
+        }
+      ]
+    }
+  ],
+  "people": [
+    {
+      "accountId": "acc-carla",
+      "name": "Carla Mendes",
+      "role": "DEV",
+      "capacityHours": 30,
+      "allocatedHours": 8,
+      "freeHours": 22,
+      "pct": 26.666666666666668,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": [
+        {
+          "startDate": "2026-10-21",
+          "endDate": "2026-10-22",
+          "hours": null,
+          "reason": "Férias"
+        },
+        {
+          "startDate": "2026-10-26",
+          "endDate": "2026-10-26",
+          "hours": 4,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "accountId": "acc-ana",
+      "name": "Ana Souza",
+      "role": "DEV",
+      "capacityHours": 30,
+      "allocatedHours": 2,
+      "freeHours": 28,
+      "pct": 6.666666666666667,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": []
+    },
+    {
+      "accountId": "acc-fabio",
+      "name": "Fábio Nunes",
+      "role": "QA",
+      "capacityHours": 24,
+      "allocatedHours": 6,
+      "freeHours": 18,
+      "pct": 25.0,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "absences": []
+    }
+  ],
+  "warnings": [
+    {
+      "code": "SUBTASK_UNASSIGNED",
+      "message": "DDWMISSI-5821 ainda não tem dono.",
+      "subtaskKey": "DDWMISSI-5821",
+      "accountId": null
+    }
+  ]
+}

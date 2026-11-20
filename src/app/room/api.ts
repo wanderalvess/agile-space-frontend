@@ -24,10 +24,22 @@ async function httpError(res: Response, fallback: string): Promise<Error> {
 }
 
 
+// O backend responde 409 quando duas gravações da sala partem da mesma versão (@Version). Em vez de
+// cada chamada tratar isso, o salvar da sala avisa a página por este evento; ela recarrega a sala
+// e informa o usuário (ver app/room/[id]/page.tsx).
+export const ROOM_CONFLICT_EVENT = 'poker-room-conflict';
+
+export class RoomConflictError extends Error {
+  constructor(public readonly roomId?: string) {
+    super('A sala foi atualizada por outra pessoa antes desta ação ser salva.');
+    this.name = 'RoomConflictError';
+  }
+}
+
 export const pokerApi = {
   async getRoom(roomId: string): Promise<Room> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}`);
-    if (!res.ok) throw new Error('Falha ao carregar a sala de Poker');
+    if (!res.ok) throw Object.assign(new Error('Falha ao carregar a sala de Poker'), { status: res.status });
     return res.json();
   },
 
@@ -36,7 +48,13 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify(room),
     });
-    if (!res.ok) throw new Error('Falha ao salvar a sala');
+    if (res.status === 409) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(ROOM_CONFLICT_EVENT, { detail: { roomId: room.id } }));
+      }
+      throw new RoomConflictError(room.id);
+    }
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar a sala');
     return res.json();
   },
 
@@ -57,7 +75,7 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify(participant),
     });
-    if (!res.ok) throw new Error('Falha ao entrar na sala');
+    if (!res.ok) throw await httpError(res, 'Falha ao entrar na sala');
     return res.json();
   },
 
@@ -72,9 +90,10 @@ export const pokerApi = {
   },
 
   async leaveRoom(roomId: string, userId: string): Promise<void> {
-    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants/${userId}`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants/${encodeURIComponent(userId)}`, {
       method: 'DELETE',
     });
+    if (!res.ok) throw await httpError(res, 'Falha ao remover o participante');
   },
 
   async getVotes(roomId: string): Promise<Vote[]> {
@@ -88,20 +107,24 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify(vote),
     });
-    if (!res.ok) throw new Error('Falha ao salvar voto');
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar voto');
     return res.json();
   },
 
-  async removeVote(roomId: string, userId: string): Promise<void> {
-    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes/${userId}`, {
+  // issueId só nas salas assíncronas (um voto por tarefa); sem ele remove todos os votos do participante.
+  async removeVote(roomId: string, userId: string, issueId?: string): Promise<void> {
+    const query = issueId ? `?issueId=${encodeURIComponent(issueId)}` : '';
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes/${encodeURIComponent(userId)}${query}`, {
       method: 'DELETE',
     });
+    if (!res.ok) throw await httpError(res, 'Falha ao remover o voto');
   },
 
   async clearVotes(roomId: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
       method: 'DELETE',
     });
+    if (!res.ok) throw await httpError(res, 'Falha ao limpar os votos');
   },
 
   async getRounds(roomId: string, limit = 100): Promise<VotingRound[]> {
@@ -115,14 +138,21 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify(round),
     });
-    if (!res.ok) throw new Error('Falha ao salvar rodada');
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar rodada');
     return res.json();
+  },
+
+  /** Exclui a sala com votos, rodadas e chat. Só quem criou a sala (ou admin); o servidor recusa os demais. */
+  async deleteRoom(roomId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+    if (!res.ok) throw await httpError(res, 'Falha ao excluir a sala');
   },
 
   async clearRounds(roomId: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'DELETE',
     });
+    if (!res.ok) throw await httpError(res, 'Falha ao limpar o histórico');
   },
 
   async sendReaction(roomId: string, reaction: { uid: string; emoji: string; ts: string; nickname?: string }): Promise<void> {
@@ -130,6 +160,7 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify({ type: 'REACTION', ...reaction }),
     });
+    if (!res.ok) throw await httpError(res, 'Falha ao enviar a reação');
   },
 
   // Notas de refinamento: qualquer participante da sala edita; o backend mescla só os

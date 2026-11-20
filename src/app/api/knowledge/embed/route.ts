@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { embedText } from '@/lib/embeddings';
+import { embedText, EmbeddingBusyError } from '@/lib/embeddings';
 import { requireAuth } from '@/lib/verify-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -27,7 +27,14 @@ export async function POST(req: NextRequest) {
 
     const embedding = await embedText(text);
     return NextResponse.json({ embedding });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof EmbeddingBusyError) {
+      // Fila cheia: o cliente tenta de novo depois (o salvamento do artigo segue sem vetor).
+      return NextResponse.json(
+        { error: 'Muitos pedidos de embedding ao mesmo tempo. Tente novamente em instantes.' },
+        { status: 503, headers: { 'Retry-After': '5' } }
+      );
+    }
     return NextResponse.json(
       { error: 'Erro interno ao gerar embedding.' },
       { status: 500 }

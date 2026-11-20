@@ -1,0 +1,125 @@
+'use client';
+
+import Link from 'next/link';
+import { CalendarDays, CloudOff } from 'lucide-react';
+import { formatCountdown } from '@/lib/ceremony-countdown';
+import { isLive, liveMeta, statusLabel, type UpcomingCeremony } from '@/hooks/home/derive';
+import type { ToolSession } from '@/hooks/home/types';
+import { cn } from '@/lib/utils';
+import { CARD, FOCUS_RING, IconTile, LIFT, LiveDot, RetryButton, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
+
+interface Props {
+  sessions: ToolSession[];
+  /** Mostra a tag da squad em cada card (só para quem acompanha mais de uma). */
+  showSquad: boolean;
+  /** Próximas cerimônias para o estado vazio. */
+  upcoming: UpcomingCeremony[];
+  /** Primeira busca em andamento: mostra o esqueleto em vez de afirmar que não há sessão. */
+  loading?: boolean;
+  /** A última busca falhou e não há nada na tela para mostrar. */
+  failed?: boolean;
+  /** "Tentar de novo" do aviso de falha (refaz a busca; enquanto isso `loading` fica true). */
+  onRetry?: () => void;
+  now: Date;
+}
+
+function whenLabel(c: UpcomingCeremony, now: Date): string {
+  return formatCountdown(c.start, now).label;
+}
+
+export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed = false, onRetry, now }: Props) {
+  const hasLive = sessions.length > 0;
+  // O ponto pulsante só quando há algo realmente rolando; sala que aguarda o início aparece na lista sem ele.
+  const anyRunning = sessions.some(isLive);
+
+  return (
+    <section aria-labelledby="home-live" className="flex flex-col gap-3">
+      <SectionHeading id="home-live">
+        {anyRunning && <LiveDot />}
+        Ao vivo agora
+      </SectionHeading>
+
+      {hasLive ? (
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {sessions.map((s) => (
+            <li key={`${s.tool}:${s.id}`}>
+              <Link
+                href={s.href}
+                className={cn(CARD, 'flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:border-primary/40', LIFT, FOCUS_RING)}
+              >
+                <IconTile icon={TOOL_ICON[s.tool]} />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="min-w-0 truncate text-sm font-bold max-sm:basis-full">{s.title}</span>
+                    {showSquad && (
+                      <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-xs font-bold text-muted-foreground">
+                        {s.squadName}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {s.status !== 'async' && (
+                      <StatusChip tone={s.status === 'live' ? 'live' : 'neutral'}>{statusLabel(s.status, s.tool)}</StatusChip>
+                    )}
+                    <span className="truncate text-xs text-muted-foreground">{liveMeta(s)}</span>
+                  </span>
+                </span>
+                <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-[13px] font-bold text-primary-foreground">
+                  Entrar
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : failed ? (
+        // Durante o "Tentar de novo" o aviso fica na tela com o botão ocupado (em vez de piscar o esqueleto).
+        <div role="status" aria-live="polite" className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
+          <IconTile icon={CloudOff} size="lg" muted className="h-11 w-11 rounded-xl" />
+          <div className="flex min-w-[220px] flex-1 flex-col gap-0.5">
+            <p className="text-[15px] font-bold">Não foi possível carregar as sessões</p>
+            <p className="text-[13px] text-muted-foreground">A lista tenta de novo sozinha em alguns segundos.</p>
+          </div>
+          {onRetry && <RetryButton onRetry={onRetry} busy={loading} />}
+        </div>
+      ) : loading ? (
+        <div aria-busy="true" className={cn(CARD, 'flex items-center gap-4 px-5 py-[18px]')}>
+          <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-xl bg-muted motion-safe:animate-pulse" />
+          <span className="flex flex-1 flex-col gap-2">
+            <span aria-hidden="true" className="h-3.5 w-56 max-w-full rounded bg-muted motion-safe:animate-pulse" />
+            <span aria-hidden="true" className="h-3 w-40 max-w-full rounded bg-muted/70 motion-safe:animate-pulse" />
+          </span>
+          <span className="sr-only">Carregando as sessões</span>
+        </div>
+      ) : (
+        <div className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
+          <IconTile icon={CalendarDays} size="lg" muted className="h-11 w-11 rounded-xl" />
+          <div className="flex min-w-[220px] flex-1 flex-col gap-0.5">
+            <p className="text-[15px] font-bold">Nenhuma sessão acontecendo agora</p>
+            {upcoming.length > 0 && (
+              <p className="text-[13px] text-muted-foreground">
+                Próximas cerimônias:{' '}
+                {upcoming.map((c, i) => (
+                  <span key={`${c.title}:${c.start.getTime()}`}>
+                    {i > 0 && ' · '}
+                    <strong className={cn('font-semibold', i === 0 && 'text-foreground')}>
+                      {c.title} · {whenLabel(c, now)}
+                    </strong>
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+          <Link
+            href="/room?nova=1"
+            className={cn(
+              'inline-flex h-[42px] items-center justify-center rounded-[10px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60',
+              FOCUS_RING,
+            )}
+          >
+            Preparar o refinamento
+          </Link>
+        </div>
+      )}
+    </section>
+  );
+}

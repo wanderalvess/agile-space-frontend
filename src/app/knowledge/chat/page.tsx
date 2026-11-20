@@ -13,10 +13,10 @@ export default function ChatLandingPage() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-950">
-      <div className="flex flex-col items-center gap-4 animate-pulse">
-        <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-950/40 rounded-2xl" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Preparando ambiente de chat...</p>
+    <div role="status" className="flex h-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4 motion-safe:animate-pulse">
+        <div className="h-12 w-12 rounded-2xl bg-muted" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">Preparando o assistente...</p>
       </div>
     </div>
   );

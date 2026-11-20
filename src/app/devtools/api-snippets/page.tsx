@@ -56,7 +56,7 @@ export default function ApiSnippetsPage() {
     setImportError(null);
   };
 
-  const btn = 'h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider';
+  const btn = 'h-8 gap-1.5 rounded-xl text-xs font-bold';
 
   return (
     <DevToolPage
@@ -87,7 +87,7 @@ export default function ApiSnippetsPage() {
             <Tabs value={lang} onValueChange={v => setLang(v as SnippetLang)}>
               <TabsList className="h-7 rounded-lg p-0.5">
                 {SNIPPET_LANGS.map(l => (
-                  <TabsTrigger key={l.id} value={l.id} className="h-6 rounded-md px-2 text-[10px] font-black uppercase tracking-wider">{l.label}</TabsTrigger>
+                  <TabsTrigger key={l.id} value={l.id} className="h-6 rounded-md px-2 text-xs font-bold">{l.label}</TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>
@@ -98,7 +98,7 @@ export default function ApiSnippetsPage() {
       <Dialog open={importOpen} onOpenChange={o => { setImportOpen(o); if (!o) setImportError(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="font-headline font-black uppercase tracking-tight">Importar cURL</DialogTitle>
+            <DialogTitle className="font-headline font-bold tracking-tight">Importar cURL</DialogTitle>
             <DialogDescription>Cole um comando cURL (inclusive o &quot;Copy as cURL&quot; do navegador) para preencher a requisição.</DialogDescription>
           </DialogHeader>
           <Textarea
@@ -110,8 +110,8 @@ export default function ApiSnippetsPage() {
           />
           {importError && <p className="text-xs font-semibold text-destructive">{importError}</p>}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setImportOpen(false)} className="rounded-xl text-[10px] font-black uppercase tracking-wider">Cancelar</Button>
-            <Button onClick={doImport} disabled={!curlInput.trim()} className="rounded-xl text-[10px] font-black uppercase tracking-wider">Importar</Button>
+            <Button variant="ghost" onClick={() => setImportOpen(false)} className="rounded-xl text-xs font-bold">Cancelar</Button>
+            <Button onClick={doImport} disabled={!curlInput.trim()} className="rounded-xl text-xs font-bold">Importar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

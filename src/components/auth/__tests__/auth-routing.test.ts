@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolvePostLoginRedirect } from '../AuthGuard';
+import { resolvePostLoginRedirect, isOpenRoute } from '../AuthGuard';
 import { isCollaborativeRoute, ONBOARDING_EXEMPT_ROUTES } from '../IdentityGatekeeper';
 
 describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Colaborativas', () => {
@@ -47,10 +47,17 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect('/%2F/ok')).toBe('/%2F/ok');
     });
 
-    it('quem acabou de criar a conta e foi vinculado a um time vai ao Painel quando não veio de um link', () => {
-      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/painel');
-      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/painel');
+    it('quem acabou de criar a conta e foi vinculado a um time vai ao Resumo da squad quando não veio de um link', () => {
+      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/squad?tab=resumo');
+      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/squad?tab=resumo');
       expect(resolvePostLoginRedirect(null, { linkedTeam: false })).toBe('/');
+    });
+
+    it('sem returnUrl, um convite pendente neste navegador leva de volta ao convite (antes da squad vinculada)', () => {
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: 'tok12345' })).toBe('/invite/tok12345');
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: 'tok12345', linkedTeam: true })).toBe('/invite/tok12345');
+      expect(resolvePostLoginRedirect('/room/abc', { pendingInviteToken: 'tok12345' })).toBe('/room/abc');
+      expect(resolvePostLoginRedirect(null, { pendingInviteToken: null, linkedTeam: true })).toBe('/squad?tab=resumo');
     });
 
     it('o link vence: quem chegou por uma sala vai para a sala mesmo vinculado a um time', () => {
@@ -58,8 +65,8 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect('/invite/tok', { linkedTeam: true })).toBe('/invite/tok');
     });
 
-    it('um returnUrl inválido com time vinculado também cai no Painel, nunca no site de fora', () => {
-      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/painel');
+    it('um returnUrl inválido com time vinculado também cai no Resumo, nunca no site de fora', () => {
+      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/squad?tab=resumo');
     });
   });
 
@@ -71,7 +78,6 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(isCollaborativeRoute('/brainstorming/ideacao-2026')).toBe(true);
       expect(isCollaborativeRoute('/health-check/squad-hc-1')).toBe(true);
       expect(isCollaborativeRoute('/action-plan/5w2h-plano')).toBe(true);
-      expect(isCollaborativeRoute('/jiradash')).toBe(true);
     });
 
     it('deve retornar falso para rotas individuais e administrativas', () => {
@@ -120,6 +126,24 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(source).not.toContain('redirectPostLogin');
       expect(source).not.toContain('returnUrl');
       expect(source).not.toContain('projectService');
+    });
+  });
+
+  describe('Rotas abertas sem login (isOpenRoute)', () => {
+    it('o changelog é aberto; o resto do app continua exigindo login', () => {
+      expect(isOpenRoute('/changelog')).toBe(true);
+      expect(isOpenRoute('/changelog/v4.22.0')).toBe(true);
+      expect(isOpenRoute('/changelogs')).toBe(false);
+      expect(isOpenRoute('/invite/abc123')).toBe(true);
+      expect(isOpenRoute('/invites')).toBe(false);
+      // Jolt: visitante lê e edita; executar, gerar e salvar pedem login dentro da tela.
+      expect(isOpenRoute('/jolt')).toBe(true);
+      expect(isOpenRoute('/jolt/sandbox')).toBe(true);
+      expect(isOpenRoute('/jolt/gerador')).toBe(true);
+      expect(isOpenRoute('/joltx')).toBe(false);
+      expect(isOpenRoute('/admin')).toBe(false);
+      expect(isOpenRoute('/painel')).toBe(false);
+      expect(isOpenRoute('/login')).toBe(false);
     });
   });
 });

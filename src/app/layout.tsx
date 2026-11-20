@@ -2,14 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from 'sonner'
-import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { IdentityGatekeeper } from '@/components/auth/IdentityGatekeeper';
 import { BackendHealthGatekeeper } from '@/components/layout/BackendHealthGatekeeper';
-import { GlobalAnnouncementListener } from '@/components/admin/GlobalAnnouncementListener';
 import { MonacoConfig } from '../components/layout/MonacoConfig';
 import { SystemConfigProvider } from '@/context/SystemConfigContext';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -41,6 +39,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // Cor da barra do navegador no celular: o fundo do tema padrão, claro e escuro.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -61,7 +64,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Portal Tech V&D" />
-        <link rel="apple-touch-icon" href="/icon.png" />
         <Script
           id="theme-init"
           strategy="beforeInteractive"
@@ -79,7 +81,7 @@ export default function RootLayout({
                   } else {
                     root.classList.remove('dark');
                   }
-                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic'].forEach(function(v) {
+                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic', 'totvs', 'leitura'].forEach(function(v) {
                     root.classList.remove('theme-' + v);
                   });
                   root.classList.add('theme-' + variant);
@@ -101,10 +103,8 @@ export default function RootLayout({
                 <UserProvider>
                   <BackendHealthGatekeeper>
                     <IdentityGatekeeper>
-                      <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-                        <Header />
-                        <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
-                        <GlobalAnnouncementListener />
+                      <div className="relative flex min-h-dvh flex-col overflow-x-clip">
+                        <main className="flex flex-col flex-1 w-full overflow-x-clip">{children}</main>
                         <Calmaria />
                       </div>
                     </IdentityGatekeeper>

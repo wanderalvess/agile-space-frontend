@@ -26,6 +26,7 @@ export function AgileSpinner({
 
   const variantClasses = {
     primary: 'border-primary/20 border-t-primary shadow-[0_0_15px_rgba(255,107,0,0.1)]',
+    // intencional: variante para fundos escuros saturados
     white: 'border-white/20 border-t-white',
     indigo: 'border-indigo-500/20 border-t-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.1)]',
     rose: 'border-rose-500/20 border-t-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.1)]',
@@ -44,6 +45,7 @@ export function AgileSpinner({
           variant === 'rose' && "bg-rose-500",
           variant === 'amber' && "bg-amber-500",
           variant === 'emerald' && "bg-emerald-500",
+          // intencional: variante white
           variant === 'white' && "bg-white",
         )} />
         
@@ -58,12 +60,12 @@ export function AgileSpinner({
       {(title || subtitle) && (
         <div className="flex flex-col items-center text-center space-y-1">
           {title && (
-            <h3 className="text-sm font-black uppercase tracking-tighter italic text-slate-800 dark:text-slate-100">
+            <h3 className="text-sm font-semibold text-foreground">
               {title}
             </h3>
           )}
           {subtitle && (
-            <p className="text-[10px] font-medium text-slate-400 max-w-[200px] leading-tight">
+            <p className="text-xs font-medium text-muted-foreground max-w-[200px] leading-tight">
                {subtitle}
             </p>
           )}

@@ -75,17 +75,17 @@ export default function JwtInspectorPage() {
   }
 
   const badge = {
-    expired: <Badge variant="destructive" className="text-[10px] font-black uppercase">Expirado</Badge>,
-    early: <Badge variant="outline" className="text-[10px] font-black uppercase">Ainda não válido</Badge>,
-    valid: <Badge className="bg-primary text-[10px] font-black uppercase text-primary-foreground">Dentro da validade</Badge>,
-    noexp: <Badge variant="secondary" className="text-[10px] font-black uppercase">Sem expiração</Badge>,
+    expired: <Badge variant="destructive" className="text-xs font-bold">Expirado</Badge>,
+    early: <Badge variant="outline" className="text-xs font-bold">Ainda não válido</Badge>,
+    valid: <Badge className="bg-primary text-xs font-bold text-primary-foreground">Dentro da validade</Badge>,
+    noexp: <Badge variant="secondary" className="text-xs font-bold">Sem expiração</Badge>,
   };
 
   return (
     <DevToolPage
       toolId="jwt-inspector"
       actions={
-        <Button variant="outline" size="sm" onClick={() => setToken(makeSample())} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={() => setToken(makeSample())} className="h-8 gap-1.5 rounded-xl text-xs font-bold">
           <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
         </Button>
       }
@@ -102,7 +102,7 @@ export default function JwtInspectorPage() {
         <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(0,1.4fr)] gap-3">
           <section className="rounded-2xl border border-border bg-card p-3 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Resumo</h2>
+              <h2 className="text-xs font-bold text-muted-foreground">Resumo</h2>
               {decoded && badge[state]}
             </div>
             {decoded && claims.length ? (

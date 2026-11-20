@@ -1,17 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import React from "react";
-import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
-import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
-
-export default function CustomJqlDashboardsPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Abas com controle de acesso por Cargo */}
-      <DashboardNavTabs />
-
-      {/* Seção Principal de Painéis Customizados */}
-      <CustomJqlPanelsSection />
-    </div>
-  );
+// O painel de cada papel agora é uma aba do painel único em Squad Hub > Painéis. Esta rota fica como atalho.
+export default function CustomDashboardLegacyRedirect() {
+  redirect("/squad?tab=paineis&papel=custom");
 }

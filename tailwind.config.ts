@@ -24,6 +24,19 @@ export default {
         '5xs': ['0.5rem', { lineHeight: '0.75rem' }],    // 8px
         '6xs': ['0.4375rem', { lineHeight: '0.625rem' }], // 7px
       },
+      // Tokens de movimento das salas ao vivo (kit de sala): fast 140 / base 220 / slow 320 / land 460 / reveal 520.
+      transitionDuration: {
+        fast: '140ms',
+        base: '220ms',
+        slow: '320ms',
+        ring: '420ms',
+        land: '460ms',
+        reveal: '520ms',
+        instant: '1ms',
+      },
+      transitionTimingFunction: {
+        room: 'cubic-bezier(0.2, 0, 0, 1)',
+      },
       screens: {
         'xxl': '1440px',
         '3xl': '1920px',

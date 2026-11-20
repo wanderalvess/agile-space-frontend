@@ -1,5 +1,6 @@
 'use client';
 
+import { canonicalCargo } from './cargo';
 import {
   Code,
   Bug,
@@ -22,8 +23,6 @@ export type GlobalRole =
   | 'People Lead'
   | 'Tribe Lead'
   | 'Agile Coach'
-  | 'Developer'
-  | 'QA'
   | 'Designer'
   | 'UX'
   | 'SME'
@@ -47,9 +46,7 @@ export const ROLES: GlobalRole[] = [
   'People Lead',
   'Tribe Lead',
   'Agile Coach',
-  'Developer',
   'Desenvolvedor(a)',
-  'QA',
   'Analista de QA',
   'Designer',
   'UX',
@@ -65,8 +62,8 @@ export const ROLES: GlobalRole[] = [
  * entra por sync real do Jira ou vínculo manual de admin, nunca autodeclarado.
  */
 export const CONTRIBUTOR_ROLES: GlobalRole[] = [
-  'Developer', 'Desenvolvedor(a)',
-  'QA', 'Analista de QA',
+  'Desenvolvedor(a)',
+  'Analista de QA',
   'Designer',
   'UX',
   'SME',
@@ -78,205 +75,45 @@ export const CONTRIBUTOR_ROLES: GlobalRole[] = [
  * Nunca confundir com GlobalRole (cargo de negócio, ex "Tech Lead"): campos e propósitos
  * diferentes. Ver UserProfile.jobTitle para o cargo de negócio autodeclarado.
  */
-export type AuthRole = 'ADMIN' | 'LEAD' | 'MEMBER';
-export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'LEAD', 'MEMBER'];
+export type AuthRole = 'ADMIN' | 'MEMBER';
+export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'MEMBER'];
+
+/**
+ * Nível de acesso da conta. LEAD deixou de existir: a liderança de uma squad vem do vínculo (papel com
+ * `leadership`), não do nível. Contas antigas ainda podem chegar do servidor com "LEAD" durante a migração,
+ * e valem como MEMBER; qualquer valor desconhecido também.
+ */
+export function normalizeAuthRole(roleInput?: string | null): AuthRole {
+  return (roleInput || '').trim().toUpperCase() === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+}
+
+/** A conta ainda está com o nível antigo LEAD no servidor (aparece como Membro até migrar). */
+export function isLegacyLeadRole(roleInput?: string | null): boolean {
+  return (roleInput || '').trim().toUpperCase() === 'LEAD';
+}
 
 export function normalizeRole(roleInput?: string): GlobalRole {
-  if (!roleInput) return 'Developer';
+  if (!roleInput) return 'Desenvolvedor(a)';
   const r = roleInput.trim();
   
-  const exact = ROLES.find(item => item.toLowerCase() === r.toLowerCase());
+  const canonical = canonicalCargo(r);
+  const exact = ROLES.find(item => item.toLowerCase() === canonical.toLowerCase());
   if (exact) return exact;
 
   const lower = r.toLowerCase();
   if (lower === 'admin') return 'Agile Master';
   if (lower === 'lead' || lower === 'tech lead' || lower.includes('tech lead')) return 'Tech Lead';
-  if (lower === 'user' || lower === 'member' || lower === 'developer' || lower === 'dev') return 'Developer';
+  if (lower === 'user' || lower === 'member') return 'Desenvolvedor(a)';
   if (lower.includes('scrum master')) return 'Scrum Master';
   if (lower.includes('scrum') || lower.includes('agile master')) return 'Agile Master';
   if (lower.includes('po') || lower.includes('product owner')) return 'Product Owner';
-  if (lower.includes('qa')) return 'QA';
+  if (lower.includes('qa')) return 'Analista de QA';
   if (lower.includes('design')) return 'Designer';
 
-  return 'Developer';
+  return 'Desenvolvedor(a)';
 }
 
 export const SQUADS: string[] = [];
-
-export const PREDEFINED_AVATARS: Record<string, any> = {
-  Felix: {
-  "sex": "woman",
-  "faceColor": "#AC6651",
-  "earSize": "small",
-  "eyeStyle": "circle",
-  "noseStyle": "short",
-  "mouthStyle": "laugh",
-  "shirtStyle": "short",
-  "glassesStyle": "none",
-  "hairColor": "#F48150",
-  "hairStyle": "womanLong",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "upWoman",
-  "shirtColor": "#FC909F",
-  "bgColor": "linear-gradient(45deg, #178bff 0%, #ff6868 100%)"
-  },
-  Aneka: {
-  "sex": "woman",
-  "faceColor": "#AC6651",
-  "earSize": "big",
-  "eyeStyle": "oval",
-  "noseStyle": "round",
-  "mouthStyle": "laugh",
-  "shirtStyle": "polo",
-  "glassesStyle": "round",
-  "hairColor": "#000",
-  "hairStyle": "womanLong",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "upWoman",
-  "shirtColor": "#F4D150",
-  "bgColor": "linear-gradient(45deg, #3e1ccd 0%, #ff6871 100%)"
-  },
-  Loki: {
-  "sex": "woman",
-  "faceColor": "#F9C9B6",
-  "earSize": "big",
-  "eyeStyle": "oval",
-  "noseStyle": "short",
-  "mouthStyle": "laugh",
-  "shirtStyle": "polo",
-  "glassesStyle": "round",
-  "hairColor": "#F48150",
-  "hairStyle": "womanShort",
-  "hatStyle": "none",
-  "hatColor": "#000",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#FC909F",
-  "bgColor": "#74D153"
-  },
-  Milo: {
-  "sex": "man",
-  "faceColor": "#AC6651",
-  "earSize": "small",
-  "eyeStyle": "smile",
-  "noseStyle": "short",
-  "mouthStyle": "laugh",
-  "shirtStyle": "polo",
-  "glassesStyle": "none",
-  "hairColor": "#000",
-  "hairStyle": "thick",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#77311D",
-  "bgColor": "linear-gradient(90deg, #36cd1c 0%, #68deff 100%)"
-  },
-  Jude: {
-  "sex": "woman",
-  "faceColor": "#F9C9B6",
-  "earSize": "small",
-  "eyeStyle": "oval",
-  "noseStyle": "round",
-  "mouthStyle": "smile",
-  "shirtStyle": "polo",
-  "glassesStyle": "none",
-  "hairColor": "#F48150",
-  "hairStyle": "womanLong",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#77311D",
-  "bgColor": "linear-gradient(45deg, #3e1ccd 0%, #ff6871 100%)"
-  },
-  Callie: {
-  "sex": "man",
-  "faceColor": "#F9C9B6",
-  "earSize": "small",
-  "eyeStyle": "smile",
-  "noseStyle": "round",
-  "mouthStyle": "laugh",
-  "shirtStyle": "short",
-  "glassesStyle": "none",
-  "hairColor": "#000",
-  "hairStyle": "thick",
-  "hatStyle": "none",
-  "hatColor": "#D2EFF3",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#FC909F",
-  "bgColor": "#74D153"
-  },
-  Garfield: {
-  "sex": "man",
-  "faceColor": "#F9C9B6",
-  "earSize": "small",
-  "eyeStyle": "smile",
-  "noseStyle": "short",
-  "mouthStyle": "laugh",
-  "shirtStyle": "short",
-  "glassesStyle": "round",
-  "hairColor": "#000",
-  "hairStyle": "thick",
-  "hatStyle": "none",
-  "hatColor": "#506AF4",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#77311D",
-  "bgColor": "linear-gradient(45deg, #ff1717 0%, #ffd368 100%)"
-  },
-  Ginger: {
-  "sex": "man",
-  "faceColor": "#F9C9B6",
-  "earSize": "big",
-  "eyeStyle": "circle",
-  "noseStyle": "short",
-  "mouthStyle": "smile",
-  "shirtStyle": "hoody",
-  "glassesStyle": "none",
-  "hairColor": "#000",
-  "hairStyle": "normal",
-  "hatStyle": "beanie",
-  "hatColor": "#FC909F",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#6BD9E9",
-  "bgColor": "#F4D150"
-  },
-  Midnight: {
-  "sex": "woman",
-  "faceColor": "#F9C9B6",
-  "earSize": "small",
-  "eyeStyle": "oval",
-  "noseStyle": "long",
-  "mouthStyle": "smile",
-  "shirtStyle": "hoody",
-  "glassesStyle": "none",
-  "hairColor": "#F48150",
-  "hairStyle": "normal",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#F4D150",
-  "bgColor": "#D2EFF3"
-  },
-  Mia: {
-  "sex": "man",
-  "faceColor": "#F9C9B6",
-  "earSize": "small",
-  "eyeStyle": "smile",
-  "noseStyle": "long",
-  "mouthStyle": "smile",
-  "shirtStyle": "polo",
-  "glassesStyle": "none",
-  "hairColor": "#000",
-  "hairStyle": "mohawk",
-  "hatStyle": "none",
-  "hatColor": "#F48150",
-  "eyeBrowStyle": "up",
-  "shirtColor": "#FC909F",
-  "bgColor": "linear-gradient(45deg, #ff1717 0%, #ffd368 100%)"
-  }
-};
-
-export const AVATAR_SEEDS = Object.keys(PREDEFINED_AVATARS);
 
 export interface UserProfile {
   id: string;
@@ -285,14 +122,23 @@ export interface UserProfile {
   /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
    *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
   jobTitle?: GlobalRole;
+  /** Cargo para exibir (ver lib/cargo.ts): `jobTitle`, senão o papel na squad ativa. Vazio se não houver. */
+  cargo?: string;
+  /** Squad ativa, DERIVADA dos vínculos (sessão validada). Só leitura: o cliente não grava mais `squadId` do usuário. */
   squadId: string;
-  team?: string; // Mantido temporariamente para compatibilidade
   isGuest: boolean;
   email?: string;
+  /** Semente do avatar ilustrado antigo. Não é mais exibida nem editada; o backend ainda guarda o valor. */
   avatarSeed?: string;
+  /** Foto enviada pela pessoa (caminho `/api/users/{id}/photo?v=...`), vinda da sessão. */
+  photoUrl?: string | null;
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
   jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira
+  /** Só na listagem admin (entidade crua). */
+  active?: boolean;
+  createdAt?: string;
+  lastLoginAt?: string | null;
 }
 
 export type IssueStatus = 'pending' | 'active' | 'completed';
@@ -348,6 +194,9 @@ export interface Issue {
 
 export type Room = {
   id: string;
+  // Contador de versão otimista do backend (JPA @Version). Vem no GET e no evento ROOM_UPDATED e
+  // volta nos updates pelo spread de `roomData`; não deve ser alterado à mão.
+  version?: number;
   deckType: DeckType;
   votesRevealed: boolean;
   creatorId: string;
@@ -382,6 +231,10 @@ export type Room = {
     deckType: DeckType;
   } | null;
   settings?: {
+    // Cargos (da administração) que votam nesta sala; os demais entram como observadores. Ausente = padrão (dev e
+    // QA). Lido por votingCargosOf (poker-utils), que também trata o campo antigo abaixo.
+    votingCargos?: string[];
+    // Antigo "Gestão pode votar". Só lido para salas criadas antes de `votingCargos`; a interface não grava mais.
     allowManagementToVote?: boolean;
     // Revela automaticamente quando todos os votantes elegíveis já votaram.
     autoReveal?: boolean;
@@ -425,6 +278,15 @@ export type Room = {
     suggestRevote?: boolean;
     // Barra de reações (emoji) efêmeras durante a votação. Default off.
     reactions?: boolean;
+    // Como a média dos votos vira o valor salvo: 'up' (padrão, para cima), 'nearest' (inteiro mais
+    // próximo), 'down' (para baixo) ou 'deck' (carta mais próxima do baralho). Ausente = 'up'.
+    roundingMode?: 'up' | 'nearest' | 'down' | 'deck';
+    // Horas máximas do baralho "Horas reais" (1 a 100). Ausente = baralho completo (até 50), como as
+    // salas criadas antes da opção; as salas novas nascem com 40.
+    maxHours?: number;
+    // Votos às cegas: o servidor só entrega o valor dos votos dos outros depois da revelação
+    // (evita ver o número pelo DevTools/rede). Default off.
+    blindVotes?: boolean;
     // Equivalência numérica por tamanho no baralho de camisetas (ex:
     // PP = 4 horas, GG = 1 semana) definida pelo facilitador na criação da
     // sala. Quando presente, o resultado passa a ser calculado de verdade
@@ -467,6 +329,9 @@ export type Participant = {
   // Heartbeat de presença (ISO). Atualizado periodicamente pelo próprio
   // participante; ausência/valor stale => considerado offline.
   lastSeen?: string;
+  /** Brainstorming (backend novo): nome para exibir e marca do facilitador atual. */
+  displayName?: string;
+  facilitator?: boolean;
 };
 
 export type Vote = {
@@ -561,7 +426,7 @@ export type RetroColumnDef = {
 };
 
 /** Templates pré-configurados para retrospectivas */
-export type RetroTemplateKey = 'classic' | 'start_stop_continue' | 'mad_sad_glad' | 'starfish' | 'four_ls' | 'daki' | 'sailboat' | 'three_little_pigs' | 'speed_car' | 'custom';
+export type RetroTemplateKey = 'classic' | 'start_stop_continue' | 'mad_sad_glad' | 'starfish' | 'four_ls' | 'daki' | 'sailboat' | 'three_little_pigs' | 'speed_car' | 'lean_coffee' | 'rose_thorn_bud' | 'hot_air_balloon' | 'plus_delta' | 'kudos' | 'incident' | 'workflow' | 'sprint_goal' | 'custom';
 
 export const RETRO_TEMPLATES: Record<Exclude<RetroTemplateKey, 'custom'>, RetroColumnDef[]> = {
   classic: [
@@ -618,6 +483,57 @@ export const RETRO_TEMPLATES: Record<Exclude<RetroTemplateKey, 'custom'>, RetroC
     { id: 'parachute', title: 'Paraquedas (Freadores)', theme: 'warning', order: 1 },
     { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 2 },
   ],
+  lean_coffee: [
+    { id: 'toDiscuss', title: 'Para discutir', theme: 'purple', order: 0 },
+    { id: 'discussing', title: 'Discutindo agora', theme: 'cyan', order: 1 },
+    { id: 'discussed', title: 'Discutido', theme: 'success', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  rose_thorn_bud: [
+    { id: 'rose', title: 'Rosa (O que floresceu)', theme: 'success', order: 0 },
+    { id: 'thorn', title: 'Espinho (O que machucou)', theme: 'warning', order: 1 },
+    { id: 'bud', title: 'Broto (Oportunidades)', theme: 'cyan', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  hot_air_balloon: [
+    { id: 'hotAir', title: 'Ar quente (O que nos faz subir)', theme: 'success', order: 0 },
+    { id: 'ballast', title: 'Lastro (O que nos segura)', theme: 'warning', order: 1 },
+    { id: 'storm', title: 'Tempestade (Riscos à frente)', theme: 'pink', order: 2 },
+    { id: 'sky', title: 'Céu (Aonde queremos chegar)', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  plus_delta: [
+    { id: 'plus', title: 'Mais (Repetir)', theme: 'success', order: 0 },
+    { id: 'delta', title: 'Delta (Mudar)', theme: 'warning', order: 1 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 2 },
+  ],
+  kudos: [
+    { id: 'thanks', title: 'Agradecimentos', theme: 'pink', order: 0 },
+    { id: 'learned', title: 'Aprendizados', theme: 'purple', order: 1 },
+    { id: 'help', title: 'Pedidos de ajuda', theme: 'cyan', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  incident: [
+    { id: 'happened', title: 'O que aconteceu', theme: 'neutral', order: 0 },
+    { id: 'factors', title: 'Por que aconteceu (fatores)', theme: 'warning', order: 1 },
+    { id: 'wentWell', title: 'O que ajudou na resposta', theme: 'success', order: 2 },
+    { id: 'prevent', title: 'Como evitar de novo', theme: 'purple', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  workflow: [
+    { id: 'fast', title: 'Fluiu rápido', theme: 'success', order: 0 },
+    { id: 'stuck', title: 'Ficou parado (esperas e bloqueios)', theme: 'warning', order: 1 },
+    { id: 'rework', title: 'Retrabalho', theme: 'pink', order: 2 },
+    { id: 'tryNext', title: 'Para testar na próxima sprint', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  sprint_goal: [
+    { id: 'goal', title: 'A meta foi atingida? Por quê?', theme: 'success', order: 0 },
+    { id: 'blockers', title: 'O que atrapalhou a meta', theme: 'warning', order: 1 },
+    { id: 'helped', title: 'O que ajudou a meta', theme: 'purple', order: 2 },
+    { id: 'nextGoal', title: 'Para a próxima meta', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
 };
 
 export type RetroBoard = {
@@ -644,6 +560,10 @@ export type RetroBoard = {
   maxVotesPerParticipant?: number; // 0/undefined = sem limite
   healthCheckEnabled?: boolean;
   healthCheckQuestion?: string;
+  /** Encerramento real da sessão (LocalDateTime ISO). Ausente no backend antigo; nulo = aberta. */
+  finishedAt?: string | null;
+  /** Ciclo de vida da sessão inteira (não confundir com `votingStatus`). Ausente no backend antigo. */
+  lifecycleStatus?: 'OPEN' | 'FINISHED';
 }
 
 // Reações rápidas no card — independentes do voto de priorização (votes).
@@ -661,7 +581,8 @@ export type RetroCard = {
   boardId: string;
   columnKey: RetroColumnKey;
   content: string;
-  authorId: string;
+  authorId: string; // o servidor manda null/vazio quando a autoria não é sua (anonimato)
+  hidden?: boolean; // true: o servidor entregou o card redigido (sem texto/autor/votos) até a revelação
   votes: string[]; // Array of user UIDs
   reactions?: Partial<Record<RetroReactionType, string[]>>; // Array de UIDs por tipo de reação
   order: number;
@@ -687,6 +608,8 @@ export type RetroParticipant = {
   isCreator: boolean;
   globalRole?: GlobalRole;
   healthCheckAnswer?: HealthCheckAnswer;
+  /** Texto livre do check-in (até 500 caracteres). Ausente no backend antigo. */
+  checkinNote?: string | null;
 };
 
 // --- Team Health Check ---
@@ -733,6 +656,17 @@ export type HealthCheckBoard = {
       average?: number;
     }[];
   };
+  // Campos do backend novo (todos opcionais: o backend antigo não os envia).
+  /** Instante do encerramento (ISO, UTC). Nulo nos radares encerrados antes da migração. */
+  finishedAt?: string | null;
+  /** Ciclo de vida derivado de `status`. Prefira ler este; `status` segue `collecting|finished`. */
+  lifecycleStatus?: 'OPEN' | 'FINISHED';
+  /** Etapa da apresentação publicada pelo facilitador; nulo = sem apresentação. */
+  presentationStage?: string | null;
+  /** Só contagens, nunca quem votou o quê. */
+  respondedCount?: number;
+  completedCount?: number;
+  participantsCount?: number;
 }
 
 export type HealthCheckParticipant = {
@@ -790,21 +724,43 @@ export type BrainstormingBoard = {
     isAnonymous: boolean;
     isPresentationMode?: boolean;
     isRevealed?: boolean;
+    /** Só autor, facilitação e ADMIN editam o TEXTO da ideia (mover, agrupar, votar e fundir seguem livres). Ausente = livre. */
+    restrictEdits?: boolean;
   };
   participantIds?: string[];
   timer?: TimerState;
+  /** Backend novo (V80): `OPEN` ou `FINISHED`. Ausente (backend antigo) = aberto. */
+  status?: BrainstormingStatus;
+  /** ISO do encerramento; nulo ao reabrir. */
+  finishedAt?: string | null;
+  /** Facilitador atual. Ausente (backend antigo) = o criador. */
+  facilitatorId?: string;
+  facilitatorName?: string | null;
+  /** Votos por pessoa (1 a 100); nulo ou ausente = sem limite. */
+  votesPerParticipant?: number | null;
 };
+
+export type BrainstormingStatus = 'OPEN' | 'FINISHED';
 
 export type BrainstormingIdea = {
   id: string;
   boardId: string;
   content: string;
-  authorId: string;
+  /** Nulo quando os autores estão ocultos (o servidor só envia o autor ao próprio autor). */
+  authorId: string | null;
+  /** O servidor redige a ideia (texto vazio, sem autor nem votos) enquanto as ideias estão ocultas para quem não pode lê-las. */
+  hidden?: boolean;
   votes: string[]; // Array de UIDs de usuários
   position: { x: number; y: number };
   parentId: string | null;
   groupId: string | null;
   createdAt: string;
+  /** Só em mural não anônimo, com a ideia legível para quem lê. */
+  authorName?: string | null;
+  /** Texto alterado depois de criada (mover, agrupar e votar não contam). */
+  editedAt?: string | null;
+  editedBy?: string | null;
+  editedByName?: string | null;
   color?: string; // Para diferenciação visual opcional
   qualifiers?: {
     roi?: number;
@@ -861,17 +817,35 @@ export interface GoogleCalendarEvent {
 
 // --- Action Plan (5W2H) ---
 
+/** De onde o plano nasceu (V78 do backend). Plano antigo e plano feito à mão são `MANUAL`. */
+export type PlanSourceType = 'MANUAL' | 'RETRO' | 'HEALTH_CHECK' | 'BRAINSTORMING' | 'SHOWCASE';
+
 export type ActionPlanBoard = {
   id: string;
   creatorId: string;
   title: string;
   team: string;
+  /** Squad dona do plano (o servidor só liga o plano à squad quando recebe o ID dela). */
+  squadId?: string | null;
   sprintId?: string;
   createdAt: string;
   participantIds?: string[];
+  /** Como o servidor devolve a visibilidade: público (padrão) ou só criador, convidados e administradores. */
+  isPublic?: boolean;
+  /** @deprecated O servidor ignora `settings`; use `isPublic`. */
   settings?: {
     isPublic: boolean;
   };
+  /** Origem do plano. Ausente quando o backend é anterior à V78 (o front trata como "sem informação"). */
+  sourceType?: PlanSourceType;
+  /** Id da sessão que originou o plano (radar, retro, brainstorming...). Nulo em MANUAL. */
+  sourceId?: string | null;
+  /** Título da sessão de origem, para exibir. */
+  sourceTitle?: string | null;
+  /** Só nas listas: total de ações do plano. */
+  tasksTotal?: number;
+  /** Só nas listas: ações com status `done`. */
+  tasksDone?: number;
 };
 
 export type ActionPlanTaskStatus = 'todo' | 'doing' | 'done' | 'blocked';
@@ -891,7 +865,16 @@ export type ActionPlanTask = {
   updatedAt: string;
   authorId: string;
   order: number;
+  /** Id do item de origem (cartão da retro, dimensão do radar, ideia do brainstorming). Imutável. */
+  sourceItemId?: string | null;
+  /** Rótulo do item de origem ("Comunicação"). Imutável. */
+  sourceLabel?: string | null;
+  /** Prazo de verdade, `yyyy-MM-dd` (sem hora nem fuso). `when` segue como texto livre. */
+  dueDate?: string | null;
 };
+
+/** O que vai no corpo ao criar/editar uma ação: campos opcionais, mais `clearDueDate` para limpar o prazo. */
+export type ActionPlanTaskInput = Partial<ActionPlanTask> & { clearDueDate?: boolean };
 
 // --- Squad Pulse (dashboard de produtividade de time via Jira) ---
 
@@ -950,7 +933,7 @@ export type SquadConfig = {
   // sem depender de heurística de texto. Ordem do array = ordem da fase no
   // workflow (ex: Codificação -> Code Review -> Teste QA -> Execução TI).
   // undefined/[] = cai no fallback de heurística por tipo (ver
-  // getDisciplineColorAndLabel em SquadPlansTimeline.tsx).
+  // resolveWorkflowPhase em lib/cronograma/phases.ts).
   phases?: SquadWorkflowPhase[];
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
@@ -1061,7 +1044,7 @@ export type SquadIssueSnapshot = {
   targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
   // true = targetStart/targetEnd vieram de campo de data real do Jira; false/
   // undefined = caiu no fallback (dueDate, ou created/updated) — ver
-  // squadIssueToPlansTask. Sem isso, a cascata de atraso do Plans não sabe
+  // toCronoTask (lib/cronograma/task.ts). Sem isso, a cascata de atraso do Plans não sabe
   // distinguir "prazo real estourado" de "chute em cima de data inventada".
   datesAreInferred?: boolean;
   // Posição no array fields.subtasks da issue pai (ordem de rank do Jira) —

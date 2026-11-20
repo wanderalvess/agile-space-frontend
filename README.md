@@ -194,7 +194,6 @@ NEXT_PUBLIC_SPRING_API_URL=http://localhost:8002/api
 # Opcionais (recursos adicionais)
 # NEXT_PUBLIC_GOOGLE_CLIENT_ID=   # OAuth Google Calendar no painel
 # GEMINI_API_KEY=                 # Integração de IA Gemini
-# JIRA_BASE=                      # Proxy do Jira corporativo
 ```
 
 ### 3. Iniciar o Servidor de Desenvolvimento

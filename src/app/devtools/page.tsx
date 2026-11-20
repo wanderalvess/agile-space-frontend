@@ -1,15 +1,13 @@
 'use client';
 
-import { Wrench } from 'lucide-react';
+import { Suspense } from 'react';
 import { DevToolsHubPage } from '@/components/devtools/DevToolsHubPage';
 
+// `useSearchParams` (o filtro `?grupo=`) exige Suspense na compilação estática.
 export default function DevToolsPage() {
   return (
-    <DevToolsHubPage
-      title="DevTools"
-      icon={<Wrench className="h-4 w-4" />}
-      heading="DevTools"
-      subtitle="Ferramentas do dia a dia de desenvolvimento e qualidade, no navegador. O conteúdo não sai da sua máquina."
-    />
+    <Suspense fallback={null}>
+      <DevToolsHubPage />
+    </Suspense>
   );
 }

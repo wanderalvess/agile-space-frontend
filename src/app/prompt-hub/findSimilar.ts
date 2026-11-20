@@ -1,4 +1,5 @@
 import type { PromptItem } from './types';
+import { normalize } from '@/lib/text-normalize';
 
 /**
  * Detecção de itens parecidos na hora de publicar.
@@ -24,16 +25,6 @@ const STOPWORDS = new Set([
 
 const SIMILAR_THRESHOLD = 0.5;
 const MAX_RESULTS = 3;
-
-/** Minúsculas, sem acento e sem pontuação — "Revisão de PR" e "revisao de pr" são o mesmo. */
-export const normalize = (value?: string): string =>
-  (value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 
 // Mínimo de 2 letras: neste acervo, siglas como PR, PO, QA, UX e IA são
 // exatamente o que separa um item do outro.

@@ -6,9 +6,6 @@ import { publicApi } from '@/app/admin/api';
 interface SystemConfig {
   companyName: string;
   primaryColor: string;
-  logoUrl: string;
-  allowAnonymous: boolean;
-  maintenanceMode: boolean;
 }
 
 interface SystemConfigContextType {
@@ -21,45 +18,11 @@ const SystemConfigContext = createContext<SystemConfigContextType | undefined>(u
 const DEFAULT_CONFIG: SystemConfig = {
   companyName: 'Portal Tech V&D',
   primaryColor: '',
-  logoUrl: '',
-  allowAnonymous: true,
-  maintenanceMode: false
 };
 
 export function SystemConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const configs = await publicApi.getSystemConfig();
-
-        if (cancelled) return;
-
-        const data: SystemConfig = {
-          companyName: configs.companyName || DEFAULT_CONFIG.companyName,
-          primaryColor: configs.primaryColor || '',
-          logoUrl: configs.logoUrl || DEFAULT_CONFIG.logoUrl,
-          allowAnonymous: configs.allowAnonymous ? configs.allowAnonymous === 'true' : DEFAULT_CONFIG.allowAnonymous,
-          maintenanceMode: configs.maintenanceMode ? configs.maintenanceMode === 'true' : DEFAULT_CONFIG.maintenanceMode,
-        };
-
-        setConfig(data);
-        applyTheme(data);
-      } catch (error) {
-        console.warn("SystemConfigProvider: Could not fetch remote configs, using defaults:", error);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const applyTheme = (data: SystemConfig) => {
     if (typeof window === 'undefined') return;
@@ -84,6 +47,34 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
       document.title = `${data.companyName} | Gestão Ágil`;
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const configs = await publicApi.getSystemConfig();
+
+        if (cancelled) return;
+
+        const data: SystemConfig = {
+          companyName: configs.companyName || DEFAULT_CONFIG.companyName,
+          primaryColor: configs.primaryColor || '',
+        };
+
+        setConfig(data);
+        applyTheme(data);
+      } catch (error) {
+        console.warn("SystemConfigProvider: Could not fetch remote configs, using defaults:", error);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <SystemConfigContext.Provider value={{ config, isLoading }}>

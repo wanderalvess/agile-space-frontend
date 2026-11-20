@@ -1,0 +1,67 @@
+{
+  "planId": "p1",
+  "status": "DISTRIBUICAO",
+  "syncedAt": null,
+  "canEditPlan": false,
+  "sprint": {
+    "name": "Missi - 2026.10/2",
+    "startDate": "2026-10-21",
+    "endDate": "2026-11-03"
+  },
+  "goal": null,
+  "goalSavedInJira": false,
+  "people": [
+    {
+      "accountId": "acc-zed",
+      "name": "Zed",
+      "role": "DEV",
+      "capacityHours": 0,
+      "allocatedHours": 0,
+      "freeHours": 0,
+      "pct": null,
+      "zone": "SEM_CAPACIDADE",
+      "state": "SEM_CAPACIDADE",
+      "subtaskCount": 0,
+      "datedSubtaskCount": 0
+    }
+  ],
+  "tasks": [],
+  "pendings": [
+    {
+      "code": "SCOPE_EMPTY",
+      "severity": "BLOCKING",
+      "message": "O escopo da sprint está vazio.",
+      "subtaskKey": null,
+      "accountId": null,
+      "itemId": null
+    },
+    {
+      "code": "GOAL_EMPTY",
+      "severity": "WARNING",
+      "message": "A meta da sprint está vazia.",
+      "subtaskKey": null,
+      "accountId": null,
+      "itemId": null
+    }
+  ],
+  "blockingCount": 1,
+  "warningCount": 1,
+  "canSend": false,
+  "writeRulesDefined": false,
+  "jiraPreview": {
+    "rulesNote": "Regras de escrita no Jira em definição",
+    "sprintGoal": {
+      "from": null,
+      "to": null,
+      "kind": "UNCHANGED"
+    },
+    "changes": [],
+    "counts": {
+      "set": 0,
+      "change": 0,
+      "unchanged": 0,
+      "issues": 0
+    }
+  },
+  "jiraSprintUrl": null
+}

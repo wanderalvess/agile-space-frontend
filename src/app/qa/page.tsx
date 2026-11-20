@@ -1,17 +1,8 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { QA_REDIRECT_HREF } from '@/lib/devtools/registry';
 
-import { ShieldCheck } from 'lucide-react';
-import { DevToolsHubPage } from '@/components/devtools/DevToolsHubPage';
-
-// A Central de Qualidade é uma visão do DevTools: as mesmas ferramentas, filtradas pelas que servem ao QA.
-export default function QaHubPage() {
-  return (
-    <DevToolsHubPage
-      title="Central de Qualidade"
-      icon={<ShieldCheck className="h-4 w-4" />}
-      heading="Central de Qualidade"
-      subtitle="Ferramentas de teste do DevTools reunidas num lugar só: massa de dados, Zephyr, BDD, automação, mocks e utilitários de API."
-      collection="qa"
-    />
-  );
+// A Central de qualidade deixou de ser um módulo: virou o filtro "Qualidade" do DevTools.
+// A rota continua viva para não quebrar links salvos.
+export default function QaRedirectPage() {
+  redirect(QA_REDIRECT_HREF);
 }

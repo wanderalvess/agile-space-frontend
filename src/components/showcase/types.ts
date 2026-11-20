@@ -1,5 +1,7 @@
 import React from 'react';
 import { Clock, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
+import { TONES } from '@/components/room-kit/tokens';
+import type { FieldOrigin } from '@/services/jiraProvenance';
 
 export type Decision = 'open' | 'approved' | 'needs_adjustment' | 'rejected';
 export type PreparationStatus = 'todo' | 'doing' | 'review' | 'done';
@@ -15,10 +17,29 @@ export interface Evidence {
   // esse é o que aparece, sem ambiguidade). Ausente = 'video', mesmo default
   // de antes dessa flag existir — não muda o comportamento de card já criado.
   evidencePreference?: 'video' | 'screenshot';
+  // Links de apoio (não viram a evidência exibida no Teatro): inferidos na
+  // importação do Jira, editáveis no card.
+  techDocUrl?: string;
+  tdnUrl?: string;
   timeSpent?: number;
   timeEstimate?: number;
   planned?: { dev?: string; qa?: string; tu?: string } | null;
 }
+
+/** Arquivo anexado a um card (PNG, JPEG ou PDF) — evidência que ainda não está no Jira. */
+export interface TaskFile {
+  id: string;
+  taskId: string;
+  name: string;
+  contentType: string;
+  size: number;
+  uploadedBy?: string;
+  createdAt?: string;
+}
+
+export const TASK_FILE_MAX_COUNT = 5;
+export const TASK_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const TASK_FILE_ACCEPT = 'image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf';
 
 export interface ImpactMetric {
   field: string; // "campo" — ex: "Economia (R$)", "Tempo Poupado (dias)"
@@ -53,6 +74,11 @@ export interface ShowcaseTask {
   // ele tem pra mostrar). Ausente = 'compact' (comportamento anterior).
   chartDisplay?: 'compact' | 'featured';
   metrics?: ImpactMetric[];
+  // Só leitura: vem do backend (arquivos enviados no card). Entra e sai pelos endpoints de arquivo.
+  attachments?: TaskFile[];
+  // De onde veio o texto de Problema, Solução e Critérios quando o card nasceu da importação do Jira, e o que o Jira tinha
+  // ("Restaurar do Jira"). Ausente em card manual e em card anterior à V92. importedBy/importedAt são do servidor.
+  origins?: FieldOrigin[];
   assignee: string; 
   url: string;
   evidence: Evidence; 
@@ -70,6 +96,11 @@ export interface ShowcaseTask {
   decidedBy?: string;
   decidedByName?: string;
   decidedAt?: string;
+  // Edição por card (backend com a V81). Ausente = backend antigo: a sala grava a Review inteira, como antes.
+  /** Começa em 1 e sobe a cada mudança de conteúdo do card; o PATCH do card exige a versão lida. */
+  version?: number;
+  /** Só leitura: última mudança do card (nulo em card anterior à V81). */
+  updatedAt?: string | null;
 }
 
 export interface SessionMember {
@@ -90,6 +121,8 @@ export interface ShowcaseSession {
   members?: SessionMember[];
   tasks: ShowcaseTask[];
   createdAt: string | null;
+  /** Última gravação (vem do servidor); base para tratar "Ao vivo" abandonado. */
+  updatedAt?: string | null;
   status: string;
   presentationBackground?: string;
   presentationTheme?: 'cinematic' | 'minimalist' | 'corporate' | 'glass';
@@ -98,6 +131,46 @@ export interface ShowcaseSession {
   // localStorage) pra refletir o preparo real do squad, visível pra quem
   // entrar, não só de quem marcou no próprio navegador.
   readinessChecklist?: boolean[];
+  /** Quem criou a Review (login). Usado na trava de decisão de uma Review sem squad. */
+  createdBy?: string | null;
+  // Backend com a V81 (todos opcionais e só leitura):
+  /** Quem esteve na sala quando a Review foi finalizada; vazio ou ausente se não houver o registro. */
+  participants?: ShowcaseParticipant[];
+  /** Quem está apresentando agora; ausente ou nulo = ninguém. */
+  presenter?: ShowcasePresenter | null;
+  /** Só na resposta do POST: cards em que o servidor manteve a versão dele (a nossa estava velha). */
+  staleCardIds?: string[];
+}
+
+/** Pessoa presente na sala quando a Review foi finalizada. */
+export interface ShowcaseParticipant {
+  userId: string;
+  displayName: string;
+}
+
+/** Quem está apresentando agora e o que mostra. `cardId` nulo = só abriu o Teatro (capa). */
+export interface ShowcasePresenter {
+  userId: string;
+  displayName: string;
+  cardId: string | null;
+  step: string | null;
+  presentingAt: string;
+}
+
+/** Consulta JQL guardada no servidor para a squad (o servidor só guarda o texto; a busca roda no navegador). */
+export interface ShowcaseJqlQuery {
+  id: string;
+  squadId: string;
+  name: string;
+  jql: string;
+  visibility: 'SQUAD' | 'PRIVATE';
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  /** Fui eu que criei. */
+  mine: boolean;
+  /** Posso apagar (criador, liderança da squad em consulta da squad, ou administrador). */
+  canDelete: boolean;
 }
 
 export const ISSUE_TYPES = [
@@ -117,20 +190,26 @@ export const ISSUE_TYPES = [
   'Evolução'
 ];
 
+/**
+ * Decisão do PO: rótulo, ícone e classes do selo (tokens do kit: valem nos 7 temas, claro e escuro).
+ * `cls` serve às telas com o tema do portal; o Modo Teatro usa `stageCls`, que lê bem sobre o fundo
+ * escolhido para a apresentação (claro ou escuro), seja qual for o tema do portal.
+ */
 export const DECISION = {
-  open:             { label: 'Aguardando',  cls: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',   icon: React.createElement(Clock, { className: "h-3 w-3" }) },
-  approved:         { label: 'Aprovado',    cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400', icon: React.createElement(CheckCircle2, { className: "h-3 w-3" }) },
-  needs_adjustment: { label: 'Ajuste',      cls: 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400',     icon: React.createElement(AlertTriangle, { className: "h-3 w-3" }) },
-  rejected:         { label: 'Rejeitado',   cls: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400',       icon: React.createElement(Ban, { className: "h-3 w-3" }) },
+  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-foreground/10 text-muted-foreground', light: 'bg-muted text-muted-foreground' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  approved:         { label: 'Aprovado',   cls: TONES.success.chip, stageCls: { dark: 'bg-emerald-500/15 text-emerald-300', light: 'bg-emerald-100 text-emerald-800' }, icon: React.createElement(CheckCircle2, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  needs_adjustment: { label: 'Ajuste',     cls: TONES.warn.chip, stageCls: { dark: 'bg-amber-500/15 text-amber-300', light: 'bg-amber-100 text-amber-800' }, icon: React.createElement(AlertTriangle, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  rejected:         { label: 'Rejeitado',  cls: TONES.danger.chip, stageCls: { dark: 'bg-red-500/15 text-red-300', light: 'bg-red-100 text-red-800' }, icon: React.createElement(Ban, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
 } as const;
 
+/** Status de preparação do card: texto do selo, classes do selo e da borda. */
 export const PREPARATION_STATUS = {
-  todo:   { label: 'Aguardando',      cls: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400', border: 'border-slate-200 dark:border-slate-800' },
-  doing:  { label: 'Em Preparação',  cls: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',    border: 'border-blue-100 dark:border-blue-900/30' },
-  review: { label: 'Em Revisão',     cls: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400', border: 'border-indigo-100 dark:border-indigo-900/30' },
-  done:   { label: 'Pronta',          cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/30' },
+  todo:   { label: 'Aguardando',     cls: TONES.neutral.chip, border: 'border-border' },
+  doing:  { label: 'Em preparação',  cls: TONES.brand.chip,   border: 'border-primary/30' },
+  review: { label: 'Em revisão',     cls: 'bg-blue-500/10 text-blue-700 dark:text-blue-300', border: 'border-blue-500/30' },
+  done:   { label: 'Pronta',         cls: TONES.success.chip, border: 'border-emerald-500/30' },
 } as const;
- 
+
 export interface PresentationPreset {
   id: string;
   name: string;
@@ -141,8 +220,29 @@ export interface PresentationPreset {
   isLight?: boolean;
 }
 
+/** Imagem padrão da empresa: capa e fundo de toda Review nova. Arquivo em `public/`. */
+export const DEFAULT_SHOWCASE_IMAGE = '/showcase/fundo-totvs.webp';
+
 export const PRESENTATION_PRESETS: PresentationPreset[] = [
+  {
+    id: 'totvs',
+    name: 'Sede (padrão)',
+    category: 'dark',
+    value: DEFAULT_SHOWCASE_IMAGE,
+    preview: 'url',
+    description: 'Foto da sede, padrão de toda Review nova',
+    isLight: false,
+  },
   // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
+  {
+    id: 'totvs-azul',
+    name: 'Azul institucional',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)',
+    preview: '#002233',
+    description: 'Azul institucional escuro, sóbrio e fiel à marca',
+    isLight: false,
+  },
   {
     id: 'noir',
     name: 'Deep Space',
@@ -247,9 +347,14 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
 ];
 
 
+/**
+ * Capas prontas: arquivos do próprio app em `public/showcase/` (sem imagens de terceiros e sem logo de produto).
+ * A primeira é o padrão da empresa; as outras são fundos abstratos na paleta TOTVS.
+ */
 export const PRESETS = [
-  { id: 'totvs', name: 'Corporativo Agile', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente profissional e moderno' },
-  { id: 'abstract', name: 'Abstract Flow', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2029&auto=format&fit=crop', description: 'Gradients suaves e modernos' },
-  { id: 'office', name: 'Focus Office', url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente de trabalho limpo' },
-  { id: 'creative', name: 'Creative Dash', url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=2070&auto=format&fit=crop', description: 'Dinâmico e inspirador' },
+  { id: 'totvs-padrao', name: 'Sede (padrão)', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
+  { id: 'azul-profundo', name: 'Azul profundo', url: '/showcase/fundo-azul.svg', description: 'Azul escuro com halos de luz' },
+  { id: 'grade-clara', name: 'Grade clara', url: '/showcase/fundo-grade.svg', description: 'Fundo claro com grade suave' },
+  { id: 'ondas', name: 'Ondas', url: '/showcase/fundo-ondas.svg', description: 'Linhas fluidas em azul e verde' },
+  { id: 'pontos', name: 'Pontos', url: '/showcase/fundo-pontos.svg', description: 'Malha de pontos em tom petróleo' },
 ];

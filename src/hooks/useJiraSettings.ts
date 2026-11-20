@@ -112,8 +112,9 @@ export function useJiraSettings() {
     return () => { isMounted = false; };
   }, [userId]);
 
-  const saveSettings = async (newSettings: JiraSettings) => {
-    if (!userId) return;
+  /** Devolve true quando o token também ficou guardado na conta (servidor); false = só neste navegador. */
+  const saveSettings = async (newSettings: JiraSettings): Promise<boolean> => {
+    if (!userId) return false;
     const cleanSettings = {
       domain: newSettings.domain.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, ''),
       token: newSettings.token.trim()
@@ -133,10 +134,28 @@ export function useJiraSettings() {
         domain: cleanSettings.domain,
         token: cleanSettings.token
       });
+      return true;
     } catch (err) {
       console.warn('Erro ao salvar configurações do Jira no backend:', err);
+      return false;
     }
   };
 
-  return { settings, loading, saveSettings };
+  /** Apaga a credencial do navegador e da conta (servidor). */
+  const removeSettings = async (): Promise<void> => {
+    if (!userId) return;
+    setSettings(null);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(localKey(userId));
+      } catch {}
+    }
+    try {
+      await userApi.deleteJiraConfig(userId);
+    } catch (err) {
+      console.warn('Erro ao remover configurações do Jira no backend:', err);
+    }
+  };
+
+  return { settings, loading, saveSettings, removeSettings };
 }

@@ -15,13 +15,8 @@ export interface AdminStats {
   sessionDurationSampleSize: number;
 }
 
-export interface Announcement {
-  id?: string;
-  title: string;
-  content: string;
-  createdBy: string;
-  createdAt?: string;
-}
+/** Aviso v2 (contrato home-api, seção 1): tipo, público, vigência e link. */
+export type Announcement = AnnouncementDto;
 
 export interface AuditLogData {
   id?: string;
@@ -35,8 +30,11 @@ export interface PasswordResetRequest {
   id: string;
   userEmail: string;
   userName?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  tempPassword?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  /** Token do link de redefinição: só vem na resposta que gera o link (o servidor guarda apenas o hash). */
+  resetToken?: string;
+  tokenExpiresAt?: string;
+  usedAt?: string;
   requestedAt: string;
   approvedAt?: string;
   approvedBy?: string;
@@ -49,6 +47,7 @@ export interface ApiKeyData {
   createdAt: string;
   lastUsedAt?: string;
   revokedAt?: string;
+  expiresAt?: string | null;
 }
 
 export interface CreatedApiKey {
@@ -59,6 +58,7 @@ export interface CreatedApiKey {
 }
 
 import { authFetch } from '@/lib/auth-client';
+import { adminAnnouncementsApi, type AnnouncementDto, type AnnouncementInput } from '@/lib/home-api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -85,25 +85,40 @@ export const adminApi = {
   },
 
   async setConfig(key: string, value: string): Promise<void> {
-    await authFetch(`${API_BASE_URL}/admin/configs/${key}`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/configs/${key}`, {
       method: 'POST',
       body: value
     });
+    // Antes a resposta não era conferida: 403 ou 500 virava "salvo".
+    if (!res.ok) throw new Error(`Admin Config error ${res.status}`);
   },
 
-  async getAnnouncements(): Promise<Announcement[]> {
-    return req<Announcement[]>('/admin/announcements');
+  /**
+   * Limpa uma configuração (a tela volta à cor do tema). O servidor não tem endpoint de remoção: tenta o
+   * valor vazio e, se ele recusar o corpo vazio, grava um espaço, que as telas leem como vazio.
+   */
+  async clearConfig(key: string): Promise<void> {
+    try {
+      await adminApi.setConfig(key, '');
+    } catch {
+      await adminApi.setConfig(key, ' ');
+    }
   },
 
-  async createAnnouncement(announcement: Announcement): Promise<Announcement> {
-    return req<Announcement>('/admin/announcements', {
-      method: 'POST',
-      body: JSON.stringify(announcement)
-    });
+  getAnnouncements(): Promise<Announcement[]> {
+    return adminAnnouncementsApi.list();
   },
 
-  async deleteAnnouncement(id: string): Promise<void> {
-    return req<void>(`/admin/announcements/${id}`, { method: 'DELETE' });
+  createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+    return adminAnnouncementsApi.create(input);
+  },
+
+  updateAnnouncement(id: string, input: AnnouncementInput): Promise<Announcement> {
+    return adminAnnouncementsApi.update(id, input);
+  },
+
+  deleteAnnouncement(id: string): Promise<void> {
+    return adminAnnouncementsApi.remove(id);
   },
 
   async getAuditLogs(): Promise<AuditLogData[]> {
@@ -135,14 +150,31 @@ export const adminApi = {
     });
   },
 
+  /** Redefinição iniciada pelo admin: gera e aprova de uma vez e devolve o link (resetToken) de uso único. */
+  async resetUserPassword(userId: string): Promise<PasswordResetRequest> {
+    return req<PasswordResetRequest>(`/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+      method: 'POST'
+    });
+  },
+
   async getApiKeys(): Promise<ApiKeyData[]> {
     return req<ApiKeyData[]>('/admin/api-keys');
   },
 
-  async createApiKey(name: string): Promise<CreatedApiKey> {
+  /** expiresIn: '30' | '90' | '180' | 'never'. Omitido = 90 dias. */
+  async createApiKey(name: string, expiresIn?: string): Promise<CreatedApiKey> {
+    const expiry = !expiresIn ? {} : expiresIn === 'never' ? { neverExpires: 'true' } : { expiresInDays: expiresIn };
     return req<CreatedApiKey>('/admin/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...expiry }),
+    });
+  },
+
+  async renewApiKey(id: string, expiresIn?: string): Promise<ApiKeyData> {
+    const expiry = !expiresIn ? {} : expiresIn === 'never' ? { neverExpires: true } : { expiresInDays: Number(expiresIn) };
+    return req<ApiKeyData>(`/admin/api-keys/${encodeURIComponent(id)}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(expiry),
     });
   },
 

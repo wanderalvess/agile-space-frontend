@@ -58,7 +58,7 @@ export default function CronDecoderPage() {
         {/* Entrada: expressão, atalhos e legenda dos campos */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <header className="shrink-0 border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expressão cron</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">Expressão cron</h2>
           </header>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
             <div className="flex items-center gap-2">
@@ -68,24 +68,24 @@ export default function CronDecoderPage() {
                 placeholder="* * * * *"
                 spellCheck={false}
                 aria-label="Expressão cron"
-                className={cn('h-12 rounded-xl text-center font-code text-lg font-bold tracking-widest', error && 'border-destructive text-destructive')}
+                className={cn('h-12 rounded-xl text-center font-code text-lg font-bold', error && 'border-destructive text-destructive')}
               />
               <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0 rounded-xl" onClick={copy} aria-label="Copiar expressão">
-                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                {copied ? <Check className="h-4 w-4 text-emerald-700 dark:text-emerald-300" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
 
             <div className="grid grid-cols-5 gap-1 text-center">
               {FIELDS.map((f, i) => (
                 <div key={f} className="rounded-lg border border-border bg-background px-1 py-1.5">
-                  <p className="font-code text-[10px] font-bold text-primary">{expression.trim().split(/\s+/)[i] ?? '·'}</p>
-                  <p className="text-[9px] font-semibold leading-tight text-muted-foreground">{f}</p>
+                  <p className="font-code text-xs font-bold text-primary">{expression.trim().split(/\s+/)[i] ?? '·'}</p>
+                  <p className="text-xs font-semibold leading-tight text-muted-foreground">{f}</p>
                 </div>
               ))}
             </div>
 
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Atalhos</p>
+              <p className="text-xs font-bold text-muted-foreground">Atalhos</p>
               <div className="space-y-1">
                 {PRESETS.map(p => (
                   <button
@@ -101,7 +101,7 @@ export default function CronDecoderPage() {
               </div>
             </div>
 
-            <p className="text-[11px] font-medium text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               Símbolos: <code className="font-code font-bold text-foreground">*</code> qualquer valor,{' '}
               <code className="font-code font-bold text-foreground">,</code> lista,{' '}
               <code className="font-code font-bold text-foreground">-</code> intervalo,{' '}
@@ -113,7 +113,7 @@ export default function CronDecoderPage() {
         {/* Resultado: tradução e próximas execuções */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <header className="shrink-0 border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Resultado</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">Resultado</h2>
           </header>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
             {error ? (
@@ -121,14 +121,14 @@ export default function CronDecoderPage() {
             ) : (
               <>
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Em português</p>
-                  <p className="mt-1 font-headline text-xl font-black leading-snug">{text}</p>
+                  <p className="text-xs font-bold text-primary">Em português</p>
+                  <p className="mt-1 font-headline text-xl font-bold leading-snug">{text}</p>
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Próximas {NEXT_COUNT} execuções (horário local)</p>
+                  <p className="text-xs font-bold text-muted-foreground">Próximas {NEXT_COUNT} execuções (horário local)</p>
                   {dates.map((d, i) => (
                     <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-1.5">
-                      <span className="w-5 text-[10px] font-black text-muted-foreground">{i + 1}</span>
+                      <span className="w-5 text-xs font-bold text-muted-foreground">{i + 1}</span>
                       <span className="font-code text-xs font-bold">
                         {d.toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </span>

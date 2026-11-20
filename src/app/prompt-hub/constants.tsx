@@ -6,34 +6,27 @@ import {
   Lock,
   MessageSquare,
   Network,
-  Settings,
+  Plug,
   Sparkles,
-  Users,
-  ShieldCheck,
   Wrench,
   type LucideIcon
 } from 'lucide-react';
-import type { PromptType, PromptVisibility, InitiativeStatus, InitiativeImpact } from './types';
+import type { PromptType, PromptVisibility, InitiativeStatus, InitiativeImpact, StatusFilter } from './types';
 
 /**
  * Fonte única de verdade para a taxonomia do Hub.
  *
- * Antes, cada componente (card, editor, visualização, filtros) mantinha o próprio
- * mapa de tipos. Eles saíram de sincronia — 'workflow' existia no filtro e não no
- * card, que caía num fallback e rotulava o item como "Prompt". Tudo que descreve
- * um tipo, estado, impacto ou visibilidade mora aqui.
+ * Tudo que descreve um tipo, situação, impacto ou visibilidade mora aqui: cartão,
+ * página do item, editor e filtros leem os mesmos rótulos. Todos os tipos usam o
+ * mesmo chip de marca (só o ícone muda), então não há cor por tipo para quebrar nos temas.
  */
 
 export interface TypeMeta {
   /** Rótulo curto, usado em chips e filtros. */
   label: string;
-  /** Uma linha explicando o que é o tipo — aparece no seletor do editor. */
+  /** Uma linha explicando o que é o tipo — aparece no seletor do editor e no guia. */
   summary: string;
   icon: LucideIcon;
-  /** Cor do ícone/acento. Tons escolhidos para passar contraste em light e dark. */
-  accent: string;
-  /** Fundo suave do chip. Usa opacidade para funcionar nos dois modos. */
-  chip: string;
   /** Rótulo do campo de conteúdo no editor. */
   contentLabel: string;
   /** Texto de apoio abaixo do rótulo, quando o formato não é óbvio. */
@@ -48,72 +41,58 @@ export interface TypeMeta {
 export const TYPE_META: Record<PromptType, TypeMeta> = {
   prompt: {
     label: 'Prompt',
-    summary: 'Texto pronto para colar em qualquer chat de IA.',
+    summary: 'Texto pronto para colar em qualquer chat de IA, com campos para preencher.',
     icon: MessageSquare,
-    accent: 'text-sky-600 dark:text-sky-400',
-    chip: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
     contentLabel: 'Conteúdo do prompt',
-    contentHint: 'Use {{variavel}} para marcar o que muda a cada uso — quem abrir o item preenche os valores antes de copiar.',
+    contentHint: 'Use {{campo}} para marcar o que muda a cada uso — quem abrir o item preenche os valores antes de copiar.',
     contentPlaceholder: 'Atue como... Analise {{contexto}} e devolva...'
   },
   gem: {
     label: 'Gem',
-    summary: 'Modelo já configurado no Gemini ou ferramenta equivalente.',
+    summary: 'Assistente já configurado no Gemini ou ferramenta equivalente; o item guarda o link.',
     icon: Sparkles,
-    accent: 'text-amber-600 dark:text-amber-400',
-    chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    contentLabel: 'Instruções do Gem',
+    contentLabel: 'Instruções de uso',
     contentHint: 'O link é o que importa aqui. O conteúdo é opcional e serve para registrar como o Gem foi configurado.',
     contentPlaceholder: 'Como este Gem foi configurado, o que ele espera receber...',
     linkFirst: true
   },
   agent: {
     label: 'Agente',
-    summary: 'Persona e regras de comportamento de um assistente.',
+    summary: 'Papel e regras de comportamento de um assistente especializado.',
     icon: Bot,
-    accent: 'text-rose-600 dark:text-rose-400',
-    chip: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
     contentLabel: 'Instruções do sistema',
     contentHint: 'Defina persona, tom e limites. Ex: "Você é um arquiteto focado em performance; nunca sugira reescrever do zero".',
     contentPlaceholder: 'Você é...'
   },
   instruction: {
     label: 'Instrução',
-    summary: 'Regras de contexto e padrões que a IA deve seguir sempre.',
+    summary: 'Regras fixas de contexto que a IA deve seguir em toda conversa.',
     icon: FileText,
-    accent: 'text-indigo-600 dark:text-indigo-400',
-    chip: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
     contentLabel: 'Regras de contexto (Markdown)',
     contentHint: 'Regras estritas de projeto. Ex: "Sempre usar Tailwind, nunca CSS modules".',
     contentPlaceholder: '- Sempre...\n- Nunca...'
   },
   skill: {
     label: 'Skill',
-    summary: 'Capacidade empacotada no formato SKILL.md, carregada sob demanda.',
+    summary: 'Pasta com SKILL.md que o assistente carrega sozinho quando precisa.',
     icon: Wrench,
-    accent: 'text-teal-600 dark:text-teal-400',
-    chip: 'bg-teal-500/10 text-teal-700 dark:text-teal-300',
     contentLabel: 'SKILL.md',
-    contentHint: 'Comece pelo frontmatter com name e description. Veja o tutorial do Hub se for sua primeira skill.',
+    contentHint: 'Comece pelo cabeçalho com name e description. Veja o tutorial se for a sua primeira skill.',
     contentPlaceholder: '---\nname: nome-da-skill\ndescription: O que faz. Use quando...\n---\n\n# Nome da Skill\n\n## Instruções\n',
     mono: true
   },
   workflow: {
-    label: 'Workflow',
-    summary: 'Sequência de etapas encadeadas para concluir uma tarefa.',
+    label: 'Fluxo de trabalho',
+    summary: 'Sequência de passos entre pessoas e ferramentas para concluir uma tarefa.',
     icon: Network,
-    accent: 'text-violet-600 dark:text-violet-400',
-    chip: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
     contentLabel: 'Definição do fluxo',
     contentHint: 'Descreva as etapas na ordem em que devem ser executadas, e o que valida cada uma.',
     contentPlaceholder: '1. ...\n2. ...\n3. ...'
   },
   mcp: {
     label: 'MCP',
-    summary: 'Configuração de servidor MCP para conectar ferramentas externas.',
-    icon: Settings,
-    accent: 'text-cyan-600 dark:text-cyan-400',
-    chip: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+    summary: 'Configuração para ligar o assistente a um sistema ou ferramenta externa.',
+    icon: Plug,
     contentLabel: 'Configuração do servidor (JSON)',
     contentHint: 'Cole o bloco de configuração. Remova tokens e chaves antes de publicar.',
     contentPlaceholder: '{\n  "mcpServers": {\n    "meu-servidor": {\n      "command": "npx",\n      "args": []\n    }\n  }\n}',
@@ -121,10 +100,8 @@ export const TYPE_META: Record<PromptType, TypeMeta> = {
   },
   resource: {
     label: 'Recurso',
-    summary: 'Nota técnica, cheatsheet ou material de referência.',
+    summary: 'Material de apoio: checklist, nota técnica, modelo ou exemplo.',
     icon: BookOpen,
-    accent: 'text-emerald-600 dark:text-emerald-400',
-    chip: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     contentLabel: 'Conteúdo do recurso',
     contentHint: 'Conceitos, links de referência, limites de modelo, guias para a squad.',
     contentPlaceholder: 'Anotações, links, referências...'
@@ -147,73 +124,74 @@ export const getTypeMeta = (type?: string): TypeMeta =>
 
 export interface StatusMeta {
   label: string;
-  chip: string;
+  /** Tom do chip: neutro, atenção (âmbar) ou perigo suave. */
+  tone: 'neutral' | 'warn' | 'success' | 'danger';
 }
 
 export const STATUS_META: Record<InitiativeStatus, StatusMeta> = {
-  ideacao: { label: 'Ideação', chip: 'bg-muted text-muted-foreground' },
-  planejamento: { label: 'Planejamento', chip: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' },
-  desenvolvimento: { label: 'Em desenvolvimento', chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-  producao: { label: 'Em produção', chip: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
-  arquivado: { label: 'Arquivado', chip: 'bg-muted text-muted-foreground' }
+  ideacao: { label: 'Ideação', tone: 'neutral' },
+  planejamento: { label: 'Planejamento', tone: 'neutral' },
+  desenvolvimento: { label: 'Desenvolvimento', tone: 'warn' },
+  producao: { label: 'Produção', tone: 'success' },
+  arquivado: { label: 'Arquivado', tone: 'danger' }
 };
+
+export const STATUS_ORDER: InitiativeStatus[] = ['ideacao', 'planejamento', 'desenvolvimento', 'producao', 'arquivado'];
 
 export const getStatusMeta = (status?: string): StatusMeta =>
   STATUS_META[(status as InitiativeStatus)] ?? STATUS_META.producao;
 
-export const IMPACT_META: Record<InitiativeImpact, { label: string }> = {
-  baixo: { label: 'Impacto baixo' },
-  medio: { label: 'Impacto médio' },
-  alto: { label: 'Impacto alto' }
+/** Opções do filtro "Situação": o padrão esconde os arquivados. */
+export const STATUS_FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'active', label: 'Sem arquivados' },
+  { value: 'all', label: 'Todos' },
+  ...STATUS_ORDER.map(value => ({ value: value as StatusFilter, label: STATUS_META[value].label }))
+];
+
+export const IMPACT_META: Record<InitiativeImpact, { label: string; filterLabel: string }> = {
+  baixo: { label: 'Impacto baixo', filterLabel: 'Baixo' },
+  medio: { label: 'Impacto médio', filterLabel: 'Médio' },
+  alto: { label: 'Impacto alto', filterLabel: 'Alto' }
 };
+
+export const IMPACT_ORDER: InitiativeImpact[] = ['alto', 'medio', 'baixo'];
 
 export const getImpactMeta = (impact?: string) =>
   IMPACT_META[(impact as InitiativeImpact)] ?? IMPACT_META.medio;
 
 export interface VisibilityMeta {
+  /** Rótulo do chip e do filtro. */
   label: string;
-  /** Frase completa, usada na tela de detalhe e no editor. */
+  /** Frase completa, usada no editor e no guia. */
   description: string;
   icon: LucideIcon;
-  /** Escopos ainda não implementados nas consultas do Hub. */
-  available: boolean;
 }
 
 export const VISIBILITY_META: Record<PromptVisibility, VisibilityMeta> = {
   private: {
-    label: 'Somente eu',
-    description: 'Visível apenas para você.',
-    icon: Lock,
-    available: true
+    label: 'Privado',
+    description: 'Só você vê e usa.',
+    icon: Lock
   },
   public: {
     label: 'Público',
-    description: 'Visível para todo mundo na empresa, inclusive sem login.',
-    icon: Globe,
-    available: true
-  },
-  squad: {
-    label: 'Minha squad',
-    description: 'Compartilhado com a sua squad.',
-    icon: Users,
-    available: false
-  },
-  role: {
-    label: 'Meu cargo',
-    description: 'Compartilhado com quem tem o mesmo cargo.',
-    icon: ShieldCheck,
-    available: false
+    description: 'Todos da empresa veem, copiam e duplicam, inclusive sem login.',
+    icon: Globe
   }
 };
 
-export const getVisibilityMeta = (visibility?: string): VisibilityMeta =>
-  VISIBILITY_META[(visibility as PromptVisibility)] ?? VISIBILITY_META.private;
+export const VISIBILITY_ORDER: PromptVisibility[] = ['private', 'public'];
 
-export type SortKey = 'recent' | 'used' | 'forked' | 'alpha';
+/** Qualquer valor que não seja "public" (inclusive os antigos de squad e cargo, que deixaram de existir) conta como privado. */
+export const getVisibilityMeta = (visibility?: string): VisibilityMeta =>
+  VISIBILITY_META[visibility === 'public' ? 'public' : 'private'];
+
+/** Valores aceitos pelo servidor em `sort`. */
+export type SortKey = 'recent' | 'used' | 'cloned' | 'az';
 
 export const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: 'recent', label: 'Mais recentes' },
   { value: 'used', label: 'Mais usados' },
-  { value: 'forked', label: 'Mais clonados' },
-  { value: 'alpha', label: 'A-Z' }
+  { value: 'cloned', label: 'Mais duplicados' },
+  { value: 'az', label: 'A a Z' }
 ];

@@ -91,7 +91,7 @@ export default function RegexLabPage() {
     <DevToolPage
       toolId="regex-lab"
       actions={
-        <Button variant="outline" size="sm" onClick={loadSample} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+        <Button variant="outline" size="sm" onClick={loadSample} className="h-8 gap-1.5 rounded-xl text-xs font-bold">
           <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
         </Button>
       }
@@ -101,8 +101,8 @@ export default function RegexLabPage() {
         <div className="flex min-h-0 flex-col gap-3">
           <section className="shrink-0 space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expressão</h2>
-              {error ? <Badge variant="destructive" className="text-[10px]">Inválida</Badge> : <Badge variant="secondary" className="text-[10px]">Válida</Badge>}
+              <h2 className="text-xs font-bold text-muted-foreground">Expressão</h2>
+              {error ? <Badge variant="destructive" className="text-xs">Inválida</Badge> : <Badge variant="secondary" className="text-xs">Válida</Badge>}
             </div>
             <div className="flex items-center gap-2">
               <span className="font-code font-bold text-muted-foreground">/</span>
@@ -132,7 +132,7 @@ export default function RegexLabPage() {
                   onClick={() => toggleFlag(o.flag)}
                   aria-pressed={flags.includes(o.flag)}
                   className={cn(
-                    'rounded-full border px-3 py-1 font-code text-[11px] font-bold transition-colors',
+                    'rounded-full border px-3 py-1 font-code text-xs font-bold transition-colors',
                     flags.includes(o.flag) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -142,7 +142,7 @@ export default function RegexLabPage() {
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1">
               {CHEATS.map(([code, desc]) => (
-                <span key={code} className="text-[11px] text-muted-foreground">
+                <span key={code} className="text-xs text-muted-foreground">
                   <code className="rounded bg-muted px-1 py-0.5 font-code font-bold text-foreground">{code}</code> {desc}
                 </span>
               ))}
@@ -163,13 +163,13 @@ export default function RegexLabPage() {
         <div className="flex min-h-0 flex-col gap-3">
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <header className="shrink-0 border-b border-border/60 px-3 py-2">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Visualização</h2>
+              <h2 className="text-xs font-bold text-muted-foreground">Visualização</h2>
             </header>
             <div className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-code text-[13px] leading-relaxed">{highlighted}</div>
           </section>
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <header className="shrink-0 border-b border-border/60 px-3 py-2">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <h2 className="text-xs font-bold text-muted-foreground">
                 Matches ({matches.length}{matches.length >= MAX_MATCHES ? '+' : ''})
               </h2>
             </header>
@@ -177,7 +177,7 @@ export default function RegexLabPage() {
               {matches.length === 0 && <p className="py-6 text-center text-xs font-semibold text-muted-foreground">Nenhum resultado.</p>}
               {matches.map((m, i) => (
                 <div key={i} className="space-y-1.5 rounded-xl border border-border bg-background p-2.5">
-                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
                     <span>Match #{i + 1}</span>
                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">Índice {m.index}</span>
                   </div>
@@ -185,7 +185,7 @@ export default function RegexLabPage() {
                   {m.groups.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {m.groups.map((g, gi) => (
-                        <Badge key={gi} variant="outline" className="font-code text-[10px]">${gi + 1}: {g ?? 'indefinido'}</Badge>
+                        <Badge key={gi} variant="outline" className="font-code text-xs">${gi + 1}: {g ?? 'indefinido'}</Badge>
                       ))}
                     </div>
                   )}

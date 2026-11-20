@@ -1,24 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Download,
-  FileText,
-  ClipboardCopy,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
-  BookText,
-  Link2,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Link2 } from 'lucide-react';
+import { ExportDialogShell, FIELD, type ExportFormatOption } from '@/components/room-kit';
+import { cn } from '@/lib/utils';
 import type { RetroCard, RetroBoard, RetroColumnDef, RetroParticipant, TeamRole } from '@/lib/types';
 import { RETRO_TEMPLATES } from '@/lib/types';
 import jsPDF from 'jspdf';
@@ -32,7 +17,6 @@ interface ExportRetroDialogProps {
   boardData: RetroBoard;
   cards: RetroCard[];
   participants?: RetroParticipant[];
-  triggerNode?: React.ReactNode;
 }
 
 export function ExportRetroDialog({
@@ -41,12 +25,12 @@ export function ExportRetroDialog({
   boardData,
   cards,
   participants = [],
-  triggerNode,
 }: ExportRetroDialogProps) {
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [slideLink, setSlideLink] = useState('');
+  const [exportFormat, setExportFormat] = useState('pdf');
 
   // Mapeamento de participantes para recuperar nomes de autores
   const participantMap = useMemo(() => {
@@ -84,18 +68,32 @@ export function ExportRetroDialog({
   const actionCards = useMemo(() => {
     return validCards.filter(c => {
       const col = columns.find(col => col.id === c.columnKey);
-      return col?.theme === 'action' || c.columnKey === 'actions' || c.assignee || c.dueDate;
+      return col?.theme === 'action' || c.columnKey === 'actions';
     });
   }, [validCards, columns]);
 
   const completedActions = useMemo(() => actionCards.filter(c => c.isDone).length, [actionCards]);
   const pendingActions = actionCards.length - completedActions;
 
-  const formatDate = () => format(new Date(), 'dd/MM/yyyy', { locale: ptBR });
+  // Data da retro, não a de quem exporta: exportar uma semana depois carimbava o relatório com a data errada.
+  const formatDate = () => {
+    const created = boardData.createdAt ? new Date(boardData.createdAt) : null;
+    return format(created && !isNaN(created.getTime()) ? created : new Date(), 'dd/MM/yyyy', { locale: ptBR });
+  };
+  const formatDue = (d?: string) =>
+    /^\d{4}-\d{2}-\d{2}/.test(d || '') ? d!.slice(0, 10).split('-').reverse().join('/') : (d || '');
   // Compartilhado pelo markdown e pelo texto TDN: uma quebra de linha dentro
   // do conteúdo de um card vira um item de lista quebrado em ambos os
   // formatos, então os dois builders sanitizam pela mesma função.
-  const cleanContent = (content: string) => content.replace(/\n/g, ' ');
+  const cleanContent = (content: string) => content.replace(/\r?\n/g, ' ');
+  // Célula de tabela markdown: um "|" no texto abriria uma coluna a mais.
+  const mdCell = (content: string) => cleanContent(content).replace(/\|/g, '\\|');
+  const groupedNote = (c: { originalTexts?: string[] }, wrap: 'md' | 'plain') =>
+    c.originalTexts && c.originalTexts.length > 0
+      ? (wrap === 'md'
+          ? ` _(agrupado com: ${c.originalTexts.map(mdCell).join('; ')})_`
+          : ` (agrupado com: ${c.originalTexts.map(cleanContent).join('; ')})`)
+      : '';
   const formatFilename = (title: string, ext: string) => {
     const cleanTitle = (title || 'retrospectiva')
       .toLowerCase()
@@ -126,7 +124,7 @@ export function ExportRetroDialog({
     lines.push('');
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       if (colCards.length === 0) return;
 
       const isAction = col.theme === 'action' || col.id === 'actions';
@@ -139,8 +137,8 @@ export function ExportRetroDialog({
         colCards.forEach(c => {
           const status = c.isDone ? '[x] Concluído' : '[ ] Pendente';
           const assignee = c.assignee ? `👤 ${c.assignee}` : '-';
-          const dueDate = c.dueDate ? `📅 ${c.dueDate}` : '-';
-          lines.push(`| ${status} | ${cleanContent(c.content)} | ${assignee} | ${dueDate} |`);
+          const dueDate = c.dueDate ? `📅 ${formatDue(c.dueDate)}` : '-';
+          lines.push(`| ${status} | ${mdCell(c.content)}${groupedNote(c, 'md')} | ${mdCell(assignee)} | ${dueDate} |`);
         });
       } else {
         const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
@@ -151,7 +149,7 @@ export function ExportRetroDialog({
           const author = boardData.isAuthorsRevealed && c.authorId && participantMap.has(c.authorId)
             ? participantMap.get(c.authorId)!
             : '-';
-          lines.push(`| ${votes} | ${cleanContent(c.content)} | ${author} |`);
+          lines.push(`| ${votes} | ${mdCell(c.content)}${groupedNote(c, 'md')} | ${mdCell(author)} |`);
         });
       }
       lines.push('');
@@ -232,7 +230,7 @@ export function ExportRetroDialog({
     }
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       if (colCards.length === 0) return;
 
       const isAction = col.theme === 'action' || col.id === 'actions';
@@ -241,12 +239,12 @@ export function ExportRetroDialog({
       if (isAction) {
         colCards.forEach(c => {
           const checkbox = c.isDone ? '[x]' : '[ ]';
-          const meta = [c.assignee, c.dueDate].filter(Boolean).join(' — ');
-          lines.push(`${checkbox} ${cleanContent(c.content)}${meta ? ` (${meta})` : ''}`);
+          const meta = [c.assignee, c.dueDate ? formatDue(c.dueDate) : ''].filter(Boolean).join(' — ');
+          lines.push(`${checkbox} ${cleanContent(c.content)}${groupedNote(c, 'plain')}${meta ? ` (${meta})` : ''}`);
         });
       } else {
         const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
-        sorted.forEach(c => lines.push(`- ${cleanContent(c.content)}`));
+        sorted.forEach(c => lines.push(`- ${cleanContent(c.content)}${groupedNote(c, 'plain')}`));
       }
       lines.push('');
     });
@@ -259,7 +257,12 @@ export function ExportRetroDialog({
   };
 
   // ---------------------------------------------------------------- CSV
-  const csvCell = (v: string | number | null | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Célula que começa com = + - @ vira fórmula no Excel/Sheets: o apóstrofo força texto.
+  const csvCell = (v: string | number | null | undefined) => {
+    let text = String(v ?? '');
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
 
   const handleCSV = () => {
     const rows: string[] = [];
@@ -279,7 +282,7 @@ export function ExportRetroDialog({
     rows.push(['Coluna', 'Votos', 'Status', 'Conteúdo', 'Responsável', 'Prazo', 'Autor', 'Agrupado de'].map(csvCell).join(','));
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       const isAction = col.theme === 'action' || col.id === 'actions';
 
       const sorted = isAction 
@@ -299,7 +302,7 @@ export function ExportRetroDialog({
           status,
           c.content,
           c.assignee || '',
-          c.dueDate || '',
+          formatDue(c.dueDate),
           author,
           grouped,
         ].map(csvCell).join(','));
@@ -311,8 +314,10 @@ export function ExportRetroDialog({
     const link = document.createElement('a');
     link.href = url;
     link.download = formatFilename(boardData.title || 'retro', 'csv');
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast({ title: 'CSV Baixado!', description: 'Planilha exportada com sucesso.' });
   };
 
@@ -322,6 +327,10 @@ export function ExportRetroDialog({
    * Não utiliza html2canvas para evitar borramentos, recortes e perda de texto selecionável.
    * Todas as caixas são medidas antes da renderização garantindo paginação suave sem quebras indesejadas.
    */
+  // A fonte padrão do jsPDF não tem emoji nem símbolos fora do Latin-1: imprimiriam lixo no lugar.
+  const pdfSafe = (text: string) =>
+    (text || '').replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{2BFF}\uFE0F\u200D]/gu, '').replace(/\s{2,}/g, ' ').trim();
+
   const handlePDF = async () => {
     setIsExporting(true);
     try {
@@ -375,7 +384,15 @@ export function ExportRetroDialog({
       };
 
       /** Altura que um texto ocuparia (para medir antes de desenhar) */
-      const measure = (text: string, width: number, size: number, lineH = size * 0.42 + 1.2) => {
+      const measure = (
+        text: string,
+        width: number,
+        size: number,
+        lineH = size * 0.42 + 1.2,
+        style: 'normal' | 'bold' | 'italic' = 'normal'
+      ) => {
+        // A fonte precisa ser a mesma do desenho: bold é mais largo e quebra em mais linhas.
+        doc.setFont('helvetica', style);
         doc.setFontSize(size);
         return (doc.splitTextToSize(text || '', width) as string[]).length * lineH;
       };
@@ -461,7 +478,7 @@ export function ExportRetroDialog({
 
       // -------------------------------------------- Colunas do Quadro
       columns.forEach(col => {
-        const colCards = validCards.filter(c => c.columnKey === col.id);
+        const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
         if (colCards.length === 0) return;
 
         const isActionCol = col.theme === 'action' || col.id === 'actions';
@@ -483,7 +500,8 @@ export function ExportRetroDialog({
           const cardTextW = CW - 12;
 
           // Cálculo da altura do card
-          let contentH = measure(card.content, cardTextW, 9.5, 4.8);
+          const cardContent = pdfSafe(card.content);
+          const contentH = measure(cardContent, cardTextW - 24, 9.5, 4.8, 'bold');
           let extraH = 0;
 
           if (isActionCol) {
@@ -493,7 +511,7 @@ export function ExportRetroDialog({
           }
 
           if (card.originalTexts && card.originalTexts.length > 0) {
-            extraH += measure(`Agrupado: ${card.originalTexts.join(' | ')}`, cardTextW, 7.5, 3.8);
+            extraH += measure(`Agrupado de: ${card.originalTexts.map(pdfSafe).join('  •  ')}`, cardTextW, 7, 3.8, 'italic');
           }
 
           const totalCardH = Math.max(14, contentH + extraH + 7);
@@ -514,7 +532,7 @@ export function ExportRetroDialog({
 
           // Badge de status para Ações ou Votos
           if (isActionCol) {
-            const statusText = card.isDone ? '[X] CONCLUIDO' : '[ ] PENDENTE';
+            const statusText = card.isDone ? '[X] CONCLUÍDO' : '[ ] PENDENTE';
             const statusColor: [number, number, number] = card.isDone ? [16, 185, 129] : [217, 119, 6];
             setFont(8, 'bold', statusColor);
             doc.text(statusText, M + CW - 4, innerY, { align: 'right' });
@@ -525,7 +543,7 @@ export function ExportRetroDialog({
 
           // Conteúdo do card
           setFont(9.5, 'bold', [15, 23, 42]);
-          const contentLines = doc.splitTextToSize(card.content, cardTextW - 24) as string[];
+          const contentLines = doc.splitTextToSize(cardContent, cardTextW - 24) as string[];
           contentLines.forEach(line => {
             doc.text(line, M + 5.5, innerY);
             innerY += 4.8;
@@ -534,7 +552,7 @@ export function ExportRetroDialog({
           // Metadados específicos
           if (isActionCol) {
             setFont(7.5, 'normal', [100, 116, 139]);
-            const meta = `Responsavel: ${card.assignee || 'Nao definido'}    |    Prazo: ${card.dueDate || 'Sem prazo'}`;
+            const meta = `Responsável: ${pdfSafe(card.assignee || '') || 'Não definido'}    |    Prazo: ${formatDue(card.dueDate) || 'Sem prazo'}`;
             doc.text(meta, M + 5.5, innerY + 0.5);
             innerY += 4;
           } else if (author) {
@@ -546,7 +564,7 @@ export function ExportRetroDialog({
           // Histórico de fusão/agrupamento
           if (card.originalTexts && card.originalTexts.length > 0) {
             setFont(7, 'italic', [148, 163, 184]);
-            const groupedText = `Agrupado de: ${card.originalTexts.join('  •  ')}`;
+            const groupedText = `Agrupado de: ${card.originalTexts.map(pdfSafe).join('  •  ')}`;
             const groupedLines = doc.splitTextToSize(groupedText, cardTextW) as string[];
             groupedLines.forEach(gLine => {
               doc.text(gLine, M + 5.5, innerY + 0.5);
@@ -602,143 +620,66 @@ export function ExportRetroDialog({
     }
   };
 
+  const formats: ExportFormatOption[] = [
+    { id: 'pdf', name: 'Documento executivo', desc: 'PDF com números, ações e autores, pronto para compartilhar', short: 'PDF' },
+    { id: 'markdown', name: 'Markdown', desc: 'Tabelas e checklists para colar no Jira, Confluence, Teams ou Slack (copia)', short: 'MD' },
+    { id: 'csv', name: 'Planilha', desc: 'Uma linha por cartão, com votos, responsáveis e prazos', short: 'CSV' },
+    { id: 'tdn', name: 'Texto para o TDN', desc: 'Participantes por papel, colunas e ações no formato da wiki (copia)', short: 'TDN' },
+  ];
+  const ctaLabels: Record<string, string> = { pdf: 'Baixar PDF', markdown: 'Copiar Markdown', csv: 'Baixar planilha', tdn: 'Copiar texto do TDN' };
+
+  const handleExport = () => {
+    if (exportFormat === 'pdf') void handlePDF();
+    else if (exportFormat === 'markdown') handleMarkdown();
+    else if (exportFormat === 'csv') handleCSV();
+    else handleTdn();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg bg-card/95 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Cabeçalho */}
-        <div className="p-6 border-b border-border/50 flex flex-col items-center gap-3 text-center bg-gradient-to-b from-emerald-500/5 to-transparent shrink-0">
-          <div className="h-12 w-12 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 mb-1 shadow-inner">
-            <CheckCircle2 className="h-6 w-6" />
-          </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter  text-foreground">
-            Exportar Retrospectiva
-          </DialogTitle>
-          <p className="text-xs text-muted-foreground font-medium px-4 leading-relaxed">
-            <strong className="text-foreground">{totalCards}</strong> contribuiç{totalCards !== 1 ? 'ões' : 'ão'} • <strong className="text-foreground">{totalVotes}</strong> voto{totalVotes !== 1 ? 's' : ''} • <strong className="text-foreground">{actionCards.length}</strong> plano{actionCards.length !== 1 ? 's' : ''} de ação. Escolha o formato ideal para relatar e compartilhar os resultados da cerimônia.
-          </p>
-        </div>
-
-        {/* Corpo rolável: ações de exportação + preview */}
-        <div className="p-6 overflow-y-auto">
-          {/* Opção principal: PDF Visual, isolada como ação de destaque */}
-          <Button
-            onClick={handlePDF}
-            disabled={isExporting}
-            variant="default"
-            className="h-16 w-full justify-start px-4 border-2 border-transparent hover:border-emerald-400/30 shadow-lg shadow-emerald-500/20 group transition-all rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <div className="h-9 w-9 rounded-xl bg-white/20 text-white flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <Download className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[11px] flex items-center gap-1.5">
-                {isExporting ? 'Gerando relatório em PDF...' : 'Documento Executivo (PDF)'}
-                <span className="bg-white/20 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full uppercase">
-                  Recomendado
-                </span>
-              </span>
-              <span className="text-[11px] text-emerald-100">
-                Diagramação profissional com KPIs, ações e autores (Sem cortes)
-              </span>
-            </div>
-          </Button>
-
-          {/* Demais formatos, agrupados sob um rótulo comum */}
-          <p className="mt-5 mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
-            Outros formatos
-          </p>
-          <div className="grid gap-2">
-            {/* Markdown (Jira/Confluence) */}
-            <Button
-              onClick={handleMarkdown}
-              variant="outline"
-              className="h-14 justify-start px-4 border-2 hover:bg-blue-500/5 hover:border-blue-500/40 group transition-all rounded-xl"
-            >
-              <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                <ClipboardCopy className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col items-start truncate text-left">
-                <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
-                  Jira & Confluence Ready (Markdown)
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Tabelas e checklists prontos para copiar e colar
-                </span>
-              </div>
-            </Button>
-
-            {/* CSV (Excel) */}
-            <Button
-              onClick={handleCSV}
-              variant="outline"
-              className="h-14 justify-start px-4 border-2 hover:bg-emerald-500/5 hover:border-emerald-500/40 group transition-all rounded-xl"
-            >
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                <FileText className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col items-start truncate text-left">
-                <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
-                  Excel / Planilha (CSV)
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Linha a linha com votos, responsáveis, prazos e BOM UTF-8
-                </span>
-              </div>
-            </Button>
-
-            {/* Texto TDN (Wiki) */}
-            <div className="border-2 hover:border-indigo-500/40 rounded-xl overflow-hidden transition-all group">
-              <Button
-                onClick={handleTdn}
-                variant="outline"
-                className="h-14 w-full justify-start px-4 border-0 hover:bg-indigo-500/5 rounded-none"
-              >
-                <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                  <BookText className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col items-start truncate text-left">
-                  <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
-                    Texto TDN (Wiki)
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    Participantes por papel, colunas e ações no padrão da wiki
-                  </span>
-                </div>
-              </Button>
-              <div className="flex items-center gap-2 pl-[4.25rem] pr-3 py-2 bg-muted/20 border-t border-border/50">
-                <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <Input
-                  value={slideLink}
-                  onChange={e => setSlideLink(e.target.value)}
-                  placeholder="Link do slide (opcional)"
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Pré-visualização do Markdown (opcional) */}
-          <div className="pt-4">
-            <button
-              type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center justify-between w-full py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 rounded-xl transition-all"
-            >
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3 text-emerald-600" />
-                {showPreview ? 'Ocultar Pré-visualização' : 'Ver prévia do texto'}
-              </span>
-              {showPreview ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-
-            {showPreview && (
-              <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[11px] leading-relaxed select-all">
-                <pre className="whitespace-pre-wrap break-words">{markdown}</pre>
-              </div>
-            )}
+    <ExportDialogShell
+      open={isOpen}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      title="Exportar retrospectiva"
+      summary={
+        <>
+          <strong className="text-foreground">{totalCards}</strong> {totalCards !== 1 ? 'contribuições' : 'contribuição'} ·{' '}
+          <strong className="text-foreground">{totalVotes}</strong> {totalVotes !== 1 ? 'votos' : 'voto'} ·{' '}
+          <strong className="text-foreground">{actionCards.length}</strong> {actionCards.length !== 1 ? 'ações' : 'ação'}
+        </>
+      }
+      formats={formats}
+      selected={exportFormat}
+      onSelect={setExportFormat}
+      onExport={handleExport}
+      exporting={isExporting}
+      ctaLabel={isExporting ? undefined : ctaLabels[exportFormat]}
+    >
+      {exportFormat === 'tdn' && (
+        <div className="room-rise mt-4 flex flex-col gap-1.5">
+          <label htmlFor="retro-export-slide" className="text-[13px] font-semibold text-foreground">Link do slide <span className="font-normal text-muted-foreground">(opcional)</span></label>
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+            <input id="retro-export-slide" value={slideLink} onChange={(e) => setSlideLink(e.target.value)} placeholder="https://…" className={cn(FIELD, 'h-10')} />
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => setShowPreview(!showPreview)}
+          aria-expanded={showPreview}
+          className="flex w-full items-center justify-between rounded-[10px] bg-muted/50 px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {showPreview ? 'Ocultar a prévia do texto' : 'Ver a prévia do texto'}
+          {showPreview ? <ChevronUp className="h-4 w-4" strokeWidth={1.5} /> : <ChevronDown className="h-4 w-4" strokeWidth={1.5} />}
+        </button>
+        {showPreview && (
+          <div className="mt-2 max-h-48 select-all overflow-y-auto rounded-[10px] border border-border bg-muted/40 p-3 font-code text-xs leading-relaxed">
+            <pre className="whitespace-pre-wrap break-words">{exportFormat === 'tdn' ? tdnText : markdown}</pre>
+          </div>
+        )}
+      </div>
+    </ExportDialogShell>
   );
 }

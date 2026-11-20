@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useUserContext } from "@/context/UserContext";
 import { useSquadConfig } from "@/hooks/useSquadConfig";
+import { SQUAD_SUMMARY_HREF } from "@/lib/squad-hub";
 import {
   Select,
   SelectContent,
@@ -74,7 +75,7 @@ export function DashboardFilters({ filters }: DashboardFiltersProps) {
             <span>{unitLabel}</span>
           </div>
         ) : (
-          <Link href="/painel" className="h-9 px-3.5 border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 text-xs font-bold rounded-xl flex items-center gap-2">
+          <Link href={SQUAD_SUMMARY_HREF} className="h-9 px-3.5 border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 text-xs font-bold rounded-xl flex items-center gap-2">
             <Layers className="h-3.5 w-3.5" />
             <span>Não definida · Configurar</span>
           </Link>

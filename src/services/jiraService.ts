@@ -5,6 +5,10 @@
  */
 
 import { authFetch } from '@/lib/auth-client';
+import {
+  classify, commentLabel, fieldValue, withFallbackSources,
+  type IssueSources, type ProvenanceField, type TextSource,
+} from './jiraProvenance';
 
 /**
  * Busca um anexo/thumbnail do próprio Jira (ex.: /secure/attachment/...,
@@ -49,6 +53,8 @@ export interface JiraIssue {
   solution?: string;
   qa?: string;
   videoUrl?: string;
+  techDocUrl?: string;
+  tdnUrl?: string;
   devName?: string;
   timeSpent?: number;
   timeEstimate?: number; // estimativa ORIGINAL (aggregatetimeoriginalestimate/timeoriginalestimate)
@@ -80,6 +86,25 @@ export interface JiraIssue {
   // (Jira Server/DC) — quem consome decide como parsear.
   sprintRaw?: unknown;
   subtaskKeys?: string[];
+  /**
+   * De onde vem cada texto de Problema, Solução e Critérios (só na busca pela API; o XML não traz comentários com autor).
+   * Sem isto, o campo é o texto puro de sempre.
+   */
+  sources?: IssueSources;
+  /** Texto cru que gerou `sources`: é o que vai para o servidor decidir a origem de cada campo. Só na busca pela API. */
+  raw?: RawIssueText;
+  /** Texto cru das subtarefas e da issue pai que a importação buscou para esta issue. */
+  relatedRaw?: { subtasks?: RawIssueText[]; parent?: RawIssueText };
+}
+
+/** Texto cru de uma issue: o que o servidor precisa para dizer de onde vem Problema, Solução e Critérios. */
+export interface RawIssueText {
+  key: string;
+  type?: string;
+  title?: string;
+  description: string;
+  criteriaField?: string;
+  comments: RawJiraComment[];
 }
 
 /**
@@ -182,6 +207,34 @@ const extractDriveLink = (text: string): string => {
  * O `*` de negrito ("*palavra*", sem espaço colado no `*`) é distinto do `*`
  * de marcador de lista ("* item", com espaço) — só o primeiro é removido.
  */
+const DOC_URL_REGEX = /https?:\/\/[^\s"'<>\[\]|()]+/gi;
+const TECH_DOC_LABEL = /(?:documenta[çc][ãa]o|documento|doc\.?|especifica[çc][ãa]o)\s+t[ée]cnic[ao]/gi;
+// Sem rótulo explícito, só conta como documento técnico link de editor de documento.
+const TECH_DOC_HOST = /docs\.google\.com\/document|sharepoint\.com|\/wiki\/|confluence|\.docx?(?:$|[?#])/i;
+const isTdnUrl = (url: string) => /\/\/tdn\.totvs\.com/i.test(url);
+
+/**
+ * Infere os links de Documento Técnico e TDN a partir do texto da issue
+ * (descrição + comentários). TDN é qualquer link de tdn.totvs.com. Documento
+ * técnico é o primeiro link logo depois de um rótulo "Documento/Documentação
+ * técnica"; sem rótulo, o primeiro link de Google Docs/SharePoint/Confluence.
+ */
+export const extractDocLinks = (text: string): { techDocUrl: string; tdnUrl: string } => {
+  if (!text) return { techDocUrl: '', tdnUrl: '' };
+  const clean = (u: string) => u.replace(/&amp;/g, '&').replace(/[.,;:!?]+$/, '');
+  const urls = (text.match(DOC_URL_REGEX) || []).map(clean);
+  const tdnUrl = urls.find(isTdnUrl) || '';
+
+  let techDocUrl = '';
+  for (const label of Array.from(text.matchAll(TECH_DOC_LABEL))) {
+    const after = text.slice((label.index ?? 0) + label[0].length, (label.index ?? 0) + label[0].length + 300);
+    const found = (after.match(DOC_URL_REGEX) || []).map(clean).find(u => !isTdnUrl(u));
+    if (found) { techDocUrl = found; break; }
+  }
+  if (!techDocUrl) techDocUrl = urls.find(u => !isTdnUrl(u) && TECH_DOC_HOST.test(u)) || '';
+  return { techDocUrl, tdnUrl };
+};
+
 const stripWikiMarkup = (text: string): string => {
   if (!text) return text;
   return text
@@ -189,6 +242,12 @@ const stripWikiMarkup = (text: string): string => {
     .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
     .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
     .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    // Imagem anexada (!arquivo.png!, !arquivo.png|width=707,height=126!) e o que sobra quando o "!" inicial se perdeu.
+    .replace(/_?!([^\s!|]+\.(?:png|jpe?g|gif|webp|svg|bmp))(?:\|[^!\n]*)?!_?/gi, '')
+    .replace(/_?[^\s!|]+\.(?:png|jpe?g|gif|webp|svg|bmp)\|[^!\s]*!_?/gi, '')
+    // Link [texto|https://...] vira só o texto; itálico _texto_ perde o underline (menos em PROCESSO_CARGA).
+    .replace(/\[([^\]|\n]+)\|https?:\/\/[^\]\s]+\]/g, '$1')
+    .replace(/(?<![\p{L}\p{N}_])_(\S(?:[^_\n]*\S)?)_(?![\p{L}\p{N}_])/gu, '$1')
     .replace(/^-{3,}[ \t]*$/gm, '');
 };
 
@@ -381,6 +440,87 @@ const parseQAFromDescription = (desc: string) => {
   return qaMatch ? formatJiraName(qaMatch[1].trim()) : '';
 };
 
+export interface RawJiraComment { body: string; author?: string; created?: string }
+
+/** Tamanho máximo de um palpite: a sugestão não despeja a descrição inteira no campo (igual ao backend). */
+export const MAX_GUESS = 600;
+
+/**
+ * Encurta um palpite: fica com os primeiros parágrafos que cabem em `max`; se o primeiro já passa disso, corta no fim de uma
+ * frase (ou numa palavra) e termina em "…". Texto que cabe volta como está.
+ */
+export const limitGuess = (text: string, max: number = MAX_GUESS): string => {
+  const t = (text || '').trim();
+  if (t.length <= max) return t;
+  let kept = '';
+  for (const paragraph of t.split(/\n{2,}/)) {
+    const next = kept ? kept.length + 2 + paragraph.length : paragraph.length;
+    if (next > max) break;
+    kept = kept ? `${kept}\n\n${paragraph}` : paragraph;
+  }
+  if (kept) return kept.trim();
+  const cut = t.slice(0, max);
+  const sentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
+  if (sentence > max / 3) return cut.slice(0, sentence + 1).trim();
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 3 ? cut.slice(0, space) : cut).trim()}…`;
+};
+
+/**
+ * Monta as fontes candidatas de Problema, Solução e Critérios de uma issue (cada comentário, a descrição, o campo de
+ * critérios do Jira) e classifica cada campo. Só texto de título explícito ou de campo do Jira é "explícito"; o começo da
+ * descrição e as linhas em Gherkin são palpite e não preenchem o campo sozinhos.
+ */
+export const buildIssueSources = (input: { criteriaField?: string; description: string; comments: RawJiraComment[] }): IssueSources => {
+  const { criteriaField, description, comments } = input;
+  const fromComments = (parse: (t: string) => string): TextSource[] =>
+    comments.map((c, i) => ({
+      id: `comentario-${i}`, kind: 'comentario', label: commentLabel(c.author, c.created), text: parse(c.body), explicit: true,
+    }));
+  const desc = (id: string, label: string, text: string, explicit: boolean): TextSource =>
+    ({ id, kind: 'descricao', label, text, explicit });
+
+  const problemSections = parseProblemFromDescription(description);
+  return {
+    problem: classify([
+      ...fromComments(parseProblemFromDescription),
+      desc('descricao', 'Descrição, seção “Problema”', problemSections, true),
+      desc('descricao-inicio', 'Descrição, início do texto', limitGuess(guessProblemFromPreamble(description)), false),
+    ]),
+    solution: classify([
+      ...fromComments(parseSolutionFromDescription),
+      desc('descricao', 'Descrição, seção “Solução”', parseSolutionFromDescription(description), true),
+    ]),
+    acceptanceCriteria: classify([
+      { id: 'campo', kind: 'campo', label: 'Campo “Critérios de aceite” do Jira', text: stripHtml(criteriaField || ''), explicit: true },
+      desc('descricao', 'Descrição, seção de critérios', description ? extractSection(description, SECTION_ALIASES.acceptanceCriteria) : '', true),
+      desc('descricao-linhas', 'Descrição, linhas de teste', limitGuess(description ? guessAcceptanceCriteria(description) : ''), false),
+    ]),
+  };
+};
+
+/** Fontes de subtarefa ou issue pai para um campo, a partir do texto que a outra issue já tem como certo. */
+const relatedSources = (kind: 'subtarefa' | 'pai', related: JiraIssue[], field: ProvenanceField): TextSource[] =>
+  related.map((r) => ({
+    id: `${kind}-${r.key}`,
+    kind,
+    label: kind === 'pai' ? `Issue pai · ${r.key}` : `Subtarefa · ${r.key}`,
+    text: fieldValue(r.sources?.[field]) || (r.sources ? '' : (r[field] ?? '')),
+    explicit: true,
+  }));
+
+/** Soma as fontes de issues relacionadas só onde a issue não tem texto explícito, e reaplica o texto do campo. */
+const withRelated = (issue: JiraIssue, kind: 'subtarefa' | 'pai', related: JiraIssue[]): JiraIssue => {
+  if (!issue.sources || related.length === 0) return issue;
+  const sources = { ...issue.sources };
+  const out: Partial<JiraIssue> = {};
+  (['problem', 'solution', 'acceptanceCriteria'] as const).forEach((field) => {
+    const next = withFallbackSources(sources[field], relatedSources(kind, related, field));
+    if (next !== sources[field]) { sources[field] = next; out[field] = fieldValue(next); }
+  });
+  return { ...issue, ...out, sources };
+};
+
 /**
  * Parseia um arquivo XML exportado do Jira e retorna uma lista de tarefas.
  */
@@ -501,7 +641,8 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
       let points = 0;
       item.querySelectorAll('customfield').forEach((cf) => {
         const cfName = cf.querySelector('customfieldname')?.textContent?.toLowerCase() || '';
-        if (cfName.includes('story point') || cfName.includes('pontos') || cfName.includes('estimate')) {
+        // "Original/Remaining Estimate" são horas, não pontos — só campos de pontos de história.
+        if (/story\s*points?|pontos?\b|\bestimate\b/.test(cfName) && !/original|remaining|restante|time|tempo/.test(cfName)) {
           const val = parseFloat(cf.querySelector('customfieldvalue')?.textContent || '0');
           if (!isNaN(val)) points = val;
         }
@@ -509,11 +650,14 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
 
       // Extrair informações do CI/CD dos comentários
       const cicdInfo = parseCicdFromComments(comments.map(c => c.text));
+      const customText = Array.from(item.querySelectorAll('customfieldvalue')).map(v => v.textContent || '').join(' ');
+      const docLinks = extractDocLinks(`${combinedText} ${customText}`);
 
       issues.push({ 
         key, title: summary, description, type, status, priority, 
         points, url: link, acceptanceCriteria, assignee,
         problem, solution, qa, videoUrl, devName,
+        techDocUrl: docLinks.techDocUrl, tdnUrl: docLinks.tdnUrl,
         timeSpent, timeEstimate, planned,
         project: cicdInfo.project,
         versionSuporte: cicdInfo.versionSuporte,
@@ -780,6 +924,7 @@ export const fetchJiraIssues = async (
     // (geralmente de quem desenvolveu) — por isso comentário é fonte
     // primária aqui, descrição só como fallback.
     const commentsText = commentsList.join(' ');
+    const docLinks = extractDocLinks(`${desc} ${typeof renderedDescription === 'string' ? renderedDescription : ''} ${commentsText}`);
 
     const toSafeString = (val: any): string => {
       if (!val) return '';
@@ -799,9 +944,17 @@ export const fetchJiraIssues = async (
     // Jira) vs. fallback fabricado (created/updated, timestamp de auditoria,
     // não data de plano). datesAreInferred avisa quem consome que a fase caiu
     // no fallback — sem isso, uma cascata de atraso calcula em cima de uma
-    // data inventada sem avisar ninguém (ver Jira Plans / SquadPlansTimeline).
+    // data inventada sem avisar ninguém (ver Cronograma da squad).
     const realTargetStart = toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start);
     const realTargetEnd = toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end);
+
+    const rawComments: RawJiraComment[] = Array.isArray(commentsObj?.comments)
+      ? commentsObj.comments
+          .filter((c: any) => typeof c?.body === 'string')
+          .map((c: any) => ({ body: c.body, author: c.author?.displayName, created: c.created }))
+      : [];
+    const criteriaField = typeof fields?.customfield_10100 === 'string' ? fields.customfield_10100 : '';
+    const sources = buildIssueSources({ criteriaField, description: desc, comments: rawComments });
 
     return {
       key: issue.key,
@@ -828,11 +981,15 @@ export const fetchJiraIssues = async (
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
-      acceptanceCriteria: fields?.customfield_10100 || parseAcceptanceCriteriaFromDescription(desc),
-      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc) || guessProblemFromPreamble(desc),
-      solution: parseSolutionFromDescription(commentsText) || parseSolutionFromDescription(desc),
+      acceptanceCriteria: fieldValue(sources.acceptanceCriteria),
+      problem: fieldValue(sources.problem),
+      solution: fieldValue(sources.solution),
+      sources,
+      raw: { key: issue.key, type: fields?.issuetype?.name || '', title: fields?.summary || issue.key, description: desc, criteriaField, comments: rawComments },
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
+      techDocUrl: docLinks.techDocUrl,
+      tdnUrl: docLinks.tdnUrl,
       devName: formatJiraName(fields?.customfield_10046?.displayName || fields?.assignee?.displayName || ''),
       timeSpent: fields?.aggregatetimespent || fields?.timespent || 0,
       timeEstimate: fields?.aggregatetimeoriginalestimate || fields?.timeoriginalestimate || 0,
@@ -975,10 +1132,17 @@ export const enrichWithCodificacaoChildren = async (
     const anyWithQA = sortedSubtasks.find(s => s.qa);
     const anyWithDev = sortedSubtasks.find(s => s.devName);
 
+    // Com as fontes mapeadas, a subtarefa vira mais uma fonte (só onde a issue não tem texto explícito). As de
+    // codificação/desenvolvimento valem sozinhas quando existem, para a subtarefa de teste não gerar conflito à toa.
+    const devSubtasks = sortedSubtasks.filter(isDevSubtask);
+    const withSub = withRelated(issue, 'subtarefa', devSubtasks.length > 0 ? devSubtasks : sortedSubtasks);
+    const subtasksRaw = sortedSubtasks.map((c) => c.raw).filter((r): r is RawIssueText => !!r);
+
     return {
-      ...issue,
-      problem: issue.problem || bestSubtask?.problem || anyWithProblem?.problem,
-      solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
+      ...withSub,
+      relatedRaw: subtasksRaw.length > 0 ? { ...issue.relatedRaw, subtasks: subtasksRaw } : issue.relatedRaw,
+      problem: issue.sources ? withSub.problem : (issue.problem || bestSubtask?.problem || anyWithProblem?.problem),
+      solution: issue.sources ? withSub.solution : (issue.solution || bestSubtask?.solution || anyWithSolution?.solution),
       videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
       project: issue.project || bestSubtask?.project || anyWithProject?.project,
       versionSuporte: issue.versionSuporte || bestSubtask?.versionSuporte || anyWithProject?.versionSuporte,
@@ -1027,11 +1191,13 @@ export const enrichWithParentContext = async (
     const parent = parentsByKey.get(issue.parentKey);
     if (!parent) return issue;
 
+    const withParent = withRelated(issue, 'pai', [parent]);
     return {
-      ...issue,
-      problem: issue.problem || parent.problem,
-      solution: issue.solution || parent.solution,
-      acceptanceCriteria: issue.acceptanceCriteria || parent.acceptanceCriteria,
+      ...withParent,
+      relatedRaw: parent.raw ? { ...issue.relatedRaw, parent: parent.raw } : issue.relatedRaw,
+      problem: issue.sources ? withParent.problem : (issue.problem || parent.problem),
+      solution: issue.sources ? withParent.solution : (issue.solution || parent.solution),
+      acceptanceCriteria: issue.sources ? withParent.acceptanceCriteria : (issue.acceptanceCriteria || parent.acceptanceCriteria),
       videoUrl: issue.videoUrl || parent.videoUrl,
     };
   });

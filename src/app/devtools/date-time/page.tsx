@@ -25,7 +25,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
       onClick={copy}
       className="group flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-1.5 text-left transition-colors hover:border-primary/40"
     >
-      <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-xs font-bold text-muted-foreground">{label}</span>
       <span className="min-w-0 truncate font-code text-xs font-bold">{value}</span>
       <Copy className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
@@ -33,7 +33,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 const panel = 'flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm';
-const panelTitle = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground';
+const panelTitle = 'text-xs font-bold text-muted-foreground';
 
 export default function DateTimePage() {
   // `now` só existe no cliente (evita divergência de hidratação do relógio).
@@ -60,12 +60,12 @@ export default function DateTimePage() {
           <section className={panel}>
             <header className="flex shrink-0 items-center justify-between border-b border-border/60 px-3 py-2">
               <h2 className={panelTitle}>Agora</h2>
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
                 <Globe className="h-3 w-3" /> {Intl.DateTimeFormat().resolvedOptions().timeZone}
               </span>
             </header>
             <div className="space-y-3 p-4">
-              <p className="font-headline text-5xl font-black tabular-nums tracking-tight">
+              <p className="font-headline text-5xl font-bold tabular-nums tracking-tight">
                 {now ? now.toLocaleTimeString('pt-BR') : '--:--:--'}
               </p>
               <p className="text-sm font-bold capitalize text-primary">
@@ -87,18 +87,18 @@ export default function DateTimePage() {
             </header>
             <div className="space-y-3 p-4">
               <label className="block space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Início</span>
+                <span className="text-xs font-bold text-muted-foreground">Início</span>
                 <Input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className="h-9 rounded-lg" />
               </label>
               <label className="block space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fim</span>
+                <span className="text-xs font-bold text-muted-foreground">Fim</span>
                 <Input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="h-9 rounded-lg" />
               </label>
               {period && (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-center">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Intervalo</p>
-                  <p className="font-headline text-lg font-black">{period.text}</p>
-                  <p className="text-[11px] font-semibold text-muted-foreground">≈ {period.totalDays.toFixed(2)} dias no total</p>
+                  <p className="text-xs font-bold text-primary">Intervalo</p>
+                  <p className="font-headline text-lg font-bold">{period.text}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">≈ {period.totalDays.toFixed(2)} dias no total</p>
                 </div>
               )}
             </div>
@@ -120,7 +120,7 @@ export default function DateTimePage() {
                 aria-label="Timestamp ou data"
                 className="h-9 rounded-lg font-code text-sm"
               />
-              <Button type="button" variant="outline" className="h-9 rounded-lg text-[10px] font-black uppercase tracking-wider" onClick={() => now && setQuery(String(nowSec))} disabled={!now}>
+              <Button type="button" variant="outline" className="h-9 rounded-lg text-xs font-bold" onClick={() => now && setQuery(String(nowSec))} disabled={!now}>
                 Agora
               </Button>
             </div>
@@ -135,7 +135,7 @@ export default function DateTimePage() {
                 <CopyRow label="Unix (ms)" value={String(parsed.getTime())} />
                 <CopyRow label="ISO 8601" value={parsed.toISOString()} />
                 <CopyRow label="Relativo" value={relativeTime(parsed, now)} />
-                <p className="pt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Por fuso horário</p>
+                <p className="pt-2 text-xs font-bold text-muted-foreground">Por fuso horário</p>
                 {ZONES.map(z => <CopyRow key={z.id} label={z.label} value={formatInZone(parsed, z.id)} />)}
               </div>
             )}

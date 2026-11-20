@@ -1,424 +1,419 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { adminApi } from '@/app/admin/api';
-import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Trash2, 
-  LayoutDashboard, 
-  WalletCards, 
-  Activity, 
-  BrainCircuit,
-  Search,
-  ExternalLink,
-  Users,
-  Filter,
-  ArrowUpRight
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@/hooks/use-toast';
-import { AgileSpinner } from '../ui/AgileSpinner';
-import { cn } from '@/lib/utils';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, RefreshCw, Trash2, Users } from 'lucide-react';
+import { adminApi } from '@/app/admin/api';
+import { toast } from '@/hooks/use-toast';
+import { DataToolbar, EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD } from '@/components/page';
+import { ConfirmDialog, IconButton, ModalButton, SelectField, StatusChip, FOCUS_RING } from '@/components/room-kit';
+import { moduleIcon } from '@/lib/modules-registry';
+import { cn } from '@/lib/utils';
+import { AdminCheckbox, ChipGroup, ShowMoreFooter, useVisibleLimit } from './AdminOpsParts';
+import {
+  PAGE_STEP,
+  SESSION_PERIOD_OPTIONS,
+  SESSION_TOOLS,
+  SESSION_TYPE_FILTERS,
+  bulkDeleteSummary,
+  canSelectWholeFilter,
+  filterSessions,
+  nextChunk,
+  sessionOpenPath,
+  sessionParticipants,
+  sortSessions,
+  type AdminSession,
+  type SessionSort,
+  type SessionSortKey,
+} from './admin-ops-utils';
+
+/** Colunas: marcador, ferramenta, título, criação, participantes, ações. */
+const COLS = '28px 168px minmax(0,1.7fr) minmax(0,1fr) 128px 84px';
+
+function formatCreated(createdAt?: string | null): string {
+  if (!createdAt) return 'Histórico';
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return 'Histórico';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function ToolChip({ type }: { type: string }) {
+  const tool = SESSION_TOOLS[type];
+  const Icon = moduleIcon(tool?.module ?? 'poker');
+  return (
+    <StatusChip tone="neutral" className="h-6 gap-1.5 px-2.5">
+      <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+      {tool?.label ?? 'Outro'}
+    </StatusChip>
+  );
+}
 
 export function SessionMonitor() {
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [isFetchingSessions, setIsFetchingSessions] = useState(false);
-  const [totalSessionsCount, setTotalSessionsCount] = useState(0);
+  const [sessions, setSessions] = useState<AdminSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedDateRange, setSelectedDateRange] = useState('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [visibleLimit, setVisibleLimit] = useState(20);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'participantCount', direction: 'desc' });
+  const [sort, setSort] = useState<SessionSort | null>({ key: 'participantCount', direction: 'desc' });
 
-  const fetchSessions = async () => {
-    setIsFetchingSessions(true);
+  const [pendingOne, setPendingOne] = useState<AdminSession | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchSessions = useCallback(async (initial = false) => {
+    if (initial) setLoading(true);
+    else setRefreshing(true);
     try {
       const data = await adminApi.getSessions();
-      setSessions(data);
-      setTotalSessionsCount(data.length);
+      setSessions(Array.isArray(data) ? data : []);
+      setLoadError(false);
     } catch (error) {
-      console.error("Erro ao buscar sessões do Postgres:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na listagem",
-        description: "Falha ao buscar sessões do banco de dados.",
-      });
+      console.error('Erro ao buscar as sessões:', error);
+      if (initial) setLoadError(true);
+      else toast({ variant: 'destructive', title: 'Erro na listagem', description: 'Não foi possível buscar as sessões.' });
     } finally {
-      setIsFetchingSessions(false);
+      setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSessions();
   }, []);
 
-  const handleRefresh = () => {
-    fetchSessions();
+  useEffect(() => {
+    fetchSessions(true);
+  }, [fetchSessions]);
+
+  const filtered = useMemo(
+    () => filterSessions(sessions, { search: searchTerm, type: selectedType, range: selectedDateRange }),
+    [sessions, searchTerm, selectedType, selectedDateRange],
+  );
+  const sorted = useMemo(() => sortSessions(filtered, sort), [filtered, sort]);
+  const [visibleLimit, showMore] = useVisibleLimit(`${searchTerm}|${selectedType}|${selectedDateRange}`, PAGE_STEP);
+  const page = useMemo(() => sorted.slice(0, visibleLimit), [sorted, visibleLimit]);
+  const pageIds = useMemo(() => page.map((s) => s.id), [page]);
+
+  const selectedOnPage = pageIds.filter((id) => selectedIds.includes(id)).length;
+  const headState: boolean | 'indeterminate' =
+    pageIds.length > 0 && selectedOnPage === pageIds.length ? true : selectedOnPage > 0 ? 'indeterminate' : false;
+  const offerWholeFilter = canSelectWholeFilter(pageIds, selectedIds, filtered.length);
+  const hasFilters = searchTerm.trim() !== '' || selectedType !== 'all' || selectedDateRange !== 'all';
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedType('all');
+    setSelectedDateRange('all');
   };
 
-  const handleLoadMore = () => {
-    setVisibleLimit(prev => prev + 20);
+  const toggleSelect = (id: string) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+
+  // O marcador do cabeçalho mexe só na página que está na tela.
+  const togglePage = () => {
+    setSelectedIds((prev) => (headState === true ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds]))));
   };
 
-  const handleDeleteSession = async (session: any) => {
-    if (!confirm(`Deseja realmente deletar a sessão "${session.title}"? Esta ação é irreversível.`)) return;
+  const handleSort = (key: SessionSortKey) => {
+    setSort((cur) => ({ key, direction: cur && cur.key === key && cur.direction === 'desc' ? 'asc' : 'desc' }));
+  };
 
+  const handleDeleteOne = async () => {
+    const session = pendingOne;
+    if (!session) return;
+    setDeleting(true);
     try {
       await adminApi.deleteSession(session.id, session.type);
-      setSessions(prev => prev.filter(s => s.id !== session.id));
-      setSelectedIds(prev => prev.filter(id => id !== session.id));
-      setTotalSessionsCount(prev => Math.max(0, prev - 1));
-      toast({
-        title: "Sessão removida",
-        description: "A sala foi excluída com sucesso do PostgreSQL.",
-      });
-    } catch (error: any) {
-      console.error("Erro ao deletar sessão:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na exclusão",
-        description: "Não foi possível remover a sessão do banco de dados.",
-      });
+      setSessions((prev) => prev.filter((s) => s.id !== session.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== session.id));
+      toast({ title: 'Sessão removida', description: 'A sala foi excluída.' });
+      setPendingOne(null);
+    } catch (error) {
+      console.error('Erro ao deletar sessão:', error);
+      toast({ variant: 'destructive', title: 'Erro na exclusão', description: 'Não foi possível remover a sessão.' });
+      setPendingOne(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`Deseja excluir as ${selectedIds.length} sessões selecionadas? Esta ação é irreversível.`)) return;
-
-    const itemsToDelete = sessions.filter(s => selectedIds.includes(s.id));
-    let deletedCount = 0;
-
-    for (const item of itemsToDelete) {
+    const items = sessions.filter((s) => selectedIds.includes(s.id));
+    if (items.length === 0) {
+      setBulkOpen(false);
+      return;
+    }
+    setDeleting(true);
+    const removedIds: string[] = [];
+    let failed = 0;
+    for (const item of items) {
       try {
         await adminApi.deleteSession(item.id, item.type);
-        deletedCount++;
+        removedIds.push(item.id);
       } catch (err) {
+        failed++;
         console.error(`Erro ao deletar sessão ${item.id}:`, err);
       }
     }
-
-    setSessions(prev => prev.filter(s => !selectedIds.includes(s.id)));
-    setTotalSessionsCount(prev => Math.max(0, prev - deletedCount));
-    setSelectedIds([]);
-    toast({
-      title: "Exclusão em massa concluída",
-      description: `${deletedCount} sessões foram removidas do PostgreSQL.`,
-    });
+    setSessions((prev) => prev.filter((s) => !removedIds.includes(s.id)));
+    // Quem falhou continua marcado, para tentar de novo.
+    setSelectedIds((prev) => prev.filter((id) => !removedIds.includes(id)));
+    const summary = bulkDeleteSummary(removedIds.length, failed);
+    toast({ variant: summary.failedAny ? 'destructive' : 'default', title: summary.title, description: summary.description });
+    setBulkOpen(false);
+    setDeleting(false);
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = (filteredCount: number, currentFilteredIds: string[]) => {
-    if (selectedIds.length === filteredCount) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(currentFilteredIds);
-    }
-  };
-
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'desc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = 'asc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const getSortIcon = (key: string) => {
-    if (!sortConfig || sortConfig.key !== key) return <Filter className="h-3 w-3 opacity-0 group-hover:opacity-30 transition-opacity" />;
-    return sortConfig.direction === 'asc' ? <ArrowUpRight className="h-3 w-3 text-primary" /> : <ArrowUpRight className="h-3 w-3 text-primary rotate-180" />;
-  };
-
-  const getToolTheme = (type: string) => {
-    switch(type) {
-      case 'poker': return { label: 'Scrum Poker', color: 'text-blue-600 bg-blue-50 border-blue-100', icon: WalletCards };
-      case 'retro': return { label: 'Retrospectiva', color: 'text-orange-600 bg-orange-50 border-orange-100', icon: LayoutDashboard };
-      case 'health': return { label: 'Health Check', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: Activity };
-      case 'brainstorm': return { label: 'Brainstorm', color: 'text-indigo-600 bg-indigo-50 border-indigo-100', icon: BrainCircuit };
-      case 'sprint_planning': return { label: 'Planning', color: 'text-violet-600 bg-violet-50 border-violet-100', icon: LayoutDashboard };
-      default: return { label: 'Outro', color: 'text-slate-600 bg-slate-50 border-slate-100', icon: Search };
-    }
-  };
-
-  // Aplicação dos Filtros Multiplos (Busca + Tipo + Data)
-  const filtered = sessions.filter(s => {
-    const matchSearch = s.title?.toLowerCase().includes(searchTerm.toLowerCase()) || s.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchType = selectedType === 'all' || s.type === selectedType;
-    
-    let matchDate = true;
-    if (selectedDateRange !== 'all') {
-      const now = new Date();
-      const sessionDate = new Date(s.createdAt || Date.now());
-      const diffTime = Math.abs(now.getTime() - sessionDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (selectedDateRange === '7d') matchDate = diffDays <= 7;
-      if (selectedDateRange === '30d') matchDate = diffDays <= 30;
-    }
-
-    return matchSearch && matchType && matchDate;
-  });
-
-  // Ordenação dinâmica
-  const sorted = [...filtered].sort((a: any, b: any) => {
-    if (!sortConfig) return 0;
-    
-    let valA = a[sortConfig.key];
-    let valB = b[sortConfig.key];
-
-    // Tratamento especial para datas
-    if (sortConfig.key === 'createdAt') {
-      valA = new Date(a.createdAt || 0).getTime();
-      valB = new Date(b.createdAt || 0).getTime();
-    }
-
-    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const paginatedFiltered = sorted.slice(0, visibleLimit);
-
-  if (isFetchingSessions && sessions.length === 0) {
+  if (loading) return <LoadingSkeleton variant="table" rows={6} label="Varrendo as sessões das ferramentas" />;
+  if (loadError) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center gap-4">
-        <AgileSpinner size="lg" variant="primary" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Varrendo Ecossistema no Cache...</p>
-      </div>
+      <ErrorState
+        title="Não foi possível carregar as sessões"
+        description="Confira a conexão e tente de novo."
+        onRetry={() => fetchSessions(true)}
+      />
     );
   }
 
+  const sortIcon = (key: SessionSortKey) => {
+    if (!sort || sort.key !== key) return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" strokeWidth={1.5} aria-hidden="true" />;
+    return sort.direction === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} aria-hidden="true" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} aria-hidden="true" />
+    );
+  };
+  const ariaSort = (key: SessionSortKey): 'ascending' | 'descending' | 'none' =>
+    sort?.key === key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+
+  const sortHead = (k: SessionSortKey, children: React.ReactNode) => (
+    <span role="columnheader" aria-sort={ariaSort(k)}>
+      <button
+        type="button"
+        onClick={() => handleSort(k)}
+        className={cn('inline-flex items-center gap-1.5 rounded-md py-1 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground', FOCUS_RING)}
+      >
+        {children} {sortIcon(k)}
+      </button>
+    </span>
+  );
+
+  const bulkList = sessions.filter((s) => selectedIds.includes(s.id));
+  const shownBulk = bulkList.slice(0, 5);
+
   return (
-    <div className="space-y-6">
-      {/* Barra de Controles e Filtros Avançados */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div className="relative w-full xl:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-          <Input 
-            placeholder="Buscar por título ou ID..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 h-12 bg-slate-50/50 border-slate-200 rounded-2xl focus-visible:ring-primary/20 transition-all font-medium"
+    <div className="flex flex-col gap-4">
+      <DataToolbar
+        search={{ value: searchTerm, onChange: setSearchTerm, placeholder: 'Buscar por título ou ID...', ariaLabel: 'Buscar sessões por título ou ID' }}
+        filters={
+          <>
+            <ChipGroup options={SESSION_TYPE_FILTERS} value={selectedType as (typeof SESSION_TYPE_FILTERS)[number]['id']} onChange={setSelectedType} ariaLabel="Tipo de sessão" />
+            <SelectField
+              aria-label="Período"
+              value={selectedDateRange}
+              onChange={setSelectedDateRange}
+              options={SESSION_PERIOD_OPTIONS}
+              className="h-[38px] w-[178px]"
+            />
+          </>
+        }
+        actions={
+          <IconButton
+            label="Atualizar a lista"
+            icon={RefreshCw}
+            onClick={() => fetchSessions(false)}
+            disabled={refreshing}
+            className={cn(refreshing && '[&_svg]:animate-spin motion-reduce:[&_svg]:animate-none')}
           />
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-          {/* Filtro de Tipo */}
-          <div className="flex bg-slate-100 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto custom-scrollbar">
-            {[
-              { id: 'all', label: 'Todas' },
-              { id: 'poker', label: 'Poker' },
-              { id: 'retro', label: 'Retro' },
-              { id: 'health', label: 'Health' },
-              { id: 'brainstorm', label: 'Brainstorm' },
-              { id: 'sprint_planning', label: 'Planning' }
-            ].map(type => (
-              <button
-                key={type.id}
-                onClick={() => setSelectedType(type.id)}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                  selectedType === type.id ? "bg-white text-primary shadow-sm" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
+        }
+      />
 
-          {/* Filtro de Data */}
-          <select 
-            value={selectedDateRange}
-            onChange={(e) => setSelectedDateRange(e.target.value)}
-            className="h-10 px-4 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none focus:border-primary/50 cursor-pointer"
-          >
-            <option value="all">Todo o Período</option>
-            <option value="7d">Últimos 7 dias</option>
-            <option value="30d">Últimos 30 dias</option>
-          </select>
-
-          <Button 
-            variant="ghost" 
-            onClick={handleRefresh} 
-            disabled={isFetchingSessions}
-            className="h-10 w-10 p-0 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-          >
-            <Activity className={cn("h-4 w-4", isFetchingSessions && "animate-spin")} />
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Bar */}
-      <div className="flex items-center justify-between px-2">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Exibindo {paginatedFiltered.length} de {filtered.length} (Total DB: {totalSessionsCount})
-        </p>
-      </div>
-
-      {/* Tabela de Resultados */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow className="hover:bg-transparent border-slate-100">
-               <TableHead className="w-[50px] pl-8">
-                <Checkbox 
-                  checked={selectedIds.length === filtered.length && filtered.length > 0}
-                  onCheckedChange={() => toggleSelectAll(filtered.length, filtered.map(s => s.id))}
-                  className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-              </TableHead>
-              <TableHead className="h-14 font-black uppercase text-[9px] tracking-widest text-slate-500">
-                <button onClick={() => handleSort('type')} className="flex items-center gap-2 hover:text-primary transition-colors group">
-                  Ferramenta {getSortIcon('type')}
-                </button>
-              </TableHead>
-              <TableHead className="h-14 font-black uppercase text-[9px] tracking-widest text-slate-500">
-                <button onClick={() => handleSort('title')} className="flex items-center gap-2 hover:text-primary transition-colors group">
-                  Título / Nome {getSortIcon('title')}
-                </button>
-              </TableHead>
-              <TableHead className="h-14 font-black uppercase text-[9px] tracking-widest text-slate-500">
-                <button onClick={() => handleSort('createdAt')} className="flex items-center gap-2 hover:text-primary transition-colors group">
-                  Criação {getSortIcon('createdAt')}
-                </button>
-              </TableHead>
-              <TableHead className="h-14 font-black uppercase text-[9px] tracking-widest text-slate-500">
-                <button onClick={() => handleSort('participantCount')} className="flex items-center gap-2 hover:text-primary transition-colors group">
-                  Ops {getSortIcon('participantCount')}
-                </button>
-              </TableHead>
-              <TableHead className="h-14 font-black uppercase text-[9px] tracking-widest text-slate-500 text-right pr-8">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {paginatedFiltered.map((s) => {
-                const theme = getToolTheme(s.type);
-                const date = (() => {
-                  if (!s.createdAt) return 'Histórico';
-                  const d = new Date(s.createdAt);
-                  return isNaN(d.getTime()) ? 'Histórico' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                })();
-                const Icon = theme.icon;
-
-                return (
-                  <TableRow key={s.id} className={cn(
-                    "group hover:bg-slate-50/50 border-slate-100 transition-colors",
-                    selectedIds.includes(s.id) && "bg-primary/5"
-                  )}>
-                    <TableCell className="py-3 pl-8">
-                       <Checkbox 
-                        checked={selectedIds.includes(s.id)}
-                        onCheckedChange={() => toggleSelect(s.id)}
-                        className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                    </TableCell>
-                    <TableCell className="py-3">
-                       <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-black text-[9px] uppercase tracking-wider", theme.color)}>
-                         <Icon className="h-3 w-3" />
-                         {theme.label}
-                       </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                       <div className="flex flex-col">
-                         <span className="font-bold text-slate-900 group-hover:text-primary transition-colors">{s.title}</span>
-                         <span className="text-[10px] font-medium text-slate-400 font-code tracking-tight italic">ID: {s.id}</span>
-                       </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                       <div className="flex flex-col">
-                         <span className="text-[11px] font-bold text-slate-700">{date}</span>
-                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{s.creatorId.slice(0, 10)}...</span>
-                       </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                       <div className="flex items-center gap-2 text-slate-400">
-                          <Users className="h-4 w-4" />
-                          <span className="text-xs font-black">{s.participantCount}</span>
-                       </div>
-                    </TableCell>
-                    <TableCell className="py-3 text-right pr-8">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/${s.type === 'poker' ? 'poker' : s.type === 'retro' ? 'retro' : s.type === 'health' ? 'health-check' : s.type === 'brainstorm' ? 'brainstorming' : 'sprint-planning'}/${encodeURIComponent(s.id)}`} target="_blank">
-                          <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteSession(s)} className="h-10 w-10 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              
-              {paginatedFiltered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-400">
-                      <Filter className="h-8 w-8 mb-2 opacity-20" />
-                      <p className="text-[11px] font-black uppercase tracking-widest">Nenhuma sessão encontrada com estes filtros.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+      {sessions.length === 0 ? (
+        <EmptyState
+          title="Nenhuma sessão ainda"
+          description="As salas de Poker, Retro, Health Check, Brainstorm e Planning aparecem aqui."
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title="Nenhuma sessão encontrada com estes filtros"
+          actions={hasFilters ? <ModalButton variant="secondary" onClick={clearFilters}>Limpar filtros</ModalButton> : undefined}
+        />
+      ) : (
+        <section aria-label="Sessões" className={cn(PAGE_CARD, 'overflow-clip')}>
+          {selectedOnPage > 0 && (
+            <div className="flex flex-wrap items-center gap-3 border-b border-border bg-primary/5 px-5 py-2.5 text-[13px] text-foreground">
+              <span>
+                {selectedOnPage} {selectedOnPage === 1 ? 'selecionada' : 'selecionadas'} nesta página
+              </span>
+              {offerWholeFilter && (
+                <ModalButton variant="ghost" className="h-8 px-3 text-[13px]" onClick={() => setSelectedIds(filtered.map((s) => s.id))}>
+                  Selecionar as {filtered.length} do filtro
+                </ModalButton>
               )}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex justify-center pt-2">
-        {filtered.length > visibleLimit && (
-           <Button 
-            variant="outline" 
-            onClick={handleLoadMore}
-            className="h-12 px-10 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] border-slate-200 text-slate-500 hover:text-primary transition-all shadow-sm"
-           >
-             Exibir Mais Sessões
-           </Button>
-        )}
-      </div>
-
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-slate-800 rounded-[2rem] px-8 py-5 flex items-center gap-10 shadow-2xl shadow-black/40 backdrop-blur-xl"
-          >
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Seleção Ativa</span>
-              <span className="text-white font-bold">{selectedIds.length} Itens selecionados</span>
             </div>
-            <div className="h-10 w-[1px] bg-slate-800" />
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={() => setSelectedIds([])} className="h-12 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:text-white hover:bg-white/5 rounded-xl">Cancelar</Button>
-              <Button onClick={handleBulkDelete} className="h-12 bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-rose-600/20 px-8">Excluir Tudo</Button>
+          )}
+          <div role="table" aria-label="Histórico de sessões" aria-rowcount={page.length + 1} style={{ '--cols': COLS } as React.CSSProperties}>
+            <div role="row" className="hidden items-center gap-3 bg-muted px-5 py-2.5 lg:grid lg:[grid-template-columns:var(--cols)]">
+              <span role="columnheader">
+                <AdminCheckbox checked={headState} onChange={togglePage} label="Selecionar as sessões desta página" />
+              </span>
+              {sortHead('type', 'Ferramenta')}
+              {sortHead('title', 'Título / nome')}
+              {sortHead('createdAt', 'Criação')}
+              {sortHead('participantCount', 'Participantes')}
+              <span role="columnheader" className="text-right text-xs font-bold text-muted-foreground">Ações</span>
             </div>
-          </motion.div>
+
+            {page.map((s) => {
+              const checked = selectedIds.includes(s.id);
+              const path = sessionOpenPath(s.type, s.id);
+              const part = sessionParticipants(s);
+              const title = s.title || 'Sem título';
+              return (
+                <div
+                  key={s.id}
+                  role="row"
+                  aria-selected={checked}
+                  className={cn(
+                    'grid grid-cols-[28px_minmax(0,1fr)] items-start gap-x-3 gap-y-2 border-t border-border px-4 py-3.5 transition-colors duration-fast first:border-t-0 hover:bg-muted/40',
+                    'lg:items-center lg:gap-3 lg:px-5 lg:py-2.5 lg:[grid-template-columns:var(--cols)]',
+                    checked && 'bg-primary/5 hover:bg-primary/10',
+                  )}
+                >
+                  <div role="cell" className="pt-0.5 lg:pt-0">
+                    <AdminCheckbox checked={checked} onChange={() => toggleSelect(s.id)} label={`Selecionar a sessão ${title}`} />
+                  </div>
+                  <div role="cell" className="min-w-0 max-lg:order-2 max-lg:col-start-2">
+                    <ToolChip type={s.type} />
+                  </div>
+                  <div role="cell" className="flex min-w-0 flex-col max-lg:order-1 max-lg:col-start-2">
+                    <span className="truncate text-sm font-semibold text-foreground" title={title}>{title}</span>
+                    <span className="truncate font-mono text-xs text-muted-foreground">ID: {s.id}</span>
+                  </div>
+                  <div role="cell" className="flex min-w-0 flex-col max-lg:order-3 max-lg:col-start-2">
+                    <span className="text-[13px] font-medium text-foreground">{formatCreated(s.createdAt)}</span>
+                    <span className="truncate text-xs text-muted-foreground">por {s.creatorId ? `${s.creatorId.slice(0, 10)}...` : 'origem desconhecida'}</span>
+                  </div>
+                  <div role="cell" className="flex items-center gap-1.5 text-foreground max-lg:order-4 max-lg:col-start-2">
+                    <Users className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                    <span className={cn('text-sm font-semibold tabular-nums', part.value === '—' && 'text-muted-foreground')}>{part.value}</span>
+                    {part.note && <span className="text-xs text-muted-foreground">{part.note}</span>}
+                    <span className="sr-only">participantes</span>
+                  </div>
+                  <div role="cell" className="flex items-center justify-end gap-1.5 max-lg:order-5 max-lg:col-start-2 max-lg:justify-start">
+                    {path ? (
+                      <Link
+                        href={path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Abrir a sessão ${title} em nova aba`}
+                        title="Abrir em nova aba"
+                        className={cn(
+                          'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-accent',
+                          FOCUS_RING,
+                        )}
+                      >
+                        <ExternalLink className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                      </Link>
+                    ) : (
+                      <IconButton size="sm" label="Planning ainda não tem tela de sala" icon={ExternalLink} disabled aria-disabled="true" />
+                    )}
+                    <IconButton
+                      size="sm"
+                      label={`Excluir a sessão ${title}`}
+                      icon={Trash2}
+                      onClick={() => setPendingOne(s)}
+                      className="hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <ShowMoreFooter
+            shown={page.length}
+            total={filtered.length}
+            noun="sessões"
+            note={`total carregado: ${sessions.length}. O servidor devolve só as 100 sessões mais recentes`}
+            chunk={nextChunk(filtered.length, page.length)}
+            onMore={showMore}
+          />
+        </section>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div
+          role="region"
+          aria-label="Seleção ativa"
+          className="fixed bottom-6 left-1/2 z-40 flex w-[calc(100vw-1.5rem)] max-w-xl -translate-x-1/2 flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-3.5 text-card-foreground shadow-[0_20px_50px_rgba(15,23,42,0.25)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4"
+        >
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-muted-foreground">Seleção ativa</span>
+            <span className="text-sm font-semibold">
+              {selectedIds.length} {selectedIds.length === 1 ? 'item selecionado' : 'itens selecionados'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ModalButton variant="secondary" onClick={() => setSelectedIds([])}>Cancelar</ModalButton>
+            <ModalButton variant="danger" onClick={() => setBulkOpen(true)}>
+              <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Excluir selecionadas
+            </ModalButton>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!pendingOne}
+        onOpenChange={(open) => { if (!open) setPendingOne(null); }}
+        tone="danger"
+        icon={Trash2}
+        title={`Excluir a sessão “${pendingOne?.title || 'Sem título'}”?`}
+        description="Esta ação é irreversível."
+        cancelLabel="Manter"
+        confirmLabel="Excluir sessão"
+        loading={deleting}
+        loadingLabel="Excluindo…"
+        keepOpenOnConfirm
+        onConfirm={handleDeleteOne}
+      >
+        {pendingOne && (
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <ToolChip type={pendingOne.type} />
+              <span className="font-mono text-xs text-muted-foreground">ID: {pendingOne.id}</span>
+            </div>
+            <span className="text-[13px] text-muted-foreground">
+              {sessionParticipants(pendingOne).value === '—' ? 'Participantes não registrados' : `${sessionParticipants(pendingOne).value} participantes`} · criada em {formatCreated(pendingOne.createdAt)}
+            </span>
+          </div>
         )}
-      </AnimatePresence>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        tone="danger"
+        icon={Trash2}
+        title={`Excluir ${bulkList.length} ${bulkList.length === 1 ? 'sessão' : 'sessões'}?`}
+        description="Esta ação é irreversível. Se alguma falhar, o aviso diz quantas ficaram."
+        cancelLabel="Manter"
+        confirmLabel={`Excluir ${bulkList.length} ${bulkList.length === 1 ? 'sessão' : 'sessões'}`}
+        loading={deleting}
+        loadingLabel="Excluindo…"
+        keepOpenOnConfirm
+        onConfirm={handleBulkDelete}
+      >
+        <ul className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+          {shownBulk.map((s) => (
+            <li key={s.id} className="flex items-center gap-2 text-[13px] text-foreground">
+              <ToolChip type={s.type} />
+              <span className="min-w-0 truncate">{s.title || 'Sem título'}</span>
+            </li>
+          ))}
+          {bulkList.length > shownBulk.length && (
+            <li className="text-xs text-muted-foreground">e mais {bulkList.length - shownBulk.length}</li>
+          )}
+        </ul>
+      </ConfirmDialog>
     </div>
   );
 }

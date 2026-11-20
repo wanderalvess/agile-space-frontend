@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveSafeHost } from '@/lib/ssrf-guard';
+import { requireAuth } from '@/lib/verify-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  // Sem login a rota virava um relay aberto para qualquer servidor Confluence.
+  const auth = await requireAuth(req);
+  if (!auth) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  if (!checkRateLimit(`tdn-content:${auth.uid}`, 60, 60_000)) {
+    return NextResponse.json({ error: 'Muitas requisições. Tente novamente em instantes.' }, { status: 429 });
+  }
   try {
     const body = await req.json();
     const { baseUrl, token, pageId } = body;
@@ -11,6 +19,11 @@ export async function POST(req: NextRequest) {
         { error: 'Campos obrigatórios: baseUrl, token e pageId.' },
         { status: 400 }
       );
+    }
+
+    // pageId entra no caminho da URL: só dígitos, para não alcançar outros endpoints do Confluence.
+    if (!/^\d{1,20}$/.test(String(pageId))) {
+      return NextResponse.json({ error: 'pageId inválido.' }, { status: 400 });
     }
 
     let cleanBaseUrl: string;
@@ -23,6 +36,7 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(tdnUrl, {
       method: 'GET',
+      redirect: 'error', // um redirecionamento poderia levar a um host interno, driblando o guarda de SSRF
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json, text/plain, */*',

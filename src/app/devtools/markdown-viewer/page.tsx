@@ -20,7 +20,7 @@ Cole ou solte um arquivo \`.md\` aqui para ver a formatação lado a lado.
 | 1 | 2 |
 `;
 
-const btn = 'h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider';
+const btn = 'h-8 gap-1.5 rounded-xl text-xs font-bold';
 
 export default function MarkdownViewerPage() {
   const [content, setContent] = useState('');
@@ -77,7 +77,7 @@ export default function MarkdownViewerPage() {
         />
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <header className="shrink-0 border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pré-visualização</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">Pré-visualização</h2>
           </header>
           <div className="min-h-0 flex-1 overflow-auto p-4">
             {content.trim() ? <MarkdownRenderer content={content} /> : <p className="text-sm text-muted-foreground">A prévia aparece aqui.</p>}

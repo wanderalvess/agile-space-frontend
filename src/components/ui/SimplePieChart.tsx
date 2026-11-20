@@ -51,7 +51,7 @@ export function SimplePieChart({ title, data, height = 230, colors = DEFAULT_COL
               const y = cy + radius * Math.sin(-midAngle * RADIAN);
               if (!percent) return null;
               return (
-                <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700} fill={readableLabelColor(sliceColors[index])}>
+                <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700} fill={readableLabelColor(sliceColors[index])}>
                   {Math.round(percent * 100)}%
                 </text>
               );
@@ -73,7 +73,7 @@ export function SimplePieChart({ title, data, height = 230, colors = DEFAULT_COL
             }}
             itemStyle={{ color: theme.tooltipText }}
           />
-          <Legend wrapperStyle={{ fontSize: 11, fontWeight: 600 }} />
+          <Legend wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

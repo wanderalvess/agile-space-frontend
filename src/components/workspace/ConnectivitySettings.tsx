@@ -1,33 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Link2, 
-  Globe, 
-  Save, 
-  Loader2,
-  Database,
-  CheckCircle2,
-  AlertCircle,
-  ExternalLink,
-  ShieldCheck,
-  Zap
-} from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from 'react';
+import { CalendarDays, Database, Globe, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { IconTile, ModalButton, StatusChip } from '@/components/room-kit';
+import { PAGE_CARD } from '@/components/page/styles';
+import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
+import { useUserContext } from '@/context/UserContext';
+import { useGoogleCalendarConnection } from '@/hooks/useGoogleCalendarConnection';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import { Field, TEXT_INPUT, WorkspaceSectionHeader } from './workspace-ui';
 
 export function ConnectivitySettings() {
   const { toast } = useToast();
-  
+  const { userProfile } = useUserContext();
+
   // Jira Settings
   const { settings: jiraSettings, saveSettings: saveJira, loading: loadingJira } = useJiraSettings();
   const [jiraUrl, setJiraUrl] = useState('');
@@ -41,6 +30,9 @@ export function ConnectivitySettings() {
   const [tdnLabel, setTdnLabel] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Agenda do Google (somente leitura): o consentimento fica neste navegador.
+  const calendar = useGoogleCalendarConnection(userProfile?.email || userProfile?.id || '');
 
   // Sync state with loaded settings
   useEffect(() => {
@@ -64,184 +56,133 @@ export function ConnectivitySettings() {
     try {
       await Promise.all([
         saveJira({ domain: jiraUrl, token: jiraToken }),
-        saveTdn({ baseUrl: tdnUrl, token: tdnToken, space: tdnSpace, label: tdnLabel })
+        saveTdn({ baseUrl: tdnUrl, token: tdnToken, space: tdnSpace, label: tdnLabel }),
       ]);
       toast({
-        title: "Conexões Atualizadas",
-        description: "Suas credenciais de integração foram salvas com sucesso.",
+        title: 'Conexões Atualizadas',
+        description: 'Suas credenciais de integração foram salvas com sucesso.',
       });
-    } catch (error) {
+    } catch {
       toast({
-        title: "Erro ao Salvar",
-        description: "Não foi possível salvar uma ou mais configurações.",
-        variant: "destructive"
+        title: 'Erro ao Salvar',
+        description: 'Não foi possível salvar uma ou mais configurações.',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
     }
   };
 
+  const calendarState = calendar.isConnected ? { label: 'Conectada', tone: 'success' as const } : calendar.isConnecting ? { label: 'Conectando...', tone: 'neutral' as const } : { label: 'Não conectada', tone: 'neutral' as const };
+
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-700">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Integrações"
-        accent="cyan"
-        title="Conexões e"
-        titleAccent="Integrações"
-        subtitle="Sincronização de dados da squad com ferramentas externas"
+        title="Conexões e integrações"
+        subtitle="Suas credenciais para trazer dados de ferramentas externas"
         action={
-          <Button
-            onClick={handleSaveAll}
-            disabled={isSaving || loadingJira || loadingTdn}
-            className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 active:scale-95 transition-all"
-          >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Salvar Configurações
-          </Button>
+          <ModalButton variant="primary" onClick={handleSaveAll} disabled={isSaving || loadingJira || loadingTdn}>
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+            Salvar configurações
+          </ModalButton>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* JIRA SETTINGS */}
-        <Card className="rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-          
-          <div className="space-y-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-600/20">
-                  <Database className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Jira Software</h3>
-                  <p className="text-xs font-medium text-muted-foreground">Atlassian Cloud Sync</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 font-bold text-[9px] tracking-widest uppercase">
-                v2.0 API
-              </Badge>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Domínio da Instância</Label>
-                <div className="relative">
-                   <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                   <Input 
-                    value={jiraUrl}
-                    onChange={(e) => setJiraUrl(e.target.value)}
-                    placeholder="exemplo.atlassian.net"
-                    className="h-11 pl-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Personal Access Token (PAT)</Label>
-                <div className="relative">
-                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                   <Input 
-                    type="password"
-                    value={jiraToken}
-                    onChange={(e) => setJiraToken(e.target.value)}
-                    placeholder="••••••••••••••••"
-                    className="h-11 pl-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Jira */}
+        <section className={cn(PAGE_CARD, 'flex flex-col gap-5 rounded-3xl p-6')}>
+          <header className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <IconTile icon={Database} size="lg" />
+              <div>
+                <h3 className="text-base font-bold text-foreground">Jira Software</h3>
+                <p className="text-xs text-muted-foreground">Atlassian Cloud Sync</p>
               </div>
             </div>
+            <StatusChip tone="neutral">v2.0 API</StatusChip>
+          </header>
+          <div className="flex flex-col gap-4">
+            <Field label="Domínio da instância" htmlFor="ws-jira-domain">
+              <div className="relative">
+                <Globe className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                <input id="ws-jira-domain" value={jiraUrl} onChange={(e) => setJiraUrl(e.target.value)} placeholder="exemplo.atlassian.net" autoComplete="off" className={cn(TEXT_INPUT, 'pl-10')} />
+              </div>
+            </Field>
+            <Field label="Personal Access Token (PAT)" htmlFor="ws-jira-token">
+              <div className="relative">
+                <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                <input id="ws-jira-token" type="password" value={jiraToken} onChange={(e) => setJiraToken(e.target.value)} placeholder="••••••••••••••••" autoComplete="off" className={cn(TEXT_INPUT, 'pl-10')} />
+              </div>
+            </Field>
+          </div>
+          <p className="rounded-2xl border border-border bg-muted/40 p-3.5 text-[13px] leading-relaxed text-muted-foreground">
+            Utilizado para importar Histórias de Usuário e Critérios de Aceite para as sessões de Poker.
+          </p>
+        </section>
 
-            <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20">
-              <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed font-medium">
-                Utilizado para importar Histórias de Usuário e Critérios de Aceite para as sessões de Poker.
-              </p>
+        {/* TDN */}
+        <section className={cn(PAGE_CARD, 'flex flex-col gap-5 rounded-3xl p-6')}>
+          <header className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <IconTile icon={Globe} size="lg" />
+              <div>
+                <h3 className="text-base font-bold text-foreground">TDN / Confluence Wiki</h3>
+                <p className="text-xs text-muted-foreground">Technical Knowledge Hub</p>
+              </div>
+            </div>
+            <StatusChip tone="neutral">Confluence</StatusChip>
+          </header>
+          <div className="flex flex-col gap-4">
+            <Field label="URL base do TDN" htmlFor="ws-tdn-url">
+              <input id="ws-tdn-url" value={tdnUrl} onChange={(e) => setTdnUrl(e.target.value)} placeholder="wiki.suaempresa.com" autoComplete="off" className={TEXT_INPUT} />
+            </Field>
+            <Field label="Personal Access Token (PAT)" htmlFor="ws-tdn-token">
+              <input id="ws-tdn-token" type="password" value={tdnToken} onChange={(e) => setTdnToken(e.target.value)} placeholder="••••••••••••••••" autoComplete="off" className={TEXT_INPUT} />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Espaço (Space)" htmlFor="ws-tdn-space">
+                <input id="ws-tdn-space" value={tdnSpace} onChange={(e) => setTdnSpace(e.target.value)} placeholder="Ex: PRO" autoComplete="off" className={TEXT_INPUT} />
+              </Field>
+              <Field label="Rótulo (Label)" htmlFor="ws-tdn-label">
+                <input id="ws-tdn-label" value={tdnLabel} onChange={(e) => setTdnLabel(e.target.value)} placeholder="Ex: agile, space" autoComplete="off" className={TEXT_INPUT} />
+              </Field>
             </div>
           </div>
-        </Card>
-
-        {/* TDN SETTINGS */}
-        <Card className="rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-          
-          <div className="space-y-6 relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
-                  <Globe className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">TDN / Confluence Wiki</h3>
-                  <p className="text-xs font-medium text-muted-foreground">Technical Knowledge Hub</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20 font-bold text-[9px] tracking-widest uppercase">
-                Confluence
-              </Badge>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">URL Base do TDN</Label>
-                <div className="relative">
-                   <Zap className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                   <Input 
-                    value={tdnUrl}
-                    onChange={(e) => setTdnUrl(e.target.value)}
-                    placeholder="wiki.suaempresa.com"
-                    className="h-11 pl-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Personal Access Token (PAT)</Label>
-                <div className="relative">
-                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                   <Input 
-                    type="password"
-                    value={tdnToken}
-                    onChange={(e) => setTdnToken(e.target.value)}
-                    placeholder="••••••••••••••••"
-                    className="h-11 pl-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Espaço (Space)</Label>
-                  <Input 
-                    value={tdnSpace}
-                    onChange={(e) => setTdnSpace(e.target.value)}
-                    placeholder="Ex: PRO"
-                    className="h-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Rótulo (Label)</Label>
-                  <Input 
-                    value={tdnLabel}
-                    onChange={(e) => setTdnLabel(e.target.value)}
-                    placeholder="Ex: agile, space"
-                    className="h-11 rounded-xl border-border bg-background font-medium text-sm focus-visible:ring-primary/20"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
-              <p className="text-xs text-cyan-700 dark:text-cyan-300 leading-relaxed font-medium">
-                Permite buscar documentações técnicas da empresa e importá-las para sua Wiki local com um clique.
-              </p>
-            </div>
-          </div>
-        </Card>
-
+          <p className="rounded-2xl border border-border bg-muted/40 p-3.5 text-[13px] leading-relaxed text-muted-foreground">
+            Permite buscar documentações técnicas da empresa e importá-las para sua Wiki local com um clique.
+          </p>
+        </section>
       </div>
 
-      {/* API KEYS — self-service, separado do grid Jira/TDN porque tem lista +
-          formulário (mais alto), diferente das duas credenciais simples acima. */}
+      {/* Agenda do Google */}
+      <section className={cn(PAGE_CARD, 'flex flex-wrap items-center gap-4 rounded-3xl p-5')}>
+        <IconTile icon={CalendarDays} size="lg" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h3 className="text-base font-bold text-foreground">Agenda do Google</h3>
+          <p className="text-[13px] text-muted-foreground">Somente leitura, usada na Próxima cerimônia do Painel do time</p>
+          {calendar.error && (
+            <p role="alert" className="text-xs font-medium text-red-700 dark:text-red-300">
+              {calendar.error}
+            </p>
+          )}
+        </div>
+        {calendar.isConfigured ? (
+          <>
+            <StatusChip tone={calendarState.tone}>{calendarState.label}</StatusChip>
+            {calendar.isConnected ? (
+              <ModalButton onClick={calendar.disconnect}>Desconectar</ModalButton>
+            ) : (
+              <ModalButton variant="primary" onClick={calendar.connect} disabled={calendar.isConnecting}>
+                Conectar minha agenda
+              </ModalButton>
+            )}
+          </>
+        ) : (
+          <StatusChip tone="neutral">Indisponível neste ambiente</StatusChip>
+        )}
+      </section>
+
+      {/* Minhas API Keys: self-service, com lista e formulário */}
       <MyApiKeysManager />
     </div>
   );

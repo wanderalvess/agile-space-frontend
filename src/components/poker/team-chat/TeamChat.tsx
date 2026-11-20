@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, MessagesSquare, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { isParticipantOnline } from '@/lib/poker-utils';
+import { isParticipantPresent } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
-import { pokerApi } from '@/app/room/api';
 import {
   GENERAL_CHANNEL, categoryLabel, dmChannelId, dmPeerId, participantCategory, roleChannelId,
   type ChatMessage, type ChatMessageKind, type ChatParticipant,
@@ -25,6 +23,8 @@ interface TeamChatProps {
   title?: string;
   currentUser: ChatParticipant;
   participants: ChatParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = sem presença do servidor (vale `lastSeen`). */
+  onlineIds?: ReadonlySet<string> | null;
   canModerate: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +32,10 @@ interface TeamChatProps {
   messagesByChannel: Record<string, ChatMessage[]>;
   onSendMessage: (text: string, kind: ChatMessageKind, channelId: string) => void;
   onDeleteMessage: (messageId: string, channelId: string) => void;
+  /** Avisa que a pessoa digita no canal (a Retro usa para o "escrevendo…"; o Poker não passa). */
+  onTyping?: (channelId: string) => void;
+  /** "Fulana está escrevendo…" de um canal; `null` = ninguém. */
+  typingLabelFor?: (channelId: string) => string | null;
 }
 
 export function TeamChat({
@@ -39,6 +43,7 @@ export function TeamChat({
   title = 'Chat da Sala',
   currentUser,
   participants,
+  onlineIds = null,
   canModerate,
   isOpen,
   onClose,
@@ -46,6 +51,8 @@ export function TeamChat({
   messagesByChannel,
   onSendMessage,
   onDeleteMessage,
+  onTyping,
+  typingLabelFor,
 }: TeamChatProps) {
   const [tab, setTab] = useState<Tab>('geral');
   const [activeDm, setActiveDm] = useState<string | null>(null);
@@ -90,11 +97,11 @@ export function TeamChat({
         channelId,
         lastMessage: msgs?.[msgs.length - 1],
         unread: unreadCount(channelId, msgs),
-        online: isParticipantOnline(p, now),
+        online: isParticipantPresent(p, now, onlineIds),
       };
     })
     .sort((a, b) => (b.lastMessage?.ts ?? '').localeCompare(a.lastMessage?.ts ?? '') || a.participant.nickname.localeCompare(b.participant.nickname)),
-  [others, currentUser.id, messagesByChannel, unreadCount, now]);
+  [others, currentUser.id, messagesByChannel, unreadCount, now, onlineIds]);
 
   const dmUnread = peers.reduce((sum, p) => sum + p.unread, 0);
   const totalUnread = generalUnread + roleUnread + dmUnread;
@@ -131,32 +138,23 @@ export function TeamChat({
       ? `Mensagem para ${categoryLabel(myCategory)}…`
       : `Mensagem para ${dmPeer?.nickname ?? ''}…`;
 
+  const reduceMotion = useReducedMotion();
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ x: 400, opacity: 0 }}
+        <motion.aside
+          aria-label={title}
+          initial={{ x: reduceMotion ? 0 : 400, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 400, opacity: 0 }}
-          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] sm:max-w-[calc(100vw-2rem)] z-[100] flex flex-col overflow-x-hidden"
+          exit={{ x: reduceMotion ? 0 : 400, opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0.001 : 0.32, ease: [0.2, 0, 0, 1] }}
+          className="fixed bottom-4 left-4 right-4 top-24 z-[100] flex w-auto flex-col overflow-x-hidden sm:left-auto sm:w-[400px] sm:max-w-[calc(100vw-2rem)]"
         >
-          <div className="flex-1 min-h-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden">
-            <div className="px-5 pt-5 pb-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-indigo-600 shadow-sm">
-                    <MessagesSquare className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Time</span>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white italic">{title}</h3>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl text-slate-400" aria-label="Fechar chat">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div role="tablist" className="mt-3 flex gap-1 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_30px_80px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+            <div aria-hidden="true" className="h-0.5 shrink-0 bg-gradient-to-r from-primary to-primary/40 [.theme-totvs_&]:bg-none [.theme-totvs_&]:bg-primary [.theme-leitura_&]:bg-none [.theme-leitura_&]:bg-primary" />
+            <div className="flex items-center gap-2 px-4 pt-3">
+              <div role="tablist" aria-label="Canais" className="flex flex-1 gap-5">
                 {tabs.map(t => (
                   <button
                     key={t.id}
@@ -165,10 +163,8 @@ export function TeamChat({
                     aria-selected={tab === t.id}
                     onClick={() => { setTab(t.id); if (t.id !== 'dm') setActiveDm(null); }}
                     className={cn(
-                      'flex-1 h-8 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all',
-                      tab === t.id
-                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      tab === t.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <span className="truncate">{t.label}</span>
@@ -176,15 +172,19 @@ export function TeamChat({
                   </button>
                 ))}
               </div>
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg text-muted-foreground" aria-label="Fechar chat">
+                <X className="h-4 w-4" strokeWidth={1.5} />
+              </Button>
             </div>
+            <div className="h-px bg-border" />
 
             {tab === 'dm' && activeDm && (
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                <Button variant="ghost" size="icon" onClick={() => setActiveDm(null)} className="h-8 w-8 rounded-xl text-slate-500" aria-label="Voltar para conversas">
-                  <ArrowLeft className="h-4 w-4" />
+              <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+                <Button variant="ghost" size="icon" onClick={() => setActiveDm(null)} className="h-8 w-8 rounded-lg text-muted-foreground" aria-label="Voltar para conversas">
+                  <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
                 </Button>
-                <span className="text-[12px] font-bold text-slate-900 dark:text-white truncate">{dmPeer?.nickname}</span>
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Privado</span>
+                <span className="truncate text-[13px] font-semibold">{dmPeer?.nickname}</span>
+                <span className="text-xs text-muted-foreground">Privado</span>
               </div>
             )}
 
@@ -200,11 +200,17 @@ export function TeamChat({
                   emptyHint={emptyHint}
                   onDelete={handleDelete}
                 />
-                <ChatComposer key={`composer-${activeChannel}`} placeholder={placeholder} onSend={handleSend} />
+                <ChatComposer
+                  key={`composer-${activeChannel}`}
+                  placeholder={placeholder}
+                  onSend={handleSend}
+                  onTyping={onTyping && activeChannel ? () => onTyping(activeChannel) : undefined}
+                  typingLabel={typingLabelFor && activeChannel ? typingLabelFor(activeChannel) : null}
+                />
               </>
             )}
           </div>
-        </motion.div>
+        </motion.aside>
       )}
     </AnimatePresence>
   );

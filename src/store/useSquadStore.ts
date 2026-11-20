@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { squadApi } from '@/app/squad/api';
-import { userApi } from '@/app/users/api';
 import type {
   SquadConfig, SquadIssueSnapshot, SquadMetricsRollup, SquadMemberMetric, SquadMember,
   SquadDailySnapshot, SquadWorkflowPhase
@@ -37,12 +36,12 @@ interface SquadStoreState {
   isLoadingViewedSprint: boolean;
   isForceResyncingSprint: boolean;
 
-  fetchSquad: (squadId: string) => Promise<void>;
+  /** Devolve false quando a leitura falhou (a tela do time mostra "Tentar de novo"). */
+  fetchSquad: (squadId: string) => Promise<boolean>;
   // Só chame isto se o viewer for SQUAD_LEADERSHIP_VIEW_ROLES — sem Firestore rules
   // o controle de visibilidade é feito no próprio componente (isLeadershipViewer).
   fetchSquadDetail: (squadId: string) => Promise<void>;
-  fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<void>;
-  claimMember: (squadId: string, jiraAccountId: string, uid: string) => Promise<void>;
+  fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<boolean>;
   saveMemberCapacity: (
     squadId: string,
     jiraAccountId: string,
@@ -63,10 +62,10 @@ interface SquadStoreState {
   saveSquadConfig: (
     squadId: string,
     updates: {
-      jiraProjectKey: string;
-      syncJql: string;
-      rankingEnabled: boolean;
-      defaultDailyCapacityHours: number;
+      jiraProjectKey?: string;
+      syncJql?: string;
+      rankingEnabled?: boolean;
+      defaultDailyCapacityHours?: number;
       jiraDomain?: string;
       sprintFieldId?: string;
       capacityCalculationMethod?: string;
@@ -112,7 +111,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   isForceResyncingSprint: false,
 
   fetchSquad: async (squadId) => {
-    if (!squadId) return;
+    if (!squadId) return true;
     set({ activeSquadId: squadId, isLoading: true });
     try {
       const [config, rollup] = await Promise.all([
@@ -121,10 +120,12 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       ]);
       // Descarta se, enquanto essa leitura estava em voo, o usuário já
       // trocou de squad — senão dado do squad antigo pisa no do squad novo.
-      if (get().activeSquadId !== squadId) return;
+      if (get().activeSquadId !== squadId) return true;
       set({ config, rollup });
+      return true;
     } catch (err) {
       console.error('Erro ao buscar dados do squad:', err);
+      return false;
     } finally {
       if (get().activeSquadId === squadId) set({ isLoading: false });
     }
@@ -136,9 +137,10 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     if (!squadId) return;
     set({ activeSquadId: squadId, isLoadingDetail: true });
     try {
+      // Horas por pessoa são só da liderança no servidor (403 para os demais): isso não pode derrubar o backlog.
       const [issuesSnapshot, memberMetrics] = await Promise.all([
         squadApi.getIssues(squadId),
-        squadApi.getMemberMetrics(squadId),
+        squadApi.getMemberMetrics(squadId).catch((): SquadMemberMetric[] => []),
       ]);
       if (get().activeSquadId !== squadId) return;
       set({
@@ -155,7 +157,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   // Roster é legível por qualquer membro do squad (não é dado sensível) —
   // Identifica automaticamente quem é o usuário atual no squad (auto-binding por UID, email, Jira ID ou nome).
   fetchMembers: async (squadId, uid, userHints) => {
-    if (!squadId) return;
+    if (!squadId) return true;
     try {
       const members = await squadApi.getMembers(squadId);
       const userEmail = (userHints?.email || (uid && uid.includes('@') ? uid : '')).toLowerCase().trim();
@@ -175,20 +177,16 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       // estava em voo pisava no roster/claim do squad novo com dado do
       // squad antigo — mesmo problema de race que fetchSquad/fetchSquadDetail
       // já evitam via activeSquadId.
-      if (get().activeSquadId !== squadId) return;
+      if (get().activeSquadId !== squadId) return true;
       set({
         members,
         myClaim,
       });
+      return true;
     } catch (err) {
       console.error('Erro ao buscar roster do squad:', err);
+      return false;
     }
-  },
-
-  // "Isso sou eu" — Refaz fetchMembers pra atualizar myClaim local.
-  claimMember: async (squadId, jiraAccountId, uid) => {
-    await squadApi.saveMember(squadId, jiraAccountId, { claimedByUid: uid, updatedAt: new Date().toISOString() });
-    await get().fetchMembers(squadId, uid);
   },
 
   saveMemberCapacity: async (squadId, jiraAccountId, updates) => {
@@ -228,7 +226,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     }));
   },
 
-  // "Minhas issues" — só funciona depois de claimMember; filtra por assigneeId.
+  // "Minhas issues" — só funciona com o vínculo feito (onboarding "Sou eu", convite ou aprovação); filtra por assigneeId.
   // Sempre reflete a sprint ATIVA — pra ver "minhas issues" de uma sprint passada,
   // use selectSprint (viewedMyIssues).
   fetchMyIssues: async (squadId, jiraAccountId) => {
@@ -264,14 +262,17 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     // Detecta a transição false->true de rankingEnabled pra forçar uma sync
     // FULL seguinte (backfill de issueWorklogCache pra partição inteira).
     const current = get().config;
-    const rankingJustEnabled = updates.rankingEnabled && !current?.rankingEnabled;
+    const rankingJustEnabled = updates.rankingEnabled === true && !current?.rankingEnabled;
+    // Só vai o que foi informado: o servidor preserva o resto. Vazio nunca apaga a chave do projeto nem a JQL.
+    const projectKey = updates.jiraProjectKey?.trim();
+    const jql = updates.syncJql?.trim();
     const payload: Partial<SquadConfig> = {
       squadId,
-      name: current?.name || squadId,
-      jiraProjectKey: updates.jiraProjectKey.trim(),
-      syncJql: updates.syncJql.trim(),
-      rankingEnabled: updates.rankingEnabled,
-      defaultDailyCapacityHours: updates.defaultDailyCapacityHours,
+      ...(current?.name ? { name: current.name } : {}),
+      ...(projectKey ? { jiraProjectKey: projectKey } : {}),
+      ...(jql ? { syncJql: jql } : {}),
+      ...(updates.rankingEnabled !== undefined ? { rankingEnabled: updates.rankingEnabled } : {}),
+      ...(updates.defaultDailyCapacityHours !== undefined ? { defaultDailyCapacityHours: updates.defaultDailyCapacityHours } : {}),
       ...(updates.capacityCalculationMethod ? { capacityCalculationMethod: updates.capacityCalculationMethod } : {}),
       ...(updates.capacityJql !== undefined ? { capacityJql: updates.capacityJql } : {}),
       ...(updates.capacityFormula !== undefined ? { capacityFormula: updates.capacityFormula } : {}),
@@ -289,19 +290,18 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   // O motor de sync (full/delta, parsing de sprint, métricas por pessoa, freios
   // de segurança contra apagar em massa) roda inteiro no backend agora
   // (SquadSyncService) — este action só dispara e refaz fetch do que mudou.
-  // Ver plano de unificação Squad Pulse + jiradash, Fase 2.
-  syncSquad: async (uid, squadId, forceFull) => {
+  // Ver plano de unificação Squad Pulse, Fase 2.
+  // O 1º argumento (quem sincroniza) ficou só pela assinatura: sincronizar não grava mais a squad do usuário
+  // (o vínculo é a fonte da verdade; a troca da squad ativa é do `switchProject`).
+  syncSquad: async (_uid, squadId, forceFull) => {
     set({ isSyncing: true, syncError: null });
     try {
-      if (uid && squadId && squadId !== 'Sem Time') {
-        userApi.saveUser({ id: uid, squadId }).catch(() => {});
-      }
       await squadApi.sync(squadId, forceFull);
 
       const [config, rollup, memberMetrics] = await Promise.all([
         squadApi.getSquad(squadId),
         squadApi.getRollup(squadId),
-        squadApi.getMemberMetrics(squadId),
+        squadApi.getMemberMetrics(squadId).catch((): SquadMemberMetric[] => []),
       ]);
       if (get().activeSquadId !== squadId) return;
       set({
@@ -331,7 +331,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     set({ isLoadingViewedSprint: true });
     try {
       const [viewedRollup, issuesForSprint, myIssuesForSprint] = await Promise.all([
-        squadApi.getRollup(squadId),
+        // Antes lia o rollup da sprint ativa, então a sprint escolhida mostrava os números da atual.
+        squadApi.getRollup(squadId, sprintId),
         squadApi.getIssues(squadId, sprintId),
         opts?.myClaimedAssigneeId
           ? squadApi.getIssuesByAssignee(squadId, opts.myClaimedAssigneeId).then(all => all.filter(s => s.sprintId === sprintId))
@@ -341,6 +342,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       set({ viewedRollup, viewedIssuesSnapshot: issuesForSprint, viewedMyIssues: myIssuesForSprint });
     } catch (err) {
       console.error('Erro ao buscar sprint selecionada:', err);
+      // Quem chamou decide o que mostrar (o hub avisa a pessoa e volta para a sprint atual).
+      throw err;
     } finally {
       if (get().viewingSprintId === sprintId) set({ isLoadingViewedSprint: false });
     }
@@ -357,7 +360,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
 
       if (get().viewingSprintId === targetSprintId) {
         const [viewedRollup, viewedIssuesSnapshot] = await Promise.all([
-          squadApi.getRollup(squadId),
+          squadApi.getRollup(squadId, targetSprintId),
           squadApi.getIssues(squadId, targetSprintId),
         ]);
         if (get().viewingSprintId === targetSprintId) set({ viewedRollup, viewedIssuesSnapshot });

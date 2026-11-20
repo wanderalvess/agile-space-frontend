@@ -1,119 +1,124 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Mail, Users, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
-import { inviteApi, type Invite } from '@/lib/invite-api';
+import { inviteApi, isRateLimitError, type Invite, type InvitePreview } from '@/lib/invite-api';
+import { clearPendingInvite, savePendingInvite } from '@/lib/pending-invite';
+import { loginUrlForInvite } from '@/lib/login-context';
+import { inviteView } from '@/lib/invite-state';
+import { InviteAcceptView } from '@/components/invite/InviteAcceptView';
+import { PageShell } from '@/components/page';
+
+/** Quanto tempo "Convite aceito!" fica na tela antes de levar para o squad. */
+const REDIRECT_DELAY_MS = 1500;
+
+function asError(err: unknown, fallback: string): Error {
+  return err instanceof Error && err.message ? err : new Error(fallback);
+}
 
 export default function InviteAcceptPage() {
   const params = useParams();
   const router = useRouter();
   const token = String(params.token);
-  const { session, isLoading: authLoading } = useAuth();
+  // Sem sessão a página é aberta (rota aberta no AuthGuard): mostra o convite pela pré-visualização pública e leva
+  // a entrar ou criar a conta com `/invite/{token}` como returnUrl. O aviso do login vem de lib/login-context.ts.
+  const { session, isLoading: authLoading, acceptInvite, logout } = useAuth();
 
-  const [invite, setInvite] = useState<Invite | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
+  const [invite, setInvite] = useState<Invite | InvitePreview | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  // "Tentar de novo" depois de um 429: de onde veio o erro e um contador para refazer a busca do convite.
+  const [errorSource, setErrorSource] = useState<'load' | 'accept'>('load');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const hasSession = !!session;
 
   useEffect(() => {
-    if (authLoading || !session) return;
-    setIsFetching(true);
-    inviteApi.getInvite(token)
-      .then(setInvite)
-      .catch((err: any) => setLoadError(err?.message || 'Convite não encontrado ou expirado.'))
-      .finally(() => setIsFetching(false));
-  }, [authLoading, session, token]);
+    if (authLoading) return;
+    let cancelled = false;
+    const load = hasSession ? inviteApi.getInvite(token) : inviteApi.getPreview(token);
+    load
+      .then((data) => {
+        if (cancelled) return;
+        setInvite(data);
+        setError(null);
+        // Sem conta: guarda o convite para o login voltar a ele mesmo se o returnUrl se perder. Em convite de equipe
+        // o servidor já manda o status derivado (PENDING/EXHAUSTED/EXPIRED/REVOKED), então esgotado cai no ramo abaixo.
+        if (!hasSession && data.status === 'PENDING') savePendingInvite(token);
+        // Convite que não serve mais (usado, esgotado, vencido, revogado) não deve puxar a pessoa de volta depois.
+        if (data.status !== 'PENDING') clearPendingInvite();
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        // 429 não diz nada sobre o convite: mantém o convite pendente guardado para o login voltar a ele.
+        if (!isRateLimitError(err)) clearPendingInvite();
+        setErrorSource('load');
+        setError(asError(err, 'Convite não encontrado ou expirado.'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, hasSession, token, reloadKey]);
 
-  const handleAccept = async () => {
+  // Depois de aceitar, "Convite aceito!" fica um instante e leva para o squad.
+  useEffect(() => {
+    if (!accepted) return;
+    const timer = setTimeout(() => router.push('/squad'), REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [accepted, router]);
+
+  const handleAccept = useCallback(async () => {
     setIsAccepting(true);
+    setError(null);
     try {
-      await inviteApi.acceptInvite(token);
+      await acceptInvite(token);
+      clearPendingInvite();
       setAccepted(true);
-      setTimeout(() => router.push('/squad'), 1500);
-    } catch (err: any) {
-      setLoadError(err?.message || 'Não foi possível aceitar o convite.');
+    } catch (err: unknown) {
+      setErrorSource('accept');
+      setError(asError(err, 'Não foi possível aceitar o convite.'));
     } finally {
       setIsAccepting(false);
     }
-  };
+  }, [acceptInvite, token]);
 
-  if (authLoading) {
-    return <div className="p-8 text-center text-xs font-bold text-slate-400">Carregando...</div>;
-  }
+  const handleRetry = useCallback(() => {
+    if (errorSource === 'accept') {
+      void handleAccept();
+      return;
+    }
+    setError(null);
+    setInvite(null);
+    setReloadKey((k) => k + 1);
+  }, [errorSource, handleAccept]);
 
-  if (!session) {
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-[#fafafa] dark:bg-slate-950 p-4">
-        <Card className="max-w-sm w-full rounded-3xl shadow-lg">
-          <CardHeader className="text-center">
-            <Mail className="h-10 w-10 text-indigo-500 mx-auto mb-2" />
-            <CardTitle className="text-lg font-black uppercase tracking-tight">Você foi convidado</CardTitle>
-            <CardDescription className="text-xs">
-              Entre ou crie sua conta pra aceitar o convite e entrar no squad.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2.5">
-            <Button
-              onClick={() => router.push(`/login?returnUrl=${encodeURIComponent(`/invite/${token}`)}`)}
-              className="h-10 rounded-xl text-xs font-bold"
-            >
-              Entrar ou criar conta
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const view = inviteView({ authLoading, hasSession, invite, error, accepted });
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center bg-[#fafafa] dark:bg-slate-950 p-4">
-      <Card className="max-w-sm w-full rounded-3xl shadow-lg">
-        <CardHeader className="text-center">
-          {accepted ? (
-            <>
-              <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
-              <CardTitle className="text-lg font-black uppercase tracking-tight">Convite aceito!</CardTitle>
-              <CardDescription className="text-xs">Redirecionando pro seu squad...</CardDescription>
-            </>
-          ) : loadError ? (
-            <>
-              <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-2" />
-              <CardTitle className="text-lg font-black uppercase tracking-tight">Convite inválido</CardTitle>
-              <CardDescription className="text-xs">{loadError}</CardDescription>
-            </>
-          ) : isFetching || !invite ? (
-            <>
-              <Loader2 className="h-10 w-10 text-indigo-500 mx-auto mb-2 animate-spin" />
-              <CardTitle className="text-lg font-black uppercase tracking-tight">Verificando convite...</CardTitle>
-            </>
-          ) : (
-            <>
-              <Users className="h-10 w-10 text-indigo-500 mx-auto mb-2" />
-              <CardTitle className="text-lg font-black uppercase tracking-tight">Convite pro squad</CardTitle>
-              <CardDescription className="text-xs">
-                Você foi convidado pra entrar como <strong>{invite.roleName}</strong>.
-              </CardDescription>
-            </>
-          )}
-        </CardHeader>
-        {invite && !loadError && !accepted && (
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-center gap-2">
-              <Badge variant="outline" className="text-xs font-bold">Squad: {invite.squadId}</Badge>
-              <Badge variant="outline" className="text-xs font-bold">Papel: {invite.roleName}</Badge>
-            </div>
-            <Button onClick={handleAccept} disabled={isAccepting} className="h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">
-              {isAccepting ? 'Aceitando...' : 'Aceitar Convite'}
-            </Button>
-          </CardContent>
-        )}
-      </Card>
-    </div>
+    <PageShell documentTitle="Convite" header={{ squadControl: null, minimal: !hasSession, signInHref: loginUrlForInvite(token, 'login') }} width="narrow" contentClassName="gap-0 p-0 sm:p-0 2xl:px-0 pb-0 sm:pb-0 pt-0 sm:pt-0">
+    <InviteAcceptView
+      view={view}
+      invite={invite}
+      error={error}
+      email={session?.email}
+      accepting={isAccepting}
+      onAccept={handleAccept}
+      onRetry={handleRetry}
+      onGoSquad={() => {
+        clearPendingInvite();
+        router.push('/squad');
+      }}
+      // Sair da conta leva ao /login?returnUrl=/invite/{token} (AuthGuard), e o convite reabre depois de entrar.
+      onSwitchAccount={logout}
+      onSignIn={() => router.push(loginUrlForInvite(token, 'login'))}
+      onSignUp={() => router.push(loginUrlForInvite(token, 'register'))}
+      onSkip={() => {
+        clearPendingInvite();
+        router.push('/');
+      }}
+    />
+    </PageShell>
   );
 }

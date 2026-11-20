@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Download, FileSpreadsheet, Loader2, RotateCcw, Upload } from 'lucide-react';
+import { xlsxSizeError } from '@/lib/devtools/limits';
 import { XMLParser } from 'fast-xml-parser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -165,7 +166,7 @@ function toCsv(rows: string[][], sep: string): string {
 }
 
 const PREVIEW_ROWS = 200;
-const btn = 'h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider';
+const btn = 'h-8 gap-1.5 rounded-xl text-xs font-bold';
 
 export default function XlsxToCsvPage() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -183,6 +184,13 @@ export default function XlsxToCsvPage() {
   const csv = useMemo(() => (sheet ? toCsv(sheet.rows, SEPARATORS[sep].ch) : ''), [sheet, sep]);
 
   const processFile = async (file: File) => {
+    const tooBig = xlsxSizeError(file.size);
+    if (tooBig) {
+      setSheets([]);
+      setFileName(null);
+      setError(tooBig);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -268,10 +276,10 @@ export default function XlsxToCsvPage() {
           )}
         >
           {loading ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <FileSpreadsheet className="h-10 w-10 text-muted-foreground" />}
-          <p className="font-headline text-lg font-black uppercase tracking-tight text-foreground">{loading ? 'Lendo planilha…' : 'Arraste um arquivo .xlsx aqui'}</p>
-          <p className="max-w-sm text-xs font-medium text-muted-foreground">O arquivo é lido no navegador e não é enviado a nenhum servidor.</p>
+          <p className="font-headline text-lg font-bold tracking-tight text-foreground">{loading ? 'Lendo planilha…' : 'Arraste um arquivo .xlsx aqui'}</p>
+          <p className="max-w-sm text-xs font-medium text-muted-foreground">O arquivo (até 20 MB) é lido no navegador e não é enviado a nenhum servidor.</p>
           {!loading && (
-            <Button onClick={() => fileRef.current?.click()} className="h-9 rounded-xl text-[10px] font-black uppercase tracking-wider">
+            <Button onClick={() => fileRef.current?.click()} className="h-9 rounded-xl text-xs font-bold">
               Escolher arquivo
             </Button>
           )}
@@ -282,7 +290,7 @@ export default function XlsxToCsvPage() {
           {/* Opções */}
           <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border bg-card px-3 py-2">
             <div className="flex items-center gap-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Aba</Label>
+              <Label className="text-xs font-bold text-muted-foreground">Aba</Label>
               <Select value={String(active)} onValueChange={v => setActive(Number(v))}>
                 <SelectTrigger className="h-8 w-48 rounded-lg text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -291,7 +299,7 @@ export default function XlsxToCsvPage() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Separador</Label>
+              <Label className="text-xs font-bold text-muted-foreground">Separador</Label>
               <Select value={sep} onValueChange={setSep}>
                 <SelectTrigger className="h-8 w-48 rounded-lg text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -310,7 +318,7 @@ export default function XlsxToCsvPage() {
             {/* Prévia em tabela */}
             <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Prévia</h2>
+                <h2 className="text-xs font-bold text-muted-foreground">Prévia</h2>
                 <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filtrar linhas…" className="h-7 w-44 rounded-lg text-xs" />
               </header>
               <div className="min-h-0 flex-1 overflow-auto">
@@ -318,7 +326,7 @@ export default function XlsxToCsvPage() {
                   <thead className="sticky top-0 bg-muted">
                     <tr>
                       {preview.header.map((h, i) => (
-                        <th key={i} className="whitespace-nowrap border-b border-border px-2 py-1.5 text-left font-black text-foreground">{h}</th>
+                        <th key={i} className="whitespace-nowrap border-b border-border px-2 py-1.5 text-left font-bold text-foreground">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -333,7 +341,7 @@ export default function XlsxToCsvPage() {
                   </tbody>
                 </table>
               </div>
-              <footer className="shrink-0 border-t border-border/60 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
+              <footer className="shrink-0 border-t border-border/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                 {preview.total > PREVIEW_ROWS ? `Mostrando ${PREVIEW_ROWS} de ${preview.total} linhas` : `${preview.total} linhas`} (o CSV contém todas)
               </footer>
             </section>

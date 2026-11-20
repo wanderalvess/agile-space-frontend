@@ -1,4 +1,10 @@
 import type {NextConfig} from 'next';
+import { LEGACY_REDIRECTS } from './src/lib/legacy-redirects';
+
+const ONNX_NATIVE_LIBS = [
+  './node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime.so.1',
+  './node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime_providers_shared.so',
+];
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -6,6 +12,17 @@ const nextConfig: NextConfig = {
   // Permite subir várias instâncias de dev em portas diferentes (NEXT_DIST_DIR=.next-9003).
   distDir: process.env.NEXT_DIST_DIR || '.next',
   allowedDevOrigins: ['10.62.24.75'],
+  // Embedding local (src/lib/embeddings.ts): o onnxruntime-node carrega binários nativos que
+  // não podem ser empacotados no bundle — ficam como require() de node_modules em runtime.
+  serverExternalPackages: ['@huggingface/transformers', 'onnxruntime-node'],
+  // O tracing do standalone copia só o onnxruntime_binding.node e deixa para trás as
+  // libonnxruntime*.so (carregadas via dlopen, invisíveis ao tracer) — sem elas o container
+  // falha com "Error loading shared library libonnxruntime.so.1". Listamos só o necessário:
+  // o provider CUDA/TensorRT (x64) pesa ~340MB e é inútil em CPU. Rotas que usam embedText:
+  outputFileTracingIncludes: {
+    '/api/knowledge/embed': ONNX_NATIVE_LIBS,
+    '/api/ai/chat': ONNX_NATIVE_LIBS,
+  },
   images: {
     remotePatterns: [
       {
@@ -28,6 +45,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return LEGACY_REDIRECTS;
+  },
   async headers() {
     const extraConnectSources: string[] = [];
     if (process.env.NEXT_PUBLIC_API_URL) {
@@ -44,7 +64,7 @@ const nextConfig: NextConfig = {
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.googleapis.com https://apis.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
       worker-src 'self' blob: data: 'unsafe-inline' https://cdn.jsdelivr.net;
-      connect-src 'self' http://localhost:* ws://localhost:* https://*.onrender.com wss://*.onrender.com https://ipapi.co https://*.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co ${extraConnectSources.join(' ')};
+      connect-src 'self' http://localhost:* ws://localhost:* https://*.onrender.com wss://*.onrender.com https://ipapi.co https://viacep.com.br https://*.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co ${extraConnectSources.join(' ')};
       img-src 'self' blob: data: https:;
       media-src 'self' https: data: blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
@@ -52,7 +72,7 @@ const nextConfig: NextConfig = {
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      frame-src 'self' https://*.google.com;
+      frame-src 'self' blob: https://*.google.com;
       frame-ancestors 'self';
       upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();

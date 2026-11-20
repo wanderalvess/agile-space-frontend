@@ -3,7 +3,7 @@
  * o que dá pra chamar de fora com uma API key, sem sessão de usuário.
  *
  * Fonte de verdade compartilhada entre a referência completa
- * (components/manual/IntegrationsSection.tsx, renderizada em /manual#integracoes)
+ * (tópico "Integrações e API" do Manual, app/manual/content/integracoes.ts, em /manual/integracoes)
  * e o atalho por módulo (components/shared/ModuleIntegrationDialog.tsx, aberto
  * de dentro de /knowledge/kb, /prompt-hub, /squad e /room). Editar aqui atualiza
  * os dois — não duplicar endpoint/tool direto no JSX.
@@ -13,22 +13,23 @@
  * /mcp/sse via os @Tool de com.agilespace.backend.mcp.*.
  */
 
+import { moduleLabel, type ModuleKey } from './modules-registry';
+
 export const API_KEY_HEADER = 'X-Api-Key';
 
 /**
- * Onde ADMIN/LEAD cria/revoga qualquer chave (visão global). Sem hash de
+ * Onde o administrador cria/revoga qualquer chave (visão global). Sem hash de
  * propósito: a página /admin ignora o fragmento da URL e sempre abre na
  * primeira aba, então um '#api-keys' aqui daria a impressão errada de deep link.
  */
 export const API_KEY_ADMIN_PATH = '/admin';
 
 /**
- * Onde qualquer usuário autenticado gera/revoga as próprias chaves — aba
- * Conectividade de /workspace (mesma ressalva de deep link do path acima:
- * a aba é estado de React, não lê fragmento da URL). Único caminho pra quem
- * não é ADMIN/LEAD; sem passar por /admin em nenhum momento.
+ * Onde qualquer usuário autenticado gera/revoga as próprias chaves — Meu espaço,
+ * aba Conta, subaba Conectividade (a aba vem do parâmetro ?aba=&sub= da URL).
+ * Único caminho pra quem não é administrador; sem passar por /admin em nenhum momento.
  */
-export const API_KEY_SELF_SERVICE_PATH = '/workspace';
+export const API_KEY_SELF_SERVICE_PATH = '/workspace?aba=conta&sub=conectividade';
 
 /** Placeholder usado nos exemplos — troque pelo host real do seu ambiente. */
 export const EXAMPLE_HOST = 'https://espacoagil.app';
@@ -104,7 +105,7 @@ export interface ModuleIntegration {
 export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   {
     id: 'knowledge',
-    label: 'Base de Conhecimento',
+    label: moduleLabel('knowledge'),
     tagline: 'Listar, buscar, baixar e criar documentos da KB de fora da aplicação.',
     rest: [
       {
@@ -181,7 +182,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   },
   {
     id: 'prompt-hub',
-    label: 'Prompt Hub',
+    label: moduleLabel('prompt-hub'),
     tagline: 'Consultar prompts/coleções públicas e publicar/atualizar skills de agentes por REST ou MCP.',
     rest: [
       {
@@ -196,7 +197,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/items/{id}',
         summary: 'Um prompt/iniciativa pelo id.',
-        returns: 'prompt completo, ou 404 (mesmo status pra inexistente ou privado)',
+        returns: 'prompt completo, ou 404 (mesmo status para inexistente ou privado)',
         scope: 'PROMPTHUB_READ',
       },
       {
@@ -211,7 +212,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/collections/{id}',
         summary: 'Uma coleção pública pelo id, com os prompts (públicos) embutidos.',
-        returns: 'coleção + items[], ou 404 (mesmo status pra inexistente ou privada)',
+        returns: 'coleção + items[], ou 404 (mesmo status para inexistente ou privada)',
         scope: 'PROMPTHUB_READ',
       },
       {
@@ -293,7 +294,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
   },
   {
     id: 'squad',
-    label: 'Squad',
+    label: moduleLabel('squad'),
     tagline: 'Ler status, membros e issues sincronizadas de uma squad — leitura apenas, só via MCP.',
     rest: [],
     mcp: [
@@ -319,13 +320,13 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
     notes: [
       'Só leitura: nenhuma tool altera squad, membro ou issue.',
       'As issues devolvidas são o snapshot da última sincronização com o Jira, não uma consulta ao vivo.',
-      'Chave com squadId travado (toda chave self-service com SQUAD_READ) só lê a própria squad — pedir squadId de outra squad dá erro, não devolve vazio. Chave sem squadId (as de ADMIN/LEAD) lê qualquer squad, igual antes.',
+      'Chave com squadId travado (toda chave self-service com SQUAD_READ) só lê a própria squad — pedir squadId de outra squad dá erro, não devolve vazio. Chave sem squadId (as de administrador) lê qualquer squad, igual antes.',
     ],
   },
   {
     id: 'poker',
-    label: 'Scrum Poker',
-    tagline: 'Abrir uma sala de planning poker, e buscar estimativas de rodadas já feitas.',
+    label: moduleLabel('poker'),
+    tagline: 'Abrir uma sala de Scrum Poker, e buscar estimativas de rodadas já feitas.',
     rest: [
       {
         method: 'GET',
@@ -339,7 +340,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
     mcp: [
       {
         name: 'createPokerSession',
-        summary: 'Cria uma sala de planning poker e devolve o id dela.',
+        summary: 'Cria uma sala de Scrum Poker e devolve o id dela.',
         params: 'title, deckType? (padrão "fibonacci"), mode? ("sync" padrão | "async")',
         write: true,
         scope: 'POKER_WRITE',
@@ -363,16 +364,10 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
 ];
 
 /** Módulos sem superfície pública — documentado de propósito, evita procura inútil. */
-export const MODULES_WITHOUT_INTEGRATION = [
-  'Retrospectiva',
-  'Daily Flow',
-  'Sprint Planner',
-  'Radar de Saúde',
-  'Brainstorming',
-  'Showcase',
-  'Jolt Hub',
-  'Governança',
-];
+const MODULE_KEYS_WITHOUT_INTEGRATION: ModuleKey[] = ['retro', 'sprint-planner', 'health', 'brainstorming', 'showcase', 'jolt', 'governance'];
+
+/** Nomes vêm do registro de módulos, os mesmos de Home e menus. */
+export const MODULES_WITHOUT_INTEGRATION = MODULE_KEYS_WITHOUT_INTEGRATION.map(moduleLabel);
 
 export function getModuleIntegration(id: string): ModuleIntegration | undefined {
   return MODULE_INTEGRATIONS.find(m => m.id === id);

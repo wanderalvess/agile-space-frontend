@@ -6,6 +6,7 @@ import { TrendingUp, AlertTriangle, CheckCircle2, History } from 'lucide-react';
 import { WidgetCard } from '@/components/ui/WidgetCard';
 import { retroApi } from '@/app/retro/api';
 import type { RetroBoard, RetroCard, RetroParticipant, HealthCheckAnswer } from '@/lib/types';
+import { RETRO_TEMPLATES } from '@/lib/types';
 
 const MOOD_SCORE: Record<HealthCheckAnswer, number> = {
   exhausted: 1,
@@ -65,14 +66,18 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
 
         if (cancelled) return;
 
-        const actionColumnIds = new Set(
-          recentBoards.flatMap(b => (b.columns || []).filter(c => c.theme === 'action').map(c => c.id))
+        // Quadros antigos não gravaram `columns`: valem as colunas do modelo clássico, senão contavam 0 ações.
+        const actionIdsOf = (b: RetroBoard) => new Set(
+          (b.columns && b.columns.length > 0 ? b.columns : RETRO_TEMPLATES.classic)
+            .filter(c => c.theme === 'action')
+            .map(c => c.id)
         );
 
         const boardSummaries: BoardSummary[] = perBoard.map(({ board, cards, participants }) => {
           const moodValues = participants
             .map(p => p.healthCheckAnswer && MOOD_SCORE[p.healthCheckAnswer])
             .filter((v): v is number => typeof v === 'number');
+          const actionColumnIds = actionIdsOf(board);
           const actionCards = cards.filter(c => actionColumnIds.has(c.columnKey));
 
           return {
@@ -89,9 +94,11 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
         for (const { cards } of perBoard) {
           for (const card of cards) {
             if ((card.carryCount || 0) > 1 && card.carriedFromBoardId) {
-              const existing = recurringMap.get(card.carriedFromBoardId);
+              // Chave pela raiz E pelo texto: duas ações diferentes que vieram da mesma retro não podem virar uma só.
+              const key = `${card.carriedFromBoardId}|${(card.content || '').trim().toLowerCase()}`;
+              const existing = recurringMap.get(key);
               if (!existing || (card.carryCount || 0) > existing.carryCount) {
-                recurringMap.set(card.carriedFromBoardId, {
+                recurringMap.set(key, {
                   carriedFromBoardId: card.carriedFromBoardId,
                   carriedFromBoardTitle: card.carriedFromBoardTitle || 'Retro anterior',
                   content: card.content,
@@ -106,6 +113,9 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
         if (cancelled) return;
         setSummaries(boardSummaries);
         setRecurring(Array.from(recurringMap.values()).sort((a, b) => b.carryCount - a.carryCount).slice(0, 5));
+      } catch (error) {
+        console.error('Erro ao carregar o histórico de retros:', error);
+        if (!cancelled) { setSummaries([]); setRecurring([]); }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -131,19 +141,19 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <WidgetCard title="Tendência de Check-in" headerIcon={<TrendingUp className="h-4 w-4" />}>
         {isLoading ? (
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">Carregando...</p>
+          <p className="text-xs font-semibold text-muted-foreground py-8 text-center">Carregando...</p>
         ) : moodChartData.length < 2 ? (
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">
-            Precisa de 2+ retros com check-in respondido pra mostrar tendência.
+          <p className="text-xs font-semibold text-muted-foreground py-8 text-center">
+            Precisa de 2+ retros com check-in respondido para mostrar tendência.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={moodChartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-              <YAxis domain={[1, 5]} tick={{ fontSize: 9 }} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis domain={[1, 5]} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
               <Tooltip formatter={(v: number) => v.toFixed(2)} />
-              <Line type="monotone" dataKey="mood" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="mood" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -151,34 +161,34 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
 
       <WidgetCard title="Ações: Concluídas vs. Recorrentes" headerIcon={<History className="h-4 w-4" />}>
         {isLoading ? (
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">Carregando...</p>
+          <p className="text-xs font-semibold text-muted-foreground py-8 text-center">Carregando...</p>
         ) : overallActionsTotal === 0 ? (
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">
+          <p className="text-xs font-semibold text-muted-foreground py-8 text-center">
             Sem itens de ação nas últimas retros dessa squad.
           </p>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-100">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+                <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
               </div>
               <div>
-                <p className="text-lg font-black text-slate-800 leading-none">{completionRate}%</p>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                <p className="text-lg font-bold text-foreground leading-none">{completionRate}%</p>
+                <p className="text-xs font-semibold text-muted-foreground">
                   {overallActionsDone} de {overallActionsTotal} ações concluídas ({summaries.length} retros)
                 </p>
               </div>
             </div>
 
             {recurring.length > 0 && (
-              <div className="space-y-1.5 pt-3 border-t border-slate-100">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 flex items-center gap-1">
+              <div className="space-y-1.5 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" /> Temas recorrentes
                 </p>
                 {recurring.map(r => (
-                  <div key={r.carriedFromBoardId} className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="truncate font-bold text-slate-600">{r.content}</span>
-                    <span className="shrink-0 font-black text-amber-600">{r.carryCount}x</span>
+                  <div key={r.carriedFromBoardId} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="truncate font-semibold text-foreground">{r.content}</span>
+                    <span className="shrink-0 font-bold text-amber-700 dark:text-amber-300">{r.carryCount}x</span>
                   </div>
                 ))}
               </div>

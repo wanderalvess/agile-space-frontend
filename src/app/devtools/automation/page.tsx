@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DevToolPage } from '@/components/devtools/DevToolPage';
 import { ToolPane } from '@/components/devtools/ToolPane';
+import { SelectField } from '@/components/room-kit';
 
 type Action = 'visit' | 'type' | 'click' | 'assert' | 'intercept';
 type SelectorStrategy = 'data-cy' | 'data-testid' | 'id' | 'role';
@@ -20,8 +21,6 @@ interface TestStep {
   value?: string;
   expected?: string;
 }
-
-const selectClass = 'h-9 rounded-lg border border-input bg-background px-2 text-xs font-bold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 const INITIAL_STEPS: TestStep[] = [
   { action: 'visit', target: '/login' },
@@ -108,11 +107,11 @@ export default function AutomationPage() {
         {/* Editor de passos */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:col-span-5">
           <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cenário</h2>
+            <h2 className="text-xs font-bold text-muted-foreground">Cenário</h2>
             <Tabs value={language} onValueChange={v => setLanguage(v as Language)}>
               <TabsList className="h-7 rounded-lg p-0.5">
-                <TabsTrigger value="ts" className="h-6 rounded-md px-2.5 text-[10px] font-black uppercase tracking-wider">TypeScript</TabsTrigger>
-                <TabsTrigger value="js" className="h-6 rounded-md px-2.5 text-[10px] font-black uppercase tracking-wider">JavaScript</TabsTrigger>
+                <TabsTrigger value="ts" className="h-6 rounded-md px-2.5 text-xs font-bold">TypeScript</TabsTrigger>
+                <TabsTrigger value="js" className="h-6 rounded-md px-2.5 text-xs font-bold">JavaScript</TabsTrigger>
               </TabsList>
             </Tabs>
           </header>
@@ -120,29 +119,35 @@ export default function AutomationPage() {
           <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nome do teste / suíte</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Nome do teste / suíte</Label>
                 <Input value={testTitle} onChange={e => setTestTitle(e.target.value)} className="h-9 rounded-lg text-xs font-bold" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Base URL da aplicação</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Base URL da aplicação</Label>
                 <Input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} className="h-9 rounded-lg font-code text-xs" />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Estratégia de seletor</Label>
-              <select value={selectorStrategy} onChange={e => setSelectorStrategy(e.target.value as SelectorStrategy)} className={`${selectClass} w-full`}>
-                <option value="data-testid">data-testid</option>
-                <option value="data-cy">data-cy</option>
-                <option value="id">ID (#id)</option>
-                <option value="role">getByRole</option>
-              </select>
+              <Label className="text-xs font-bold text-muted-foreground">Estratégia de seletor</Label>
+              <SelectField
+                value={selectorStrategy}
+                onChange={v => setSelectorStrategy(v as SelectorStrategy)}
+                aria-label="Estratégia de seletor"
+                className="w-full"
+                options={[
+                  { value: 'data-testid', label: 'data-testid' },
+                  { value: 'data-cy', label: 'data-cy' },
+                  { value: 'id', label: 'ID (#id)' },
+                  { value: 'role', label: 'getByRole' },
+                ]}
+              />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Passos ({steps.length})</span>
-                <Button size="sm" variant="ghost" onClick={addStep} className="h-7 gap-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-primary">
+                <span className="text-xs font-bold text-muted-foreground">Passos ({steps.length})</span>
+                <Button size="sm" variant="ghost" onClick={addStep} className="h-7 gap-1 rounded-lg text-xs font-bold text-primary">
                   <Plus className="h-3.5 w-3.5" /> Adicionar passo
                 </Button>
               </div>
@@ -151,14 +156,20 @@ export default function AutomationPage() {
                 <div key={idx} className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-code text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
-                      <select value={st.action} onChange={e => updateStep(idx, 'action', e.target.value)} className={`${selectClass} h-7 text-primary`}>
-                        <option value="visit">Navegar (goto)</option>
-                        <option value="type">Preencher (type/fill)</option>
-                        <option value="click">Clicar (click)</option>
-                        <option value="assert">Asserção (URL)</option>
-                        <option value="intercept">Mock de API (intercept)</option>
-                      </select>
+                      <span className="font-code text-xs font-bold text-muted-foreground">#{idx + 1}</span>
+                      <SelectField
+                        value={st.action}
+                        onChange={v => updateStep(idx, 'action', v)}
+                        aria-label={`Ação do passo ${idx + 1}`}
+                        className="h-8 w-[220px]"
+                        options={[
+                          { value: 'visit', label: 'Navegar (goto)' },
+                          { value: 'type', label: 'Preencher (type/fill)' },
+                          { value: 'click', label: 'Clicar (click)' },
+                          { value: 'assert', label: 'Asserção (URL)' },
+                          { value: 'intercept', label: 'Mock de API (intercept)' },
+                        ]}
+                      />
                     </div>
                     <Button size="icon" variant="ghost" onClick={() => removeStep(idx)} className="h-7 w-7 rounded-lg text-destructive hover:text-destructive" aria-label="Remover passo">
                       <Trash2 className="h-3.5 w-3.5" />
@@ -196,8 +207,8 @@ export default function AutomationPage() {
           toolbar={
             <Tabs value={framework} onValueChange={v => setFramework(v as Framework)}>
               <TabsList className="h-7 rounded-lg p-0.5">
-                <TabsTrigger value="cypress" className="h-6 rounded-md px-2.5 text-[10px] font-black uppercase tracking-wider">Cypress</TabsTrigger>
-                <TabsTrigger value="playwright" className="h-6 rounded-md px-2.5 text-[10px] font-black uppercase tracking-wider">Playwright</TabsTrigger>
+                <TabsTrigger value="cypress" className="h-6 rounded-md px-2.5 text-xs font-bold">Cypress</TabsTrigger>
+                <TabsTrigger value="playwright" className="h-6 rounded-md px-2.5 text-xs font-bold">Playwright</TabsTrigger>
               </TabsList>
             </Tabs>
           }

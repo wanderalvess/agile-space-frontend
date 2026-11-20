@@ -1,35 +1,36 @@
 'use client';
 
-import React from 'react';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import React, { useState } from 'react';
+import { CircleHelp } from 'lucide-react';
+import { PageHeader, PageShell } from '@/components/page';
 import { DevToolsHub } from '@/components/devtools/DevToolsHub';
+import { DevToolsGuide } from '@/components/devtools/DevToolsGuide';
+import { toolButtonClass } from '@/components/devtools/ToolControls';
+import { getModule } from '@/lib/modules-registry';
+import { cn } from '@/lib/utils';
 
-interface DevToolsHubPageProps {
-  title: string;
-  heading: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  collection?: 'qa';
-}
+const SUBTITLE =
+  'Formate, converta, compare e gere dados no dia a dia. A maioria roda no seu navegador; as que usam serviço externo trazem um selo.';
 
-// Página de hub: DevTools e Central de Qualidade compartilham a mesma estrutura.
-export function DevToolsHubPage({ title, heading, subtitle, icon, collection }: DevToolsHubPageProps) {
+// Página do hub do DevTools. A antiga Central de qualidade é o filtro "Qualidade" desta mesma tela (/devtools?grupo=qualidade).
+export function DevToolsHubPage({ subtitle = SUBTITLE }: { subtitle?: string }) {
+  const { label } = getModule('devtools');
+  const [guideOpen, setGuideOpen] = useState(false);
   return (
-    <div className="relative min-h-dvh bg-[#fafafa] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-        <div className="absolute left-[-10%] top-[-10%] h-[60%] w-[60%] rounded-full bg-primary/5 blur-[160px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-blue-500/5 blur-[140px]" />
-      </div>
-      <RoomHeader title={title} toolIcon={icon} />
-      <main className="w-full max-w-none space-y-6 px-4 py-6 md:px-8 lg:px-10">
-        <div className="space-y-1">
-          <h1 className="font-headline text-3xl font-black uppercase tracking-tight sm:text-4xl">{heading}</h1>
-          <p className="max-w-2xl text-sm font-medium text-muted-foreground">{subtitle}</p>
-        </div>
-        <DevToolsHub collection={collection} />
-      </main>
-      <Footer />
-    </div>
+    <PageShell documentTitle={label}>
+      <PageHeader
+        title={label}
+        module="devtools"
+        subtitle={subtitle}
+        breadcrumb={[{ label: 'Home', href: '/' }, { label }]}
+        actions={
+          <button type="button" onClick={() => setGuideOpen(true)} aria-label="Abrir o guia do DevTools" className={cn(toolButtonClass(), 'h-10')}>
+            <CircleHelp className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Guia
+          </button>
+        }
+      />
+      <DevToolsHub onOpenGuide={() => setGuideOpen(true)} />
+      <DevToolsGuide open={guideOpen} onOpenChange={setGuideOpen} />
+    </PageShell>
   );
 }

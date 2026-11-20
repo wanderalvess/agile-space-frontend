@@ -1,0 +1,242 @@
+{
+  "planId": "plan-1",
+  "planVersion": 4,
+  "status": "ESCOPO",
+  "syncedAt": "2026-10-20T12:00:00Z",
+  "items": [
+    {
+      "id": "it-101",
+      "parentKey": "SQ-101",
+      "title": "Troca de produto (DEV 10h / QA 4h)",
+      "titleDevHours": 10,
+      "titleQaHours": 4,
+      "sortOrder": 1,
+      "carryOver": false,
+      "devHours": 11,
+      "qaHours": 4,
+      "subtaskDevH": 8,
+      "subtaskQaH": 4,
+      "subtaskDevEstimateH": 8,
+      "subtaskDevRemainingH": 8,
+      "subtaskQaEstimateH": 4,
+      "subtaskQaRemainingH": 4,
+      "divergenceDev": true,
+      "divergenceQa": false,
+      "divergent": true,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 0,
+      "unclassifiedHours": 0,
+      "subtasks": [
+        {
+          "key": "SQ-111",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 8,
+          "remainingH": 8,
+          "countedH": 8,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-112",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 4,
+          "remainingH": 4,
+          "countedH": 4,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        }
+      ],
+      "codeReviewDevH": 1,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": true
+    },
+    {
+      "id": "it-5823",
+      "parentKey": "SQ-5823",
+      "title": "Pagamento parcial (DEV 5h / QA 2h)",
+      "titleDevHours": 5,
+      "titleQaHours": 2,
+      "sortOrder": 2,
+      "carryOver": false,
+      "devHours": 6,
+      "qaHours": 2,
+      "subtaskDevH": 5,
+      "subtaskQaH": 2,
+      "subtaskDevEstimateH": 5,
+      "subtaskDevRemainingH": 5,
+      "subtaskQaEstimateH": 2,
+      "subtaskQaRemainingH": 2,
+      "divergenceDev": false,
+      "divergenceQa": false,
+      "divergent": false,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 0,
+      "unclassifiedHours": 0,
+      "subtasks": [
+        {
+          "key": "SQ-5824",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 5,
+          "remainingH": 5,
+          "countedH": 5,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-5825",
+          "title": "Code Review",
+          "typeId": "12300",
+          "typeName": "Code Review",
+          "cls": "DEV",
+          "estimateH": 1,
+          "remainingH": 1,
+          "countedH": 1,
+          "defaultHoursApplied": true,
+          "assigneeId": null,
+          "assigneeName": null
+        },
+        {
+          "key": "SQ-5826",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 2,
+          "remainingH": 2,
+          "countedH": 2,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        }
+      ],
+      "codeReviewDevH": 1,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": false
+    },
+    {
+      "id": "it-103",
+      "parentKey": "SQ-103",
+      "title": "Cancelamento de venda",
+      "titleDevHours": null,
+      "titleQaHours": null,
+      "sortOrder": 3,
+      "carryOver": true,
+      "devHours": 6,
+      "qaHours": 1,
+      "subtaskDevH": 6,
+      "subtaskQaH": 1,
+      "subtaskDevEstimateH": 20,
+      "subtaskDevRemainingH": 6,
+      "subtaskQaEstimateH": 4,
+      "subtaskQaRemainingH": 1,
+      "divergenceDev": false,
+      "divergenceQa": false,
+      "divergent": false,
+      "noEstimate": false,
+      "inBacklog": true,
+      "unclassifiedCount": 1,
+      "unclassifiedHours": 3,
+      "subtasks": [
+        {
+          "key": "SQ-131",
+          "title": "Codificação",
+          "typeId": "10",
+          "typeName": "Codificação",
+          "cls": "DEV",
+          "estimateH": 20,
+          "remainingH": 6,
+          "countedH": 6,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-dev",
+          "assigneeName": "Ana Dev"
+        },
+        {
+          "key": "SQ-132",
+          "title": "Teste",
+          "typeId": "11",
+          "typeName": "Teste",
+          "cls": "QA",
+          "estimateH": 4,
+          "remainingH": 1,
+          "countedH": 1,
+          "defaultHoursApplied": false,
+          "assigneeId": "acc-qa",
+          "assigneeName": "Caio QA"
+        },
+        {
+          "key": "SQ-133",
+          "title": "Especificação",
+          "typeId": "7",
+          "typeName": "Especificação",
+          "cls": "SEM_CLASSIFICACAO",
+          "estimateH": 3,
+          "remainingH": 3,
+          "countedH": 3,
+          "defaultHoursApplied": false,
+          "assigneeId": null,
+          "assigneeName": null
+        }
+      ],
+      "codeReviewDevH": 0,
+      "codeReviewQaH": 0,
+      "codeReviewDevAssumed": false
+    }
+  ],
+  "totals": {
+    "itemCount": 3,
+    "allocated": {
+      "DEV": 23,
+      "QA": 7
+    },
+    "carryOverCount": 1,
+    "carryOverDevHours": 6,
+    "carryOverQaHours": 1,
+    "divergentCount": 1,
+    "noEstimateCount": 0,
+    "unclassifiedCount": 1,
+    "unclassifiedHours": 3,
+    "unclassifiedTypes": [
+      {
+        "typeId": "7",
+        "typeName": "Especificação",
+        "count": 1,
+        "hours": 3
+      }
+    ]
+  },
+  "thermometer": {
+    "DEV": {
+      "allocatedHours": 23,
+      "capacityHours": 90,
+      "pct": 25.555555555555554,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "reservePct": 12,
+      "reserveLimitHours": 100.8
+    },
+    "QA": {
+      "allocatedHours": 7,
+      "capacityHours": 75,
+      "pct": 9.333333333333334,
+      "zone": "VERDE",
+      "state": "DENTRO_DA_CAPACIDADE",
+      "reservePct": 12,
+      "reserveLimitHours": 84
+    }
+  },
+  "canEditPlan": true
+}

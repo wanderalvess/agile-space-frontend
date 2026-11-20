@@ -187,7 +187,7 @@ export function useNextCeremony(squadId: string, userKey: string): NextCeremonyS
       cancelled = true;
       clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [mode, connection.accessToken, eventsRefreshSignal]);
 
   const googleCeremony = useMemo<NextCeremony | null>(() => {

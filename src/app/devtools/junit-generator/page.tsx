@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Code2, Key, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Code2, Key, Loader2, Sparkles, TriangleAlert, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,7 +107,7 @@ export default function JUnitGeneratorPage() {
     }
   };
 
-  const btn = 'h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider';
+  const btn = 'h-8 gap-1.5 rounded-xl text-xs font-bold';
 
   return (
     <DevToolPage
@@ -146,25 +146,31 @@ export default function JUnitGeneratorPage() {
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-headline font-black uppercase tracking-tight">Motor avançado (Gemini)</DialogTitle>
+            <DialogTitle className="font-headline font-bold tracking-tight">Motor avançado (Gemini)</DialogTitle>
             <DialogDescription>
               Opcional. Com uma chave do Google AI Studio, o teste é gerado lendo a lógica da classe. A chave fica só neste navegador (localStorage) e a chamada vai direto do navegador ao Google; o código colado é enviado a esse serviço.
             </DialogDescription>
           </DialogHeader>
+          <div role="note" className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm leading-relaxed text-foreground">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+            <span>
+              <strong className="font-semibold">Atenção:</strong> a chave é guardada em texto puro no armazenamento deste navegador (localStorage). Quem usar este navegador, ou uma extensão dele, consegue ler a chave. Use uma chave só sua e apague-a quando não precisar mais.
+            </span>
+          </div>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="gk" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Chave de API</Label>
+              <Label htmlFor="gk" className="text-xs font-bold text-muted-foreground">Chave de API</Label>
               <Input id="gk" type="password" autoComplete="off" value={tempKey} onChange={e => setTempKey(e.target.value)} placeholder="AIza…" className="rounded-xl font-code" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="gm" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Modelo</Label>
+              <Label htmlFor="gm" className="text-xs font-bold text-muted-foreground">Modelo</Label>
               <Input id="gm" value={tempModel} onChange={e => setTempModel(e.target.value)} placeholder={DEFAULT_MODEL} className="rounded-xl font-code" />
             </div>
             <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">Obter chave no Google AI Studio</a>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="rounded-xl text-[10px] font-black uppercase tracking-wider">Cancelar</Button>
-            <Button onClick={saveSettings} className="rounded-xl text-[10px] font-black uppercase tracking-wider">{tempKey.trim() ? 'Salvar' : 'Remover chave'}</Button>
+            <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="rounded-xl text-xs font-bold">Cancelar</Button>
+            <Button onClick={saveSettings} className="rounded-xl text-xs font-bold">{tempKey.trim() ? 'Salvar' : 'Remover chave'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -9,11 +9,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { DevToolPage } from '@/components/devtools/DevToolPage';
 import { ToolPane } from '@/components/devtools/ToolPane';
+import { FIELD_LABEL } from '@/components/devtools/tool-kit';
+import { SelectField } from '@/components/room-kit';
 
 type Mode = 'bdd' | 'bug';
 
-const labelClass = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground';
-const selectClass = 'h-9 w-full rounded-lg border border-input bg-background px-2 text-xs font-bold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 interface StepListProps {
   label: string;
@@ -26,8 +26,8 @@ function StepList({ label, placeholder, steps, onChange }: StepListProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-[11px] font-black uppercase tracking-wider text-primary">{label}</Label>
-        <Button size="sm" variant="ghost" onClick={() => onChange([...steps, ''])} className="h-6 gap-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-primary">
+        <Label className="text-xs font-bold text-primary">{label}</Label>
+        <Button size="sm" variant="ghost" onClick={() => onChange([...steps, ''])} className="h-6 gap-1 rounded-lg text-xs font-bold text-muted-foreground hover:text-primary">
           <Plus className="h-3 w-3" /> Passo
         </Button>
       </div>
@@ -53,7 +53,7 @@ function StepList({ label, placeholder, steps, onChange }: StepListProps) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <Label className={labelClass}>{label}</Label>
+      <Label className={FIELD_LABEL}>{label}</Label>
       {children}
     </div>
   );
@@ -120,8 +120,8 @@ ${bugLogs || 'Nenhum log retornado'}
   const modeTabs = (
     <Tabs value={mode} onValueChange={v => setMode(v as Mode)}>
       <TabsList className="h-8 rounded-xl p-0.5">
-        <TabsTrigger value="bdd" className="h-7 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider">Cenário BDD (Gherkin)</TabsTrigger>
-        <TabsTrigger value="bug" className="h-7 rounded-lg px-3 text-[10px] font-black uppercase tracking-wider">Relato de bug</TabsTrigger>
+        <TabsTrigger value="bdd" className="h-7 rounded-lg px-3 text-xs font-bold">Cenário BDD (Gherkin)</TabsTrigger>
+        <TabsTrigger value="bug" className="h-7 rounded-lg px-3 text-xs font-bold">Relato de bug</TabsTrigger>
       </TabsList>
     </Tabs>
   );
@@ -134,7 +134,7 @@ ${bugLogs || 'Nenhum log retornado'}
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
           <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <header className="shrink-0 border-b border-border/60 px-3 py-2">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{mode === 'bdd' ? 'Cenário' : 'Dados do defeito'}</h2>
+              <h2 className="text-xs font-bold text-muted-foreground">{mode === 'bdd' ? 'Cenário' : 'Dados do defeito'}</h2>
             </header>
             <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
               {mode === 'bdd' ? (
@@ -159,12 +159,17 @@ ${bugLogs || 'Nenhum log retornado'}
                       <Input value={bugEnv} onChange={e => setBugEnv(e.target.value)} className="h-9 rounded-lg text-xs font-medium" />
                     </Field>
                     <Field label="Severidade">
-                      <select value={bugSeverity} onChange={e => setBugSeverity(e.target.value)} className={selectClass}>
-                        <option value="Critical">Crítica (Blocker)</option>
-                        <option value="High">Alta (High)</option>
-                        <option value="Medium">Média (Medium)</option>
-                        <option value="Low">Baixa (Low)</option>
-                      </select>
+                      <SelectField
+                        value={bugSeverity}
+                        onChange={setBugSeverity}
+                        aria-label="Severidade"
+                        options={[
+                          { value: 'Critical', label: 'Crítica (Blocker)' },
+                          { value: 'High', label: 'Alta (High)' },
+                          { value: 'Medium', label: 'Média (Medium)' },
+                          { value: 'Low', label: 'Baixa (Low)' },
+                        ]}
+                      />
                     </Field>
                   </div>
                   <Field label="Passos para reproduzir">

@@ -1,6 +1,6 @@
 /**
  * true se a data cai em sábado ou domingo. Primitivo único de dia-útil —
- * addBusinessDays/businessDaysBetween (SquadPlansTimeline), countWorkdays
+ * addBusinessDays/businessDaysBetween (lib/cronograma/dates), countWorkdays
  * (useSquadStore) e o streak de dias úteis (SquadPerformanceView) tinham cada
  * um sua própria cópia de `getDay() === 0 || getDay() === 6`; consolidado
  * aqui pra uma futura regra de feriados só precisar mudar num lugar.

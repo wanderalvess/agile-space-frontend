@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { upstreamErrorMessage } from '@/lib/jira-proxy-error';
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') || 'local-client';
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       return NextResponse.json(
-        { error: 'Erro ao buscar no Jira via Spring Boot', details: errorText },
+        { error: upstreamErrorMessage(errorText, 'Erro ao buscar no Jira via Spring Boot'), details: errorText },
         { status: response.status }
       );
     }
