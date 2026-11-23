@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { pokerApi } from '@/app/room/api';
+import { ritualsApi } from '@/lib/home-api';
+import { pickVelocityRoomIds, VELOCITY_MAX_SESSIONS } from '@/lib/poker-velocity';
 import { TrendingUp, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 
 interface SessionRow {
   roomId: string;
@@ -18,30 +18,25 @@ interface SessionRow {
 }
 
 /**
- * Velocity entre sessões: usa o histórico local de salas (localStorage) e lê o
- * `summary` de cada sala via REST (GET /api/poker/{id}). Mostra a tendência de
- * pontos/tarefas das últimas sessões do time. Sem listar a coleção completa
- * (que é admin-only). Aditivo/informativo — não altera o fluxo.
+ * Velocity entre sessões: pega as últimas sessões de Poker DA SQUAD no servidor (`/rituals/poker/history`) e lê o
+ * `summary` de cada sala via REST (GET /api/poker/{id}). Mostra a tendência de pontos/tarefas das últimas sessões do
+ * time. Todo mundo da squad vê o mesmo histórico (antes vinha do localStorage de quem abria o relatório). Sem squad
+ * na sala, ou com o servidor sem o recurso, mostra só a sessão atual. Aditivo/informativo — não altera o fluxo.
  */
-export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
+export function SessionVelocity({ currentRoomId, squadId }: { currentRoomId: string; squadId?: string }) {
   const [rows, setRows] = useState<SessionRow[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      let metas: any[] = [];
-      try {
-        metas = JSON.parse(localStorage.getItem(ROOMS_META_KEY) || '[]');
-      } catch { metas = []; }
-
-      const pokerIds = metas
-        .filter(m => m?.roomId && (m.type === 'poker' || !m.type))
-        .slice(-8)
-        .reverse()
-        .map(m => m.roomId as string);
-      // Garante que a sala atual entra mesmo se não estiver no histórico local.
-      if (!pokerIds.includes(currentRoomId)) pokerIds.unshift(currentRoomId);
+      let history: Array<{ id?: string | null }> = [];
+      if (squadId) {
+        try {
+          history = await ritualsApi.history('POKER', { squadId, limit: VELOCITY_MAX_SESSIONS });
+        } catch { history = []; }
+      }
+      const pokerIds = pickVelocityRoomIds(currentRoomId, history);
 
       const results = await Promise.all(pokerIds.map(async id => {
         try {
@@ -67,7 +62,7 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
     })();
 
     return () => { cancelled = true; };
-  }, [currentRoomId]);
+  }, [currentRoomId, squadId]);
 
   if (!rows || rows.length === 0) return null;
 

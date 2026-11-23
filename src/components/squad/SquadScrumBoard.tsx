@@ -54,6 +54,16 @@ import { BoardConfigModal } from './BoardConfigModal';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { squadApi } from '@/app/squad/api';
 import { matchesPersonFilter } from '@/lib/board-filters';
+import {
+  applyBoardConfig,
+  boardConfigApi,
+  clearLegacyBoardConfig,
+  effectiveBoardConfig,
+  saveLegacyBoardConfig,
+  type BoardConfig,
+  type BoardConfigPatch,
+  type SwimlaneStrategy,
+} from '@/lib/squad-board-config';
 
 interface SquadScrumBoardProps {
   squadId?: string;
@@ -64,12 +74,6 @@ interface SquadScrumBoardProps {
   onOpenSettings?: () => void;
 }
 
-interface ColumnWipOverride {
-  id: string | number;
-  min: number | null;
-  max: number | null;
-}
-
 const FALLBACK_REASON_LABELS: Record<string, string> = {
   'missing-config': 'Não encontrei um quadro Scrum para este projeto no Jira. Confira a chave do projeto, o domínio e o token em Configurações da squad, ou informe o ID do quadro.',
   'invalid-rapid-view-id': 'O ID do quadro (rapidViewId) configurado não é válido.',
@@ -78,54 +82,6 @@ const FALLBACK_REASON_LABELS: Record<string, string> = {
   'network-error': 'Não foi possível conectar ao Jira.',
   'empty-response': 'O Jira retornou uma resposta inesperada.',
 };
-
-/** Aplica overrides salvos localmente (filtros/raias/limites de WIP) por cima dos dados do quadro,
- *  independentemente de terem vindo do fetch ou do fixture de fallback. */
-function applyLocalOverrides(data: GreenhopperWorkData, squadId: string): GreenhopperWorkData {
-  if (typeof window === 'undefined') return data;
-  let next = data;
-
-  try {
-    const savedFilters = localStorage.getItem(`agile_quick_filters_${squadId}`);
-    if (savedFilters) {
-      const parsed = JSON.parse(savedFilters);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        next = { ...next, quickFiltersData: { quickFilters: parsed } };
-      }
-    }
-  } catch {}
-
-  try {
-    const savedSwimlanes = localStorage.getItem(`agile_swimlanes_${squadId}`);
-    if (savedSwimlanes) {
-      const parsed = JSON.parse(savedSwimlanes);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        next = { ...next, swimlanesData: { swimlanes: parsed } };
-      }
-    }
-  } catch {}
-
-  try {
-    const savedColumns = localStorage.getItem(`agile_columns_${squadId}`);
-    if (savedColumns) {
-      const overrides: ColumnWipOverride[] = JSON.parse(savedColumns);
-      if (Array.isArray(overrides) && overrides.length > 0) {
-        const byId = new Map(overrides.map(o => [String(o.id), o]));
-        next = {
-          ...next,
-          columnsData: {
-            columns: next.columnsData.columns.map(c => {
-              const ov = byId.get(String(c.id));
-              return ov ? { ...c, min: ov.min, max: ov.max } : c;
-            }),
-          },
-        };
-      }
-    }
-  } catch {}
-
-  return next;
-}
 
 export function SquadScrumBoard({
   squadId = '',
@@ -151,21 +107,34 @@ export function SquadScrumBoard({
   const [configModalTab, setConfigModalTab] = useState<'filters' | 'columns' | 'swimlanes'>('filters');
   const [selectedIssue, setSelectedIssue] = useState<GreenhopperIssue | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [swimlaneStrategy, setSwimlaneStrategy] = useState<'queries' | 'parents' | 'assignees' | 'epics' | 'none'>(() => {
-    if (typeof window === 'undefined') return 'queries';
-    try {
-      const saved = localStorage.getItem(`agile_swimlane_strategy_${squadId}`);
-      const validStrategies = ['queries', 'parents', 'assignees', 'epics', 'none'] as const;
-      return validStrategies.includes(saved as typeof validStrategies[number]) ? (saved as typeof validStrategies[number]) : 'queries';
-    } catch { return 'queries'; }
-  });
+  const [swimlaneStrategy, setSwimlaneStrategy] = useState<SwimlaneStrategy>(
+    () => effectiveBoardConfig(null, squadId).swimlaneStrategy ?? 'queries',
+  );
+  // Personalização compartilhada da squad (servidor). Em ref também, porque loadBoardData precisa da mais recente.
+  const sharedConfigRef = useRef<BoardConfig | null>(null);
 
   const activeDomain = initialDomain || jiraSettings?.domain || '';
   const activeToken = jiraSettings?.token || '';
 
-  // Aplica overrides salvos localmente (filtros/raias/WIP) assim que monta, antes do primeiro fetch
+  // Personalização do quadro (filtros/raias/WIP): primeiro o que este navegador já tinha, depois a da squad, que vem
+  // do servidor e vale para todos. Ambas entram antes/depois do primeiro fetch do Jira (loadBoardData reaplica).
   useEffect(() => {
-    setBoardData(prev => applyLocalOverrides(prev, squadId));
+    let cancelled = false;
+    sharedConfigRef.current = null;
+    const local = effectiveBoardConfig(null, squadId);
+    setBoardData(prev => applyBoardConfig(prev, local));
+    setSwimlaneStrategy(local.swimlaneStrategy ?? 'queries');
+    if (!squadId) return;
+    void boardConfigApi.get(squadId).then(shared => {
+      if (cancelled || !shared) return;
+      sharedConfigRef.current = shared;
+      const effective = effectiveBoardConfig(shared, squadId);
+      setBoardData(prev => applyBoardConfig(prev, effective));
+      setSwimlaneStrategy(effective.swimlaneStrategy ?? 'queries');
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [squadId]);
 
   // Só a resposta da carga mais recente vale: trocar de squad/quadro (ou clicar em atualizar de novo) enquanto uma
@@ -197,9 +166,9 @@ export function SquadScrumBoard({
         selectedProjectKey: jiraProjectKey,
       });
       if (seq !== loadSeqRef.current) return;
-      // Reaplica os overrides locais por cima do fetch — sem isso, qualquer
+      // Reaplica a personalização por cima do fetch — sem isso, qualquer
       // filtro/raia/WIP customizado salvo era descartado a cada refresh.
-      setBoardData(applyLocalOverrides(data, squadId));
+      setBoardData(applyBoardConfig(data, effectiveBoardConfig(sharedConfigRef.current, squadId)));
 
       if (data.isFallback) {
         // Sem quadro real: a tela mostra o estado vazio com o motivo (nada de dados de exemplo).
@@ -397,6 +366,43 @@ export function SquadScrumBoard({
     }
 
     return defaultSwimlane ? defaultSwimlane.id : 104;
+  };
+
+  // Salva a personalização do quadro NO SERVIDOR (vale para toda a squad; só a liderança grava). O quadro só muda na
+  // tela quando o servidor aceita, e o aviso diz onde ficou salvo: antes tudo ia para o navegador de quem editou e
+  // o aviso dizia "atualizados no quadro".
+  const saveBoardConfig = async (patch: BoardConfigPatch) => {
+    const applyHere = (config: BoardConfig) => {
+      setBoardData(prev => applyBoardConfig(prev, config));
+      if (config.swimlaneStrategy) setSwimlaneStrategy(config.swimlaneStrategy);
+    };
+    try {
+      const saved = await boardConfigApi.save(squadId, patch);
+      sharedConfigRef.current = saved;
+      clearLegacyBoardConfig(squadId, Object.keys(patch) as (keyof BoardConfig)[]);
+      applyHere(effectiveBoardConfig(saved, squadId));
+      toast({
+        title: 'Quadro salvo para a squad',
+        description: 'Filtros, raias e limites de WIP agora valem para todos que abrem este quadro.',
+      });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 404 || status === 405) {
+        // Servidor antigo, sem a configuração do quadro: guarda só neste navegador e diz isso.
+        saveLegacyBoardConfig(squadId, patch);
+        applyHere(patch);
+        toast({
+          title: 'Salvo só neste navegador',
+          description: 'O servidor ainda não guarda a configuração do quadro; as outras pessoas não verão a mudança.',
+        });
+        return;
+      }
+      toast({
+        title: 'Não foi possível salvar o quadro',
+        description: err instanceof Error ? err.message : 'Tente de novo em instantes.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Agrupa issues por swimlane e por coluna
@@ -1003,64 +1009,14 @@ export function SquadScrumBoard({
         rapidViewId={rapidViewId}
         boardName={boardData.boardName}
         initialTab={configModalTab}
-        onSaveQuickFilters={updatedFilters => {
-          setBoardData(prev => ({
-            ...prev,
-            quickFiltersData: { quickFilters: updatedFilters },
-          }));
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(
-                `agile_quick_filters_${squadId}`,
-                JSON.stringify(updatedFilters)
-              );
-            } catch {}
-          }
-          toast({
-            title: 'Filtros Rápidos Salvos',
-            description: `${updatedFilters.length} filtros atualizados no quadro.`,
-          });
-        }}
-        onSaveSwimlanes={(updatedSwimlanes, strategy) => {
-          setBoardData(prev => ({
-            ...prev,
-            swimlanesData: { swimlanes: updatedSwimlanes },
-          }));
-          setSwimlaneStrategy(strategy as typeof swimlaneStrategy);
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(
-                `agile_swimlanes_${squadId}`,
-                JSON.stringify(updatedSwimlanes)
-              );
-              localStorage.setItem(`agile_swimlane_strategy_${squadId}`, strategy);
-            } catch {}
-          }
-          toast({
-            title: 'Raias Atualizadas',
-            description: `${updatedSwimlanes.length} raias configuradas no quadro.`,
-          });
-        }}
-        onSaveColumns={updatedColumns => {
-          const overrides: ColumnWipOverride[] = updatedColumns.map(c => ({ id: c.id, min: c.min, max: c.max }));
-          setBoardData(prev => ({
-            ...prev,
-            columnsData: {
-              columns: prev.columnsData.columns.map(c => {
-                const ov = overrides.find(o => String(o.id) === String(c.id));
-                return ov ? { ...c, min: ov.min, max: ov.max } : c;
-              }),
-            },
-          }));
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem(`agile_columns_${squadId}`, JSON.stringify(overrides));
-            } catch {}
-          }
-          toast({
-            title: 'Colunas Atualizadas',
-            description: `${updatedColumns.length} colunas configuradas no quadro.`,
-          });
+        onSaveAll={({ quickFilters, columns: columnList, swimlanes, strategy }) => {
+          const patch: BoardConfigPatch = {
+            quickFilters,
+            swimlanes,
+            swimlaneStrategy: strategy as SwimlaneStrategy,
+            columns: columnList.map(c => ({ id: c.id, min: c.min, max: c.max })),
+          };
+          void saveBoardConfig(patch);
         }}
       />
     </div>

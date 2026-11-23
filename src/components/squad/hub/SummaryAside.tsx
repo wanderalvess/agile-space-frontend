@@ -155,14 +155,13 @@ export function ExploreSection() {
             <span className="truncate">{moduleLabel(key)}</span>
           </Link>
         ))}
-        <span
-          className="col-span-2 flex min-h-10 items-center gap-2 rounded-xl border border-dashed border-border px-2.5 py-1.5 text-[13px] text-muted-foreground"
-          aria-label={`${planner.label}, em breve`}
+        <Link
+          href={planner.href}
+          className="col-span-2 flex min-h-10 items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ModuleIcon module="sprint-planner" className="h-4 w-4 shrink-0" />
+          <ModuleIcon module="sprint-planner" className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate">{planner.label}</span>
-          <span className="ml-auto rounded-full border border-amber-500/50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">Em breve</span>
-        </span>
+        </Link>
       </div>
       <Link
         href="/"

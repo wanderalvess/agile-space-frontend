@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.30.6",
+    "date": "20 de Novembro, 2026",
+    "title": "Quadro da squad compartilhado e histórico do Poker certo",
+    "description": "A configuração do quadro Scrum agora vale para toda a squad, e o histórico de sessões do Poker é o mesmo para todo mundo do time.",
+    "changes": [
+      "Quadro Scrum: filtros rápidos, raias e limites de WIP passam a ser salvos para a squad inteira, em vez de ficarem só no navegador de quem editou. Só a liderança da squad altera; os demais veem o resultado.",
+      "Quadro Scrum: o aviso ao salvar diz onde ficou salvo. Se o servidor ainda não guardar a configuração, avisa que vale só neste navegador.",
+      "Poker: o \"Histórico do time\" do relatório mostra as últimas sessões da squad, as mesmas para todos, em vez de só as salas criadas no seu navegador.",
+      "Squad: o atalho do Planejamento no resumo deixa de aparecer como \"Em breve\" e abre o Sprint Planner."
+    ]
+  },
+  {
     "tag": "v4.30.5",
     "date": "20 de Novembro, 2026",
     "title": "Tela de erro com saída",

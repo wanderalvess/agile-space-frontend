@@ -135,6 +135,8 @@ interface BoardConfigModalProps {
   onSaveQuickFilters?: (filters: GreenhopperQuickFilter[]) => void;
   onSaveColumns?: (columns: ColumnConfigDetail[]) => void;
   onSaveSwimlanes?: (swimlanes: GreenhopperSwimlane[], strategy: string) => void;
+  /** Salvar tudo de uma vez (uma gravação só no servidor). Quando existe, substitui os três callbacks acima. */
+  onSaveAll?: (config: { quickFilters: GreenhopperQuickFilter[]; columns: ColumnConfigDetail[]; swimlanes: GreenhopperSwimlane[]; strategy: string }) => void;
 }
 
 export function BoardConfigModal({
@@ -146,11 +148,12 @@ export function BoardConfigModal({
   swimlanes: initialSwimlanes,
   swimlaneStrategy: initialSwimlaneStrategy = 'queries',
   rapidViewId,
-  boardName = 'SCRUM Demo',
+  boardName = 'Quadro Scrum',
   initialTab = 'filters',
   onSaveQuickFilters,
   onSaveColumns,
   onSaveSwimlanes,
+  onSaveAll,
 }: BoardConfigModalProps) {
   const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'swimlanes'>(initialTab);
   const [columnList, setColumnList] = useState<ColumnConfigDetail[]>(() =>
@@ -347,9 +350,13 @@ export function BoardConfigModal({
   };
 
   const handleApplyChanges = () => {
-    if (onSaveQuickFilters) onSaveQuickFilters(filterList);
-    if (onSaveColumns) onSaveColumns(columnList);
-    if (onSaveSwimlanes) onSaveSwimlanes(swimlaneList, swimlaneStrategy);
+    if (onSaveAll) {
+      onSaveAll({ quickFilters: filterList, columns: columnList, swimlanes: swimlaneList, strategy: swimlaneStrategy });
+    } else {
+      if (onSaveQuickFilters) onSaveQuickFilters(filterList);
+      if (onSaveColumns) onSaveColumns(columnList);
+      if (onSaveSwimlanes) onSaveSwimlanes(swimlaneList, swimlaneStrategy);
+    }
     onOpenChange(false);
   };
 

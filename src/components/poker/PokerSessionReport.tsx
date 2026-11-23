@@ -219,7 +219,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
               <div className="lg:col-span-7"><TopicTiming rounds={rounds} issues={issues} sessionStartedAt={sessionStartedAt} /></div>
             )}
             {settings?.showVelocity && (
-              <div className={perTopicTime ? 'lg:col-span-5' : 'lg:col-span-12'}><SessionVelocity currentRoomId={roomId} /></div>
+              <div className={perTopicTime ? 'lg:col-span-5' : 'lg:col-span-12'}><SessionVelocity currentRoomId={roomId} squadId={roomTeam} /></div>
             )}
           </div>
         </div>
