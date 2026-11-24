@@ -37,6 +37,7 @@ import { SwitchIssueDialog, OffTableDialog, CancelIssueDialog, FinishSessionDial
 import { PokerRoomBar } from './PokerRoomBar';
 import { PokerTable } from './PokerTable';
 import { DecisionBar } from './DecisionPanel';
+import type { RevoteControlProps } from './RevoteMenu';
 import { TaskActionsBar } from './TaskActionsBar';
 import { PokerSessionReport } from './PokerSessionReport';
 import { Modal, ModalButton, ResponsivePanel, RoomTimer, StatusChip, useRoomPreference } from '@/components/room-kit';
@@ -847,6 +848,16 @@ const PokerRoomComponent = ({
     </>
   );
 
+  // Revotar mora no cabeçalho, ao lado do Salvar/Revelar: ligado quando há resultado, desligado (com a dica) enquanto
+  // a votação está aberta, e fora quando não há tarefa na mesa.
+  const revoteControl: RevoteControlProps | null = !isCurrentUserFacilitator || !activeIssueId || isSessionFinished
+    ? null
+    : canSaveRound
+      ? { mode: 'enabled', presentCategories, onRevoteAll: onClear, onSelectiveRevote: (cat: string) => onSelectiveRevote?.(cat) }
+      : showRevealButton
+        ? { mode: 'disabled', presentCategories, onRevoteAll: onClear, onSelectiveRevote: (cat: string) => onSelectiveRevote?.(cat) }
+        : null;
+
   const theaterBar = (
     <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -959,6 +970,7 @@ const PokerRoomComponent = ({
             onReveal={handleReveal}
             save={canSaveRound ? { label: hasNextPending ? 'Salvar e avançar' : 'Salvar final', onSave: handleSaveAndAdvance } : null}
             progress={sessionProgress}
+            revote={revoteControl}
           />
         </>
       )}
@@ -1136,6 +1148,7 @@ const PokerRoomComponent = ({
                 deck={deck}
                 summary={summary}
                 canDecide={isCurrentUserFacilitator}
+                showRevote={isTheaterMode}
                 adjusted={adjusted}
                 onAdjust={(role, value) => setAdjusted(prev => ({ ...prev, [role]: value }))}
                 presentCategories={presentCategories}

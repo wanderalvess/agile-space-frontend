@@ -14,6 +14,8 @@ interface DecisionBarProps {
   summary: RoundSummary;
   /** Quem decide (facilitador) vê os ajustes e o revotar; os outros veem só o resultado e o copiar. */
   canDecide: boolean;
+  /** Mostra o Revotar aqui. No cabeçalho normal ele fica ao lado do Salvar; só o modo apresentação (sem comandos no topo) usa este. */
+  showRevote?: boolean;
   /** Ajustes do facilitador por papel (horas). Vale no lugar da média ao salvar e copiar. */
   adjusted: Record<string, string>;
   onAdjust: (role: string, value: string) => void;
@@ -55,7 +57,7 @@ function Stepper({ role, value, suggested, onChange }: { role: string; value: st
  * Faixa de decisão da rodada revelada, no lugar do baralho: horas finais por papel, revotar (todos ou só um
  * papel), copiar "(DEV 10h / QA 4h)" e "Enviar ao Jira ao salvar". Salvar fica no topo, como ação principal.
  */
-export function DecisionBar({ deck, summary, canDecide, adjusted, onAdjust, presentCategories, onClear, onSelectiveRevote, decisionNote, jiraOnSave }: DecisionBarProps) {
+export function DecisionBar({ deck, summary, canDecide, showRevote = true, adjusted, onAdjust, presentCategories, onClear, onSelectiveRevote, decisionNote, jiraOnSave }: DecisionBarProps) {
   const adjustable = canDecide && deck === 'hours' && summary.activeRoles.length > 0;
   const values = deck === 'hours' ? adjusted : undefined;
   return (
@@ -73,7 +75,7 @@ export function DecisionBar({ deck, summary, canDecide, adjusted, onAdjust, pres
 
         <span className="flex-1" />
 
-        {canDecide && (
+        {canDecide && showRevote && (
           <div className="inline-flex overflow-hidden rounded-[10px] border border-border">
             <button type="button" onClick={onClear} className={cn('inline-flex h-9 items-center gap-2 px-3 text-sm font-medium hover:bg-accent max-sm:h-11', FOCUS_RING)}>
               <RotateCcw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Revotar

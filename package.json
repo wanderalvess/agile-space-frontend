@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "4.30.6",
+  "version": "4.30.7",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",

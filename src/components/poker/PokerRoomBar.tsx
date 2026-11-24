@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { TimerState } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { RevoteControl, type RevoteControlProps } from './RevoteMenu';
 import {
   RoomTimer,
   RoomTopBar,
@@ -89,6 +90,8 @@ export interface PokerRoomBarProps {
   onReveal: () => void;
   /** Votos revelados: "Salvar e avançar" (ou "Salvar final") toma o lugar do "Revelar votos". */
   save?: { label: string; onSave: () => void } | null;
+  /** Revotar ao lado do Salvar/Revelar (só facilitador, com tarefa na mesa); `null` esconde. */
+  revote?: RevoteControlProps | null;
   /** Onde a sessão está: tarefa na mesa, total e quantas já foram estimadas. */
   progress?: { current: number; total: number; estimated: number } | null;
 }
@@ -153,6 +156,39 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
     ...(p.onDeleteRoom ? [{ id: 'delete-room', label: 'Excluir sala', icon: Trash2, onClick: p.onDeleteRoom }] : []),
   ];
 
+  const primary = (
+    p.isFacilitator && p.save ? (
+      <button
+        type="button"
+        onClick={p.save.onSave}
+        className={cn(
+          'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90 max-sm:h-11',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+        )}
+      >
+        {p.save.label}
+        <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    ) : p.isFacilitator && p.showReveal ? (
+      <button
+        type="button"
+        onClick={p.onReveal}
+        disabled={!p.canReveal}
+        className={cn(
+          'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90 max-sm:h-11',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none'
+        )}
+      >
+        <Eye className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
+        Revelar votos
+        <span className="rounded bg-primary-foreground/20 px-1.5 py-px text-xs tabular-nums">{p.votedCount}/{p.voterTotal}</span>
+      </button>
+    ) : undefined
+  );
+
+  const revoteNode = p.isFacilitator && p.revote ? <RevoteControl {...p.revote} /> : null;
+
   return (
     <RoomTopBar
       toolName="Scrum Poker"
@@ -183,33 +219,11 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
         ) : undefined
       }
       primaryAction={
-        p.isFacilitator && p.save ? (
-          <button
-            type="button"
-            onClick={p.save.onSave}
-            className={cn(
-              'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90 max-sm:h-11',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
-            )}
-          >
-            {p.save.label}
-            <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        ) : p.isFacilitator && p.showReveal ? (
-          <button
-            type="button"
-            onClick={p.onReveal}
-            disabled={!p.canReveal}
-            className={cn(
-              'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90 max-sm:h-11',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-              'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none'
-            )}
-          >
-            <Eye className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
-            Revelar votos
-            <span className="rounded bg-primary-foreground/20 px-1.5 py-px text-xs tabular-nums">{p.votedCount}/{p.voterTotal}</span>
-          </button>
+        primary || revoteNode ? (
+          <div className="flex items-center gap-2 max-sm:flex-wrap">
+            {primary}
+            {revoteNode}
+          </div>
         ) : undefined
       }
       secondaryActions={p.taskActions}

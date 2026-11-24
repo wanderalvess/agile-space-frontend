@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.30.7",
+    "date": "24 de Novembro, 2026",
+    "title": "Poker: Revotar junto do Salvar",
+    "description": "Quem facilita encontra o Revotar no mesmo lugar do Salvar e do Revelar, no topo da sala.",
+    "changes": [
+      "Scrum Poker: o botão Revotar agora fica no cabeçalho da sala, ao lado de Salvar e avançar, em vez de ficar no rodapé. A seta ao lado abre Todos os papéis ou só um papel.",
+      "Scrum Poker: antes de revelar os votos o Revotar aparece desligado, com a explicação de que só vale depois de revelar.",
+      "Scrum Poker: na fila, a tarefa já estimada ganhou o botão Revotar à vista, que antes só existia dentro do menu ⋯.",
+      "Scrum Poker: no modo apresentação o Revotar continua na faixa de decisão, porque o cabeçalho de lá não tem comandos."
+    ]
+  },
+  {
     "tag": "v4.30.6",
     "date": "20 de Novembro, 2026",
     "title": "Quadro da squad compartilhado e histórico do Poker certo",

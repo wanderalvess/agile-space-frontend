@@ -219,6 +219,19 @@ export function TopicQueue({
           </div>
         </div>
 
+        {canRevote && (
+          <button
+            type="button"
+            onClick={() => onRevoteIssue?.(issue.id)}
+            title="Votar novamente"
+            aria-label={`Votar novamente: ${issue.title}`}
+            className={cn('mt-0.5 inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-semibold text-amber-900 transition-colors duration-fast hover:bg-amber-500/15 dark:text-amber-200', FOCUS_RING)}
+          >
+            <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            Revotar
+          </button>
+        )}
+
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
