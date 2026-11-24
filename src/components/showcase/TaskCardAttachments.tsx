@@ -130,7 +130,7 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
                   type="button"
                   onClick={() => openFile(file)}
                   title={`Abrir ${file.name}`}
-                  className={cn('min-w-0 flex-1 truncate rounded text-left text-xs font-medium hover:text-primary [.theme-totvs:not(.dark)_&]:hover:text-foreground [.theme-totvs:not(.dark)_&]:hover:underline', FOCUS_RING)}
+                  className={cn('min-w-0 flex-1 truncate rounded text-left text-xs font-medium max-sm:min-h-11 hover:text-primary [.theme-totvs:not(.dark)_&]:hover:text-foreground [.theme-totvs:not(.dark)_&]:hover:underline', FOCUS_RING)}
                 >
                   {file.name}
                 </button>
@@ -141,11 +141,11 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
                       type="button"
                       onClick={() => removeFile(file)}
                       disabled={deletingId === file.id}
-                      className={cn('rounded px-1 text-xs font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-300', FOCUS_RING)}
+                      className={cn('rounded px-1 text-xs font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-300 max-sm:min-h-11 max-sm:px-2', FOCUS_RING)}
                     >
                       {deletingId === file.id ? 'Removendo…' : 'Remover'}
                     </button>
-                    <button type="button" onClick={() => setConfirmingId(null)} className={cn('rounded px-1 text-xs font-semibold text-muted-foreground hover:underline', FOCUS_RING)}>
+                    <button type="button" onClick={() => setConfirmingId(null)} className={cn('rounded px-1 text-xs font-semibold text-muted-foreground hover:underline max-sm:min-h-11 max-sm:px-2', FOCUS_RING)}>
                       Manter
                     </button>
                   </span>
@@ -155,7 +155,7 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
                     onClick={() => setConfirmingId(file.id)}
                     title={`Remover ${file.name}`}
                     aria-label={`Remover ${file.name}`}
-                    className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-red-700 dark:hover:text-red-300', FOCUS_RING)}
+                    className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors max-sm:h-11 max-sm:w-11 hover:text-red-700 dark:hover:text-red-300', FOCUS_RING)}
                   >
                     <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
                   </button>

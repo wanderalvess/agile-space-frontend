@@ -120,13 +120,13 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
           <h1 className="m-0 text-4xl font-extrabold leading-[1.05] tracking-[-0.03em] sm:text-[42px]">Cerimônia concluída</h1>
           <p className="m-0 text-[15px] text-muted-foreground">{subtitle}</p>
           <div className="mt-2 flex flex-wrap gap-2.5">
-          <ModalButton onClick={copySummary} className="gap-2">
+          <ModalButton onClick={copySummary} className="gap-2 max-sm:h-11">
             <ClipboardCopy className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Copiar resumo
           </ModalButton>
-          <ModalButton onClick={() => print({ includeResults: true, resultsOnly: false })} className="gap-2">
+          <ModalButton onClick={() => print({ includeResults: true, resultsOnly: false })} className="gap-2 max-sm:h-11">
             <Printer className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Imprimir / Salvar PDF
           </ModalButton>
-          <ModalButton onClick={() => void download({ includeResults: true })} disabled={busy} className="gap-2">
+          <ModalButton onClick={() => void download({ includeResults: true })} disabled={busy} className="gap-2 max-sm:h-11">
             <FileDown className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> {busy ? 'Gerando…' : 'Baixar PDF (A4)'}
           </ModalButton>
           <ExportDialog
@@ -143,7 +143,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
             report={report}
             interceptBrowserPrint
             print={print}
-            triggerNode={<ModalButton variant="primary" className="gap-2 room-glow"><Download className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Exportar resultados</ModalButton>}
+            triggerNode={<ModalButton variant="primary" className="gap-2 room-glow max-sm:h-11"><Download className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Exportar resultados</ModalButton>}
           />
           </div>
         </div>
@@ -177,7 +177,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
             <span className="text-[13px] text-muted-foreground">Renomeia a pai com as horas e cria as sub-tarefas. Você revisa a prévia antes.</span>
           </span>
           {jira.pending > 0 && (
-            <ModalButton variant="primary" onClick={jira.onSend} className="gap-2 room-glow">
+            <ModalButton variant="primary" onClick={jira.onSend} className="gap-2 room-glow max-sm:h-11">
               Enviar {jira.pending} ao Jira
             </ModalButton>
           )}
@@ -185,8 +185,8 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <ModalButton onClick={onRefreshHistory} className="h-9 gap-2 text-[13px]"><RefreshCcw className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Atualizar histórico</ModalButton>
-        <ModalButton onClick={onNewSession} className="h-9 gap-2 text-[13px]"><Plus className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Nova sessão</ModalButton>
+        <ModalButton onClick={onRefreshHistory} className="h-9 gap-2 text-[13px] max-sm:h-11"><RefreshCcw className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Atualizar histórico</ModalButton>
+        <ModalButton onClick={onNewSession} className="h-9 gap-2 text-[13px] max-sm:h-11"><Plus className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Nova sessão</ModalButton>
       </div>
 
       <TabBar
@@ -196,6 +196,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
         label="Visões do relatório"
         idPrefix="report"
         className="px-0"
+        tabClassName="max-sm:h-11"
       />
 
       {tab === 'resultados' ? (

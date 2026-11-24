@@ -86,14 +86,16 @@ export const DEFAULT_CUSTOM_COLUMNS: CustomColumnDraft[] = [
   { title: '', theme: 'action' },
 ];
 
-export type NewRetroProblem = 'no-title' | 'custom-columns';
+export type NewRetroProblem = 'no-title' | 'custom-columns' | 'custom-no-action';
 
-/** O que impede de criar: sem título, ou formato personalizado com menos de 2 colunas ou nomes repetidos. */
+/** O que impede de criar: sem título, ou formato personalizado com menos de 2 colunas, nomes repetidos ou nenhuma coluna de Ações. */
 export function validateNewRetro(args: { title: string; template: RetroTemplateKey; customColumns: readonly CustomColumnDraft[] }): NewRetroProblem | null {
   if (!args.title.trim()) return 'no-title';
   if (args.template === 'custom') {
     const names = args.customColumns.map((c) => c.title.trim().toLowerCase()).filter(Boolean);
     if (names.length < MIN_CUSTOM_COLUMNS || new Set(names).size !== names.length) return 'custom-columns';
+    // A fase Agir transforma cartões em ações: sem uma coluna de Ações elas não teriam onde ficar.
+    if (!args.customColumns.some((c) => c.title.trim() && c.theme === 'action')) return 'custom-no-action';
   }
   return null;
 }

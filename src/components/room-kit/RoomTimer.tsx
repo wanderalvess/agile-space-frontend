@@ -122,7 +122,7 @@ export function RoomTimer({
               variant="ghost"
               size="xs"
               aria-label="Duração do timer"
-              className={cn('h-8 gap-1 px-2 text-xs font-medium tabular-nums text-muted-foreground', FOCUS_RING)}
+              className={cn('h-8 gap-1 px-2 text-xs font-medium tabular-nums text-muted-foreground max-sm:h-11 max-sm:px-3', FOCUS_RING)}
             >
               {initial / 60} min
               <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
@@ -133,7 +133,7 @@ export function RoomTimer({
               <DropdownMenuItem
                 key={d}
                 onClick={() => onSetDuration(d)}
-                className={cn('text-sm tabular-nums', initial === d && 'font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground')}
+                className={cn('text-sm tabular-nums max-sm:min-h-11', initial === d && 'font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground')}
               >
                 {d / 60} {d === 60 ? 'minuto' : 'minutos'}
               </DropdownMenuItem>
@@ -142,21 +142,21 @@ export function RoomTimer({
         </DropdownMenu>
       )}
       {isStopped && (
-        <Button size="icon" variant="ghost" aria-label="Iniciar timer" className="h-8 w-8" onClick={() => onStart(initial)}>
+        <Button size="icon" variant="ghost" aria-label="Iniciar timer" className="h-8 w-8 max-sm:h-11 max-sm:w-11" onClick={() => onStart(initial)}>
           <Play className="h-4 w-4" strokeWidth={1.5} />
         </Button>
       )}
       {isRunning && (
-        <Button size="icon" variant="ghost" aria-label="Pausar timer" className="h-8 w-8" onClick={onPause}>
+        <Button size="icon" variant="ghost" aria-label="Pausar timer" className="h-8 w-8 max-sm:h-11 max-sm:w-11" onClick={onPause}>
           <Pause className="h-4 w-4" strokeWidth={1.5} />
         </Button>
       )}
       {isPaused && (
-        <Button size="icon" variant="ghost" aria-label="Retomar timer" className="h-8 w-8" onClick={onResume}>
+        <Button size="icon" variant="ghost" aria-label="Retomar timer" className="h-8 w-8 max-sm:h-11 max-sm:w-11" onClick={onResume}>
           <Play className="h-4 w-4" strokeWidth={1.5} />
         </Button>
       )}
-      <Button size="icon" variant="ghost" aria-label="Reiniciar timer" className="h-8 w-8 text-muted-foreground" onClick={onReset} disabled={isStopped}>
+      <Button size="icon" variant="ghost" aria-label="Reiniciar timer" className="h-8 w-8 text-muted-foreground max-sm:h-11 max-sm:w-11" onClick={onReset} disabled={isStopped}>
         <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
       </Button>
     </div>
@@ -196,7 +196,7 @@ export function RoomTimer({
   }
 
   return (
-    <div className={cn('flex h-9 items-center gap-1 rounded-lg border border-border pl-3 pr-1', phase === 'expired' && 'room-alarm', className)}>
+    <div className={cn('flex h-9 items-center gap-1 rounded-lg border border-border pl-3 pr-1 max-sm:h-12', phase === 'expired' && 'room-alarm', className)}>
       <TimerIcon aria-hidden="true" className={cn('h-4 w-4', PHASE_TEXT[phase], phase === 'stopped' ? 'opacity-60' : '')} strokeWidth={1.5} />
       <span role="timer" aria-label={`Tempo restante ${formatTimer(remaining)}`} className={cn('min-w-[3.25rem] text-sm font-semibold tabular-nums', PHASE_TEXT[phase])}>
         {formatTimer(remaining)}

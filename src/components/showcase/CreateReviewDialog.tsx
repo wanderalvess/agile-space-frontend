@@ -106,8 +106,8 @@ export function CreateReviewDialog({ open, onOpenChange, onCreated, onCreatingCh
       preventClose={creating}
       footer={
         <>
-          <ModalButton onClick={() => onOpenChange(false)} disabled={creating}>Cancelar</ModalButton>
-          <ModalButton variant="primary" className="gap-2" onClick={create} disabled={creating || noSquad}>
+          <ModalButton className="max-sm:h-11" onClick={() => onOpenChange(false)} disabled={creating}>Cancelar</ModalButton>
+          <ModalButton variant="primary" className="gap-2 max-sm:h-11" onClick={create} disabled={creating || noSquad}>
             {creating ? 'Criando…' : 'Criar Review'}
             {!creating && <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />}
           </ModalButton>

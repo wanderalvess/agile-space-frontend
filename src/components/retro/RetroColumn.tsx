@@ -205,7 +205,11 @@ function RetroColumnComponent({
                 title="Editar o nome da coluna"
                 aria-label={`Editar o nome da coluna ${title}`}
                 onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent focus-visible:opacity-100 sm:opacity-0 sm:hover:opacity-100 [section:hover_&]:opacity-100', FOCUS_RING)}
+                className={cn(
+                  // No celular o desenho segue de 28 px; before:-inset-2 amplia a área de toque para 44 px.
+                  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent focus-visible:opacity-100 max-sm:before:absolute max-sm:before:-inset-2 max-sm:before:content-[''] sm:opacity-0 sm:hover:opacity-100 [section:hover_&]:opacity-100",
+                  FOCUS_RING
+                )}
               >
                 <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
               </button>
@@ -236,7 +240,7 @@ function RetroColumnComponent({
             title="Salvar o resumo da retro no histórico"
             aria-label="Salvar o resumo da retro no histórico"
             onClick={(e) => { e.stopPropagation(); onSyncSummary(); }}
-            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent', FOCUS_RING)}
+            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent max-sm:h-11 max-sm:w-11', FOCUS_RING)}
           >
             <ClipboardCheck className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           </button>
@@ -251,7 +255,7 @@ function RetroColumnComponent({
             disabled={!isCreator}
             onClick={(e) => { e.stopPropagation(); if (isCreator) onToggleColumnSort(columnKey, !sortedByVotes); }}
             className={cn(
-              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:pointer-events-none',
+              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:pointer-events-none max-sm:h-11 max-sm:w-11',
               sortedByVotes ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent',
               FOCUS_RING
             )}
@@ -268,7 +272,7 @@ function RetroColumnComponent({
             title="Só cartões com voto"
             onClick={onToggleOnlyVoted}
             className={cn(
-              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors',
+              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors max-sm:h-11 max-sm:w-11',
               onlyVoted ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent',
               FOCUS_RING
             )}
@@ -393,7 +397,7 @@ function RetroColumnComponent({
         <button
           type="button"
           onClick={onOpenImport}
-          className={cn('inline-flex h-9 items-center justify-center gap-2 rounded-[10px] bg-primary/10 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
+          className={cn('inline-flex h-9 items-center justify-center gap-2 rounded-[10px] max-sm:h-11 bg-primary/10 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
         >
           <PackageOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           Importar ações pendentes

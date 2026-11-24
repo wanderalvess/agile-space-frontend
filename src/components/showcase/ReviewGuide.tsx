@@ -62,7 +62,7 @@ export function ReviewGuide({ open, onOpenChange, onRedoTour }: { open: boolean;
           </ol>
           <div>
             <ModalButton
-              className="gap-2"
+              className="gap-2 max-sm:h-11"
               onClick={() => {
                 onOpenChange(false);
                 onRedoTour();

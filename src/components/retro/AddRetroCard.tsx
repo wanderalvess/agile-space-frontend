@@ -117,7 +117,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
         type="button"
         onClick={() => onOpenChange?.(true)}
         className={cn(
-          'flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-border bg-transparent text-[13px] text-muted-foreground transition-colors duration-fast hover:border-primary/50 hover:bg-accent/40 hover:text-foreground',
+          'flex h-10 items-center justify-center gap-1.5 rounded-[10px] max-sm:h-11 border border-dashed border-border bg-transparent text-[13px] text-muted-foreground transition-colors duration-fast hover:border-primary/50 hover:bg-accent/40 hover:text-foreground',
           FOCUS_RING
         )}
       >
@@ -150,7 +150,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
           rows={1}
           aria-label={isActionColumn ? 'Nova ação para o time' : 'Escreva seu feedback'}
           className={cn(
-            'max-h-40 min-h-[44px] w-full resize-none border-0 bg-transparent py-3 pl-3.5 pr-12 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
+            'max-h-40 min-h-[44px] w-full resize-none border-0 bg-transparent py-3 pl-3.5 pr-12 max-sm:pr-14 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0',
             variant === 'field' && 'min-h-[52px] text-[15px]'
           )}
         />
@@ -159,7 +159,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
           aria-label="Adicionar cartão"
           disabled={!content.trim() || submitting}
           className={cn(
-            'absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg transition-[background-color,opacity] duration-fast',
+            'absolute right-2 top-1/2 inline-flex h-9 w-9 max-sm:h-11 max-sm:w-11 -translate-y-1/2 items-center justify-center rounded-lg transition-[background-color,opacity] duration-fast',
             content.trim() ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'bg-transparent text-muted-foreground opacity-50',
             FOCUS_RING
           )}
@@ -179,7 +179,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
               placeholder="Responsável"
               value={assignee}
               onChange={(e) => setAssignee(e.target.value)}
-              className={cn(FIELD, 'h-9')}
+              className={cn(FIELD, 'h-9 max-sm:h-11')}
             />
             <datalist id={`retro-assignees-${columnKey}`}>
               {participants.map((p) => <option key={p.id} value={p.nickname} />)}
@@ -188,7 +188,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
           <label className="flex items-center gap-2">
             <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
             <span className="sr-only">Prazo</span>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={cn(FIELD, 'h-9')} />
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={cn(FIELD, 'h-9 max-sm:h-11')} />
           </label>
         </div>
       )}

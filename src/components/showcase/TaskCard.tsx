@@ -137,7 +137,7 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
               {/* Métrica de impacto avulsa: só no card padrão (no card de métricas isso já é a seção acima). */}
               {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
                 <div className={METRICS_PANEL}>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 max-sm:flex-wrap">
                     <FieldLabel icon={TrendingUp} label="Métricas de impacto" color={BRAND_TEXT} />
                     <ChartDisplayPicker value={task.chartDisplay} onChange={(chartDisplay) => onUpdate({ chartDisplay })} />
                   </div>

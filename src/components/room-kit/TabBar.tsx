@@ -56,7 +56,7 @@ export function TabBar<T extends string>({
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm transition-colors duration-base',
+              '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm max-sm:h-11 transition-colors duration-base',
               FOCUS_RING,
               on ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
               tabClassName

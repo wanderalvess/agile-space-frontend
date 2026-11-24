@@ -127,13 +127,13 @@ export function ReportTaskTable({ report, jiraStatus }: { report: SessionReportD
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-base font-bold">Tarefas da sessão</h2>
         {hasEstimates && (
-          <ModalButton className="h-9 gap-2 text-[13px]" onClick={() => copy(buildEstimatesCopy(report), 'Estimativas copiadas')}>
+          <ModalButton className="h-9 gap-2 text-[13px] max-sm:h-11" onClick={() => copy(buildEstimatesCopy(report), 'Estimativas copiadas')}>
             <ClipboardCopy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Copiar estimativas
           </ModalButton>
         )}
       </div>
 
-      <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-2">
+      <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-2 max-sm:gap-y-3">
         {chips.map((c) => {
           const on = filter === c.id;
           return (
@@ -144,6 +144,8 @@ export function ReportTaskTable({ report, jiraStatus }: { report: SessionReportD
               onClick={() => setFilter(c.id)}
               className={cn(
                 'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-fast',
+                // Celular: área de toque de 44 px sem engordar a pílula (a extensão de 6 px cabe no gap-y-3).
+                "max-sm:relative max-sm:before:absolute max-sm:before:-inset-y-1.5 max-sm:before:inset-x-0 max-sm:before:content-['']",
                 FOCUS_RING,
                 on ? 'border-primary/60 bg-primary/10 text-foreground dark:bg-primary/15' : 'border-border text-muted-foreground hover:bg-accent/50'
               )}

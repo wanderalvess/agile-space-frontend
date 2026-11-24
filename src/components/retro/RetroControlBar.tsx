@@ -132,7 +132,7 @@ function SuggestedTime({ minutes, phaseLabel, current, onApply }: { minutes: num
       aria-label={applied ? `Timer no tempo sugerido para ${phaseLabel}: ${minutes} minutos` : `Aplicar ao timer: ${minutes} minutos, sugeridos para ${phaseLabel}`}
       onClick={() => onApply(minutes * 60)}
       className={cn(
-        'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] text-muted-foreground transition-colors duration-fast hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none',
+        'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] max-sm:h-11 text-muted-foreground transition-colors duration-fast hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none',
         FOCUS_RING
       )}
     >
@@ -206,7 +206,7 @@ export function RetroControlBar({
             value={String(maxVotes)}
             onChange={(v) => onSetMaxVotesPerParticipant(Number(v))}
             options={voteLimitOptions(maxVotes)}
-            className="h-9 w-[7.5rem] max-sm:w-[6.5rem]"
+            className="h-9 w-[7.5rem] max-sm:h-11 max-sm:w-[6.5rem]"
           />
         </label>
       ) : (

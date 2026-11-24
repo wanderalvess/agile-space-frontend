@@ -163,7 +163,7 @@ export function TeamChat({
                     aria-selected={tab === t.id}
                     onClick={() => { setTab(t.id); if (t.id !== 'dm') setActiveDm(null); }}
                     className={cn(
-                      '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm max-sm:h-11 transition-colors duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       tab === t.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -172,7 +172,7 @@ export function TeamChat({
                   </button>
                 ))}
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg text-muted-foreground" aria-label="Fechar chat">
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg text-muted-foreground max-sm:h-11 max-sm:w-11" aria-label="Fechar chat">
                 <X className="h-4 w-4" strokeWidth={1.5} />
               </Button>
             </div>
@@ -180,7 +180,7 @@ export function TeamChat({
 
             {tab === 'dm' && activeDm && (
               <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-                <Button variant="ghost" size="icon" onClick={() => setActiveDm(null)} className="h-8 w-8 rounded-lg text-muted-foreground" aria-label="Voltar para conversas">
+                <Button variant="ghost" size="icon" onClick={() => setActiveDm(null)} className="h-8 w-8 rounded-lg text-muted-foreground max-sm:h-11 max-sm:w-11" aria-label="Voltar para conversas">
                   <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
                 </Button>
                 <span className="truncate text-[13px] font-semibold">{dmPeer?.nickname}</span>

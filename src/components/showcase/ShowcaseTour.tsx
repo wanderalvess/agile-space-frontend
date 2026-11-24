@@ -159,7 +159,7 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
               <Sparkles className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
               <span className="text-xs font-semibold tabular-nums">{stepIndex + 1} / {STEPS.length}</span>
             </div>
-            <button onClick={finish} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Pular tour" aria-label="Pular tour">
+            <button onClick={finish} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground max-sm:h-11 max-sm:w-11 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Pular tour" aria-label="Pular tour">
               <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </button>
           </div>
@@ -171,11 +171,11 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
             </button>
             <div className="flex items-center gap-2">
               {stepIndex > 0 && (
-                <ModalButton variant="ghost" className="h-9 gap-1.5 px-3 text-[13px]" onClick={prev}>
+                <ModalButton variant="ghost" className="h-9 gap-1.5 px-3 text-[13px] max-sm:h-11" onClick={prev}>
                   <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Voltar
                 </ModalButton>
               )}
-              <ModalButton variant="primary" className="h-9 gap-1.5 px-4 text-[13px]" onClick={next}>
+              <ModalButton variant="primary" className="h-9 gap-1.5 px-4 text-[13px] max-sm:h-11" onClick={next}>
                 {stepIndex < STEPS.length - 1 ? <>Próximo <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /></> : 'Concluir'}
               </ModalButton>
             </div>

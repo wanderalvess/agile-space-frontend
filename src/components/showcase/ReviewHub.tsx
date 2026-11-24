@@ -112,7 +112,7 @@ function StartCard({ onNewSession, isCreating }: { onNewSession: () => void; isC
             type="submit"
             disabled={!target}
             aria-label="Entrar na Review"
-            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-40 max-sm:h-9 max-sm:w-9 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
+            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-40 max-sm:h-11 max-sm:w-11 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
           >
             <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -223,7 +223,7 @@ function LastReviewCard({ session, loading }: { session: ShowcaseSession | null;
         <p className="m-0 py-3 text-sm text-muted-foreground">Nenhuma tarefa importada nesta Review.</p>
       )}
       <div className="mt-auto flex justify-end border-t border-border pt-3">
-        <ModalButton variant="primary" className="gap-1.5" onClick={() => router.push(sessionHref(session.id, status))}>
+        <ModalButton variant="primary" className="gap-1.5 max-sm:h-11" onClick={() => router.push(sessionHref(session.id, status))}>
           {sessionActionLabel(status)} <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
         </ModalButton>
       </div>
@@ -409,7 +409,7 @@ export function ReviewHub({ sessions, state, onRetry, onNewSession, isCreating }
         icon={Icon}
         title="Escolha uma squad para ver as Reviews"
         description="A lista de Reviews é por squad. Quem está em mais de uma squad escolhe a ativa no cabeçalho; quem ainda não tem vínculo recebe um convite ou pede acesso a quem lidera."
-        actions={<ModalButton variant="primary" onClick={() => router.push('/squad')}>Ver minhas squads</ModalButton>}
+        actions={<ModalButton variant="primary" className="max-sm:h-11" onClick={() => router.push('/squad')}>Ver minhas squads</ModalButton>}
       />
     );
   }

@@ -98,7 +98,7 @@ export function TeatroHeader({
               aria-label="Próximo card"
               title="Próximo card (→)"
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-30 xl:px-4 max-sm:h-11',
+                'inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-30 xl:px-4 max-sm:h-11 max-sm:min-w-11 max-sm:justify-center',
                 FOCUS
               )}
             >
@@ -114,7 +114,7 @@ export function TeatroHeader({
           <div className="order-last flex min-w-0 basis-full items-center gap-4 lg:order-none lg:basis-auto lg:flex-1">
             <nav
               aria-label="Progresso da apresentação"
-              className="flex min-w-0 flex-1 items-center gap-1"
+              className="flex min-w-0 flex-1 items-center gap-1 max-sm:py-3"
               title={sortBy ? `Ordem: ${SORT_LABEL[sortBy]}` : undefined}
             >
               {session.tasks.map((t, i) => {
@@ -129,7 +129,8 @@ export function TeatroHeader({
                     aria-current={isActive ? 'step' : undefined}
                     title={`${t.key}: ${t.title}${t.preparationStatus === 'done' ? '' : ' (preparação pendente)'}`}
                     className={cn(
-                      'h-1.5 min-w-[4px] flex-1 rounded-full transition-all duration-300 max-sm:h-3',
+                      // No celular o segmento continua fino; a área de toque cresce 16 px para cima e para baixo (dentro do padding do nav).
+                      'h-1.5 min-w-[4px] flex-1 rounded-full transition-all duration-300 max-sm:relative max-sm:h-3 max-sm:before:absolute max-sm:before:-inset-y-4 max-sm:before:inset-x-0 max-sm:before:content-[""]',
                       isActive
                         ? 'h-2 bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)] max-sm:h-3.5'
                         : decided ?? ('bg-foreground/20 hover:bg-foreground/40')
@@ -171,7 +172,7 @@ export function TeatroHeader({
                       title={config.l}
                       aria-label={config.l}
                       className={cn(
-                        'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors max-sm:h-11 xl:px-4',
+                        'inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors max-sm:h-11 max-sm:min-w-11 max-sm:justify-center xl:px-4',
                         !canDecide && 'cursor-not-allowed opacity-30',
                         isSelected ? `${config.c} border-transparent shadow-lg` : subtle,
                         FOCUS

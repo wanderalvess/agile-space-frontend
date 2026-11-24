@@ -233,16 +233,16 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
         <PanelTitle icon={Layout}>Identificação</PanelTitle>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cfg-name" className={LABEL}>Título da Review</label>
-          <input id="cfg-name" value={session?.name || ''} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Ex.: Review da Sprint 42" className={cn(FIELD, 'h-10')} />
+          <input id="cfg-name" value={session?.name || ''} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Ex.: Review da Sprint 42" className={cn(FIELD, 'h-10 max-sm:h-11')} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cfg-squad" className={LABEL}>Squad</label>
-          <SelectField id="cfg-squad" aria-label="Squad da Review" value={session?.squadName || ''} onChange={(squadName) => onUpdate({ squadName })} options={squads} placeholder="Escolha a squad" className="h-10" />
+          <SelectField id="cfg-squad" aria-label="Squad da Review" value={session?.squadName || ''} onChange={(squadName) => onUpdate({ squadName })} options={squads} placeholder="Escolha a squad" className="h-10 max-sm:h-11" />
           <p className={HELP}>É o nome que a lista do hub usa para achar a Review. Escolha entre as squads do seu vínculo.</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="cfg-period" className={LABEL}>Data ou ciclo</label>
-          <input id="cfg-period" value={session?.period || ''} onChange={(e) => onUpdate({ period: e.target.value })} placeholder="Ex.: 2026 · 4º trimestre" className={cn(FIELD, 'h-10')} />
+          <input id="cfg-period" value={session?.period || ''} onChange={(e) => onUpdate({ period: e.target.value })} placeholder="Ex.: 2026 · 4º trimestre" className={cn(FIELD, 'h-10 max-sm:h-11')} />
         </div>
       </div>
 
@@ -256,7 +256,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             value={session?.defaultSort || 'key'}
             onChange={(v) => isReviewSort(v) && onUpdate({ defaultSort: v })}
             options={(Object.keys(SORT_LABELS) as ReviewSort[]).map((k) => ({ value: k, label: SORT_LABELS[k] }))}
-            className="h-10"
+            className="h-10 max-sm:h-11"
           />
           <p className={HELP}>Define a ordem em que os cards aparecem na lista e na apresentação. Com a chave, PTV-2 vem antes de PTV-10.</p>
         </div>
@@ -313,10 +313,10 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           <p className={HELP}>Quem abrir o link entra nesta Review e ajuda a preparar os cards antes da apresentação.</p>
         </div>
         <div className="flex gap-2">
-          <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} aria-label="Link da Review" className={cn(FIELD, 'h-10 min-w-0 flex-1 font-mono text-xs')} />
+          <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} aria-label="Link da Review" className={cn(FIELD, 'h-10 max-sm:h-11 min-w-0 flex-1 font-mono text-xs')} />
           <ModalButton
             variant="primary"
-            className="shrink-0 gap-1.5"
+            className="shrink-0 gap-1.5 max-sm:h-11"
             onClick={() => { onCopyLink?.(); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
           >
             {linkCopied ? <Check className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
@@ -390,11 +390,11 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               onChange={(e) => { setCoverUrl(e.target.value); setPreviewError(false); }}
               placeholder="URL da imagem..."
               aria-label="URL da imagem de capa"
-              className={cn(FIELD, 'h-10 flex-1')}
+              className={cn(FIELD, 'h-10 max-sm:h-11 flex-1')}
             />
             <ModalButton
               variant="primary"
-              className="shrink-0"
+              className="shrink-0 max-sm:h-11"
               disabled={!coverUrl}
               onClick={() => {
                 const safe = toSafeUrl(coverUrl);
@@ -515,7 +515,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                 <span className="text-xs text-muted-foreground">Hexadecimal ou CSS</span>
               </div>
               <div className="flex items-center gap-2">
-                <label className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-border shadow-inner" title="Abrir o seletor de cores">
+                <label className="relative flex h-10 w-10 max-sm:h-11 max-sm:w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-border shadow-inner" title="Abrir o seletor de cores">
                   <input
                     type="color"
                     aria-label="Seletor de cores"
@@ -532,7 +532,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
                   placeholder="Ex.: #ffffff, #0f172a ou https://..."
                   aria-label="Cor ou link do fundo"
-                  className={cn(FIELD, 'h-10 flex-1')}
+                  className={cn(FIELD, 'h-10 max-sm:h-11 flex-1')}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -627,7 +627,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   type="button"
                   onClick={() => setActiveTab(c.tab)}
                   className={cn(
-                    'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors max-sm:h-9',
+                    'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors max-sm:h-11',
                     c.done ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground',
                     FOCUS_RING
                   )}
@@ -646,8 +646,8 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
         }
         footer={
           <>
-            <ModalButton onClick={handleDismiss}>Cancelar</ModalButton>
-            <ModalButton variant="primary" onClick={handleSave}>Salvar alterações</ModalButton>
+            <ModalButton className="max-sm:h-11" onClick={handleDismiss}>Cancelar</ModalButton>
+            <ModalButton variant="primary" className="max-sm:h-11" onClick={handleSave}>Salvar alterações</ModalButton>
           </>
         }
       >
@@ -658,7 +658,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               <p className="m-0 text-sm font-bold text-amber-800 dark:text-amber-300">Esta Review ainda não tem os objetivos da sprint</p>
               <p className="m-0 text-xs text-amber-800/80 dark:text-amber-300/80">Complete agora ou apresente do jeito que está.</p>
             </div>
-            <ModalButton className="shrink-0 border-amber-500/40 text-amber-800 hover:bg-amber-500/10 dark:text-amber-300" onClick={onPresentAnyway}>
+            <ModalButton className="shrink-0 border-amber-500/40 text-amber-800 hover:bg-amber-500/10 max-sm:h-11 dark:text-amber-300" onClick={onPresentAnyway}>
               Apresentar mesmo assim
             </ModalButton>
           </div>

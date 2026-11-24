@@ -35,8 +35,8 @@ export function ReviewConflictBar({ conflicts, onResolve }: ReviewConflictBarPro
             </ul>
           </div>
           <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:justify-end">
-            <ModalButton className="h-8 px-3 text-[13px]" onClick={() => onResolve(c.id, 'discard')}>Descartar</ModalButton>
-            <ModalButton variant="primary" className="h-8 px-3 text-[13px]" onClick={() => onResolve(c.id, 'reapply')}>Reaplicar a minha</ModalButton>
+            <ModalButton className="h-8 px-3 text-[13px] max-sm:h-11" onClick={() => onResolve(c.id, 'discard')}>Descartar</ModalButton>
+            <ModalButton variant="primary" className="h-8 px-3 text-[13px] max-sm:h-11" onClick={() => onResolve(c.id, 'reapply')}>Reaplicar a minha</ModalButton>
           </div>
         </div>
       ))}

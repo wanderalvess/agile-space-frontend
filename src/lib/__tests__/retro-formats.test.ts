@@ -67,6 +67,14 @@ describe('validação da nova retro', () => {
     expect(validateNewRetro({ title: 'x', template: 'custom', customColumns: custom('Bom', 'bom') })).toBe('custom-columns');
     expect(validateNewRetro({ title: 'x', template: 'custom', customColumns: custom('Bom', 'Ruim') })).toBeNull();
   });
+
+  it('formato personalizado exige uma coluna de Ações nomeada para a fase Agir', () => {
+    const semAcao = [{ title: 'Bom', theme: 'neutral' as const }, { title: 'Ruim', theme: 'neutral' as const }];
+    expect(validateNewRetro({ title: 'x', template: 'custom', customColumns: semAcao })).toBe('custom-no-action');
+    const acaoSemNome = [...semAcao, { title: '', theme: 'action' as const }];
+    expect(validateNewRetro({ title: 'x', template: 'custom', customColumns: acaoSemNome })).toBe('custom-no-action');
+    expect(validateNewRetro({ title: 'x', template: 'custom', customColumns: [...semAcao, { title: 'Ações', theme: 'action' as const }] })).toBeNull();
+  });
 });
 
 describe('montagem do quadro novo', () => {

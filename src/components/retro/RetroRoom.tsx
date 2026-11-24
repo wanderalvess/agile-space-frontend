@@ -328,7 +328,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
                 value={String(boardData.maxVotesPerParticipant || 0)}
                 onChange={(v) => props.onSetMaxVotesPerParticipant(Number(v))}
                 options={voteLimitOptions(boardData.maxVotesPerParticipant || 0)}
-                className="h-9 w-[7.5rem]"
+                className="h-9 w-[7.5rem] max-sm:h-11"
               />
               <RetroPhaseActions boardData={boardData} onToggleCardsRevealed={onToggleCardsRevealed} onSetVotingStatus={onSetVotingStatus} />
             </>

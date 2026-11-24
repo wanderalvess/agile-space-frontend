@@ -1,5 +1,19 @@
 [
   {
+    "tag": "v4.30.8",
+    "date": "24 de Novembro, 2026",
+    "title": "Celular: botões maiores nas salas e ajustes da Retro e da Review",
+    "description": "No celular, os botões da Retro, do relatório do Poker e da Review passam a ter 44 px de altura, e alguns detalhes que o teste apontou foram corrigidos.",
+    "changes": [
+      "Retro, Poker e Review: no celular os botões e abas do cabeçalho, do timer, das colunas, dos cartões, das reações, do chat do time e dos diálogos ficaram com área de toque de 44 px. Na tela grande nada mudou.",
+      "Retro: o botão de apagar mensagem do chat do time agora aparece nas telas de toque, em vez de depender de passar o mouse.",
+      "Retro: o formato Personalizado agora pede ao menos uma coluna de Ações com nome, para a fase Agir ter onde guardar o que o time combinar.",
+      "Retro: o campo de ação diz \"Descreva a ação (responsável e prazo vêm depois)\", porque responsável e prazo só aparecem depois de digitar.",
+      "Scrum Poker: no relatório, quem está sem cargo na administração é contado como observador, e não mais como DEV.",
+      "Review: a capa do Modo Teatro mostra quantas entregas estão prontas em relação ao total (por exemplo, 0 de 1 item), no mesmo critério da barra de prontidão."
+    ]
+  },
+  {
     "tag": "v4.30.7",
     "date": "24 de Novembro, 2026",
     "title": "Poker: Revotar junto do Salvar",

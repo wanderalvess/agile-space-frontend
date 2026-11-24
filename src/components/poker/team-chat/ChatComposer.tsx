@@ -59,7 +59,7 @@ export function ChatComposer({
           type="button"
           onClick={() => { setIsCodeMode(v => !v); textareaRef.current?.focus(); }}
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border max-sm:h-11 max-sm:w-11 transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             isCodeMode ? 'border-primary/60 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent'
           )}
           title={isCodeMode ? 'Sair do modo código' : 'Enviar trecho de código'}
@@ -82,12 +82,12 @@ export function ChatComposer({
           maxLength={MAX_MESSAGE_LENGTH}
           spellCheck={!isCodeMode}
           placeholder={isCodeMode ? 'Cole o trecho de código…' : placeholder}
-          className={cn(FIELD, 'min-h-10 min-w-0 flex-1 resize-none py-2.5 text-sm', isCodeMode && 'overflow-x-auto whitespace-pre font-mono text-xs')}
+          className={cn(FIELD, 'min-h-10 min-w-0 flex-1 resize-none py-2.5 text-sm max-sm:min-h-11', isCodeMode && 'overflow-x-auto whitespace-pre font-mono text-xs')}
         />
         <button
           type="submit"
           disabled={!canSend}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground room-glow transition-[opacity,background-color] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:shadow-none"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg max-sm:h-11 max-sm:w-11 bg-primary text-primary-foreground room-glow transition-[opacity,background-color] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:shadow-none"
           aria-label="Enviar mensagem"
         >
           <Send className="h-4 w-4" strokeWidth={1.5} />

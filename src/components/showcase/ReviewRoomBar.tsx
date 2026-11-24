@@ -64,7 +64,7 @@ export function ReviewRoomBar(p: ReviewRoomBarProps) {
       chips={chips}
       phases={{ steps: REVIEW_PHASES, current: reviewPhase(p.status, p.presenting), label: 'Fases da Review' }}
       primaryAction={
-        <ModalButton variant="primary" data-tour="start-teatro" className="gap-2" onClick={p.onStartPresenting}>
+        <ModalButton variant="primary" data-tour="start-teatro" className="gap-2 max-sm:h-11" onClick={p.onStartPresenting}>
           <Play className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Apresentar
         </ModalButton>
       }

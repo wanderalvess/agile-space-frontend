@@ -371,7 +371,7 @@ export function Segmented<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.id)}
             className={cn(
-              'h-[34px] rounded-[7px] px-3.5 text-[13px] transition-[background-color,box-shadow,color] duration-base',
+              'h-[34px] rounded-[7px] px-3.5 max-sm:h-11 text-[13px] transition-[background-color,box-shadow,color] duration-base',
               FOCUS_RING,
               on
                 ? 'bg-card font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border)),0_0_14px_hsl(var(--primary)/0.25)] [.theme-leitura_&]:shadow-[0_0_0_1px_hsl(var(--border))]'

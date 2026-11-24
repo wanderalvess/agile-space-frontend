@@ -60,13 +60,13 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session, onEx
       title="Resumo da Review"
       description={`${sessionName} · ${tasks.length} ${tasks.length === 1 ? 'entrega' : 'entregas'}`}
       className="sm:max-w-[1000px]"
-      footerStart={<ModalButton variant="ghost" onClick={onClose}>Fechar</ModalButton>}
+      footerStart={<ModalButton variant="ghost" className="max-sm:h-11" onClick={onClose}>Fechar</ModalButton>}
       footer={
         <>
-          <ModalButton className="gap-2" onClick={onPrint}>
+          <ModalButton className="gap-2 max-sm:h-11" onClick={onPrint}>
             <Printer className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> <span className="max-sm:sr-only">Imprimir slides</span>
           </ModalButton>
-          <ModalButton variant="primary" className="gap-2" onClick={onExport}>
+          <ModalButton variant="primary" className="gap-2 max-sm:h-11" onClick={onExport}>
             <Download className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Exportar
           </ModalButton>
         </>
@@ -124,10 +124,10 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session, onEx
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 max-sm:flex-wrap">
             <h3 className="m-0 text-sm font-bold">Entregas por decisão</h3>
             {links.count > 0 && (
-              <ModalButton className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => copyText(links.text, `${links.count} ${links.count === 1 ? 'link copiado' : 'links copiados'}`)}>
+              <ModalButton className="h-8 gap-1.5 px-3 text-[13px] max-sm:h-11" onClick={() => copyText(links.text, `${links.count} ${links.count === 1 ? 'link copiado' : 'links copiados'}`)}>
                 <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Copiar links das issues
               </ModalButton>
             )}
@@ -157,11 +157,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session, onEx
                             rel="noopener noreferrer"
                             title={`Abrir ${t.key} no Jira`}
                             aria-label={`Abrir ${t.key} no Jira`}
-                            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground', FOCUS_RING)}
+                            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors max-sm:h-11 max-sm:w-11 hover:bg-accent hover:text-foreground', FOCUS_RING)}
                           >
                             <ExternalLink className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                           </a>
-                          <IconButton size="sm" label={`Copiar link de ${t.key}`} icon={Copy} onClick={() => copyText(t.url, `Link de ${t.key} copiado`)} className="border-transparent" />
+                          <IconButton size="sm" label={`Copiar link de ${t.key}`} icon={Copy} onClick={() => copyText(t.url, `Link de ${t.key} copiado`)} className="border-transparent max-sm:h-11 max-sm:w-11" />
                         </>
                       )}
                       <span className={cn('inline-flex h-6 items-center rounded-lg px-2 text-xs font-semibold', DECISION[t.decision].cls)}>{DECISION[t.decision].label}</span>

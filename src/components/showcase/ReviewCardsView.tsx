@@ -84,19 +84,19 @@ export function ReviewCardsView(p: ReviewCardsViewProps) {
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtros ativos">
           <span className="text-xs font-semibold text-muted-foreground">Filtros ativos</span>
           {chips.map((c) => (
-            <span key={c.id} className="inline-flex h-7 items-center gap-1 rounded-full bg-primary/10 pl-3 pr-1 text-xs font-semibold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+            <span key={c.id} className="inline-flex h-7 items-center gap-1 rounded-full bg-primary/10 pl-3 pr-1 max-sm:h-11 max-sm:pr-0 text-xs font-semibold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
               <span className="max-w-[16rem] truncate">{c.label}</span>
               <button
                 type="button"
                 onClick={() => p.onRemoveChip(c.id)}
                 aria-label={`Remover o filtro: ${c.label}`}
-                className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-primary/15 max-sm:h-6 max-sm:w-6', FOCUS_RING)}
+                className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-primary/15 max-sm:h-11 max-sm:w-11', FOCUS_RING)}
               >
                 <X className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
               </button>
             </span>
           ))}
-          <button type="button" onClick={p.onClearAll} className={cn('inline-flex h-7 items-center rounded-full px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground max-sm:h-9', FOCUS_RING)}>
+          <button type="button" onClick={p.onClearAll} className={cn('inline-flex h-7 items-center rounded-full px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground max-sm:h-11', FOCUS_RING)}>
             Limpar tudo
           </button>
         </div>
@@ -124,13 +124,13 @@ export function ReviewCardsView(p: ReviewCardsViewProps) {
           icon={Filter}
           title="Nenhuma tarefa encontrada com esses filtros"
           description="Tente outra palavra ou tire algum filtro."
-          actions={<ModalButton onClick={p.onClearAll}>Limpar filtros</ModalButton>}
+          actions={<ModalButton className="max-sm:h-11" onClick={p.onClearAll}>Limpar filtros</ModalButton>}
         />
       )}
 
       {visibleCount < p.filteredTasks.length && (
         <div className="flex flex-col items-center gap-2 pt-1">
-          <ModalButton onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+          <ModalButton className="max-sm:h-11" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
             Carregar mais {Math.min(PAGE_SIZE, p.filteredTasks.length - visibleCount)} tarefas
           </ModalButton>
           <span className="text-xs tabular-nums text-muted-foreground">{visibleCount} de {p.filteredTasks.length}</span>

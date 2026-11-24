@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, Target, Layers, ArrowRight, TrendingUp } from 'lucide-react';
 import { ShowcaseSession } from './types';
 import { getDirectImageUrl, imageBackgroundCss, isImageBackground } from './utils';
+import { readinessOf } from './review-room-logic';
 import { cn } from '@/lib/utils';
 import { DANGER_HOVER } from '@/components/room-kit/tokens';
 
@@ -20,6 +21,8 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
   const [bgLoaded, setBgLoaded] = useState(true);
 
   const totalTasks = session.tasks?.length || 0;
+  // Mesma conta da barra de prontidão da sala (conteúdo preenchido), não o total de cards.
+  const readyTasks = readinessOf(session.tasks ?? []).readyCount;
   const metricsCards = session.tasks?.filter(t => t.cardKind === 'metrics').length || 0;
   const storiesCount = session.tasks?.filter(t => {
     const tp = (t.type || '').toLowerCase();
@@ -129,7 +132,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                   <div className="flex flex-col">
                     <span className={cn('text-xs font-semibold', mute)}>Entregas prontas</span>
                     <span className={cn('mt-0.5 text-xl font-bold tabular-nums', isLight ? 'text-foreground' : 'text-cyan-300')}>
-                      {totalTasks} {totalTasks === 1 ? 'item' : 'itens'}
+                      {readyTasks} de {totalTasks} {totalTasks === 1 ? 'item' : 'itens'}
                     </span>
                   </div>
                 </>

@@ -83,7 +83,7 @@ export function ChatMessageList({
                   <button
                     type="button"
                     onClick={() => onDelete(msg.id)}
-                    className="shrink-0 rounded-lg p-1 text-muted-foreground opacity-0 transition-opacity duration-fast hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:text-red-300"
+                    className="relative shrink-0 rounded-lg p-1 text-muted-foreground opacity-0 max-sm:before:absolute max-sm:before:-inset-[11px] max-sm:before:content-[''] transition-opacity duration-fast hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 dark:hover:text-red-300"
                     title="Apagar mensagem"
                     aria-label="Apagar mensagem"
                   >

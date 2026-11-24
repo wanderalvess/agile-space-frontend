@@ -103,7 +103,7 @@ function Readiness({ readiness, isFiltered, sessionTotal, onToggleTaskStatus }: 
                     title={t.preparationStatus === 'done' ? 'Marcada como pronta, mas falta conteúdo: clique para corrigir o status' : 'Conteúdo completo: clique para marcar como pronta'}
                     aria-label={t.preparationStatus === 'done' ? `Corrigir o status de ${t.key}: marcada como pronta, mas falta conteúdo` : `Marcar ${t.key} como pronta: o conteúdo está completo`}
                     onClick={() => onToggleTaskStatus(t.id, contentComplete)}
-                    className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300', FOCUS_RING)}
+                    className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md max-sm:h-11 max-sm:w-11 border border-amber-500/40 bg-amber-500/10 text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300', FOCUS_RING)}
                   >
                     <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
                   </button>
@@ -158,7 +158,7 @@ export function SyncIndicator({ connection, saveState, onRetrySave, onlineCount 
         </span>
       )}
       {saveState === 'error' && (
-        <button type="button" onClick={onRetrySave} className={cn(chip, 'bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300', FOCUS_RING)} title="A última alteração não foi gravada e a tela voltou ao que está no servidor. Clique para reler a Review.">
+        <button type="button" onClick={onRetrySave} className={cn(chip, 'bg-red-500/10 text-red-700 hover:bg-red-500/15 max-sm:h-11 dark:text-red-300', FOCUS_RING)} title="A última alteração não foi gravada e a tela voltou ao que está no servidor. Clique para reler a Review.">
           <AlertTriangle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Não salvou · reler
         </button>
       )}
@@ -181,7 +181,7 @@ export function AddCardsMenu({ onOpenJira, onAddManualTask }: Pick<ReviewPrepBar
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuItem onClick={onOpenJira} className="items-start gap-2.5 py-2">
+        <DropdownMenuItem onClick={onOpenJira} className="items-start gap-2.5 py-2 max-sm:min-h-11">
           <CloudDownload className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <span className="flex flex-col">
             <span className="text-sm">Importar do Jira</span>
@@ -190,10 +190,10 @@ export function AddCardsMenu({ onOpenJira, onAddManualTask }: Pick<ReviewPrepBar
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">Card manual</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onAddManualTask('story')} className="gap-2.5">
+        <DropdownMenuItem onClick={() => onAddManualTask('story')} className="gap-2.5 max-sm:min-h-11">
           <FileText className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card padrão
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onAddManualTask('metrics')} className="gap-2.5">
+        <DropdownMenuItem onClick={() => onAddManualTask('metrics')} className="gap-2.5 max-sm:min-h-11">
           <TrendingUp className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card de métricas
         </DropdownMenuItem>
       </DropdownMenuContent>

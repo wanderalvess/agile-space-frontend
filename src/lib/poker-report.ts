@@ -1,4 +1,5 @@
 import type { DeckType, Issue, Participant, Vote, VotingRound } from './types';
+import { canonicalCargo } from './cargo';
 import {
   TECHNICAL_CATEGORIES,
   computeSessionBreakdown,
@@ -288,7 +289,10 @@ const CATEGORY_ORDER = ['DEV', 'QA', 'UX', 'Designer', 'Gestão', 'Observadores'
 export function summarizeParticipants(participants: Participant[]): Array<{ label: string; count: number }> {
   const counts = new Map<string, number>();
   participants.forEach((p) => {
-    const label = categoryLabel(getParticipantCategory(p));
+    // Sem cargo na administração a pessoa só observa (canParticipantVote). O papel "dev" gravado na entrada é só o
+    // padrão do cliente, então não pode contá-la como DEV no relatório.
+    const semCargo = !canonicalCargo(p.globalRole) && p.role === 'dev';
+    const label = semCargo ? 'Observadores' : categoryLabel(getParticipantCategory(p));
     counts.set(label, (counts.get(label) ?? 0) + 1);
   });
   return CATEGORY_ORDER.filter((l) => counts.has(l)).map((label) => ({ label, count: counts.get(label)! }));

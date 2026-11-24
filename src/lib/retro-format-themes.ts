@@ -107,7 +107,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
     colunas: {
       wentWell: { icon: 'checkcircle', guia: 'O que deu certo e vale repetir?', vazio: { titulo: 'Mural sem post-its', dica: 'Cole aqui o que deu certo na sprint.' }, placeholder: 'O que funcionou bem nesta sprint…' },
       toImprove: { icon: 'wrench', guia: 'O que atrapalhou ou podia ser melhor?', vazio: { titulo: 'Nada colado ainda', dica: 'O que travou o ritmo da squad?' }, placeholder: 'O que travou ou podia ter sido melhor…' },
-      actionItems: { icon: 'listchecks', guia: 'O que vamos fazer, quem leva e até quando?', vazio: { titulo: 'Nenhuma ação combinada', dica: 'Transforme os mais votados em ações com dono.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que vamos fazer, quem leva e até quando?', vazio: { titulo: 'Nenhuma ação combinada', dica: 'Transforme os mais votados em ações com dono.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   start_stop_continue: {
@@ -133,7 +133,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
     colunas: {
       plus: { icon: 'plus', guia: 'O que repetiríamos sem pensar?', vazio: { titulo: 'Prato sem peso', dica: 'O que pesou a favor e merece repetição?' }, placeholder: 'Mais disso: …' },
       delta: { icon: 'triangle', guia: 'O que mudaríamos na próxima sprint?', vazio: { titulo: 'Outro prato vazio', dica: 'Uma mudança pequena já vale.' }, placeholder: 'Mudar isto: …' },
-      actionItems: { icon: 'listchecks', guia: 'Qual mudança vira ação agora?', vazio: { titulo: 'Balança parada', dica: 'Escolha o delta que mais pesa e dê dono a ele.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Qual mudança vira ação agora?', vazio: { titulo: 'Balança parada', dica: 'Escolha o delta que mais pesa e dê dono a ele.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   starfish: {
@@ -163,7 +163,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       learned: { icon: 'book', guia: 'O que você aprendeu?', vazio: { titulo: 'Nenhuma lição guardada', dica: 'Que aprendizado vale dividir com a squad?' }, placeholder: 'Aprendi que…' },
       lacked: { icon: 'dashed', guia: 'O que fez falta?', vazio: { titulo: 'Nada faltando por aqui', dica: 'Que informação, apoio ou ferramenta fez falta?' }, placeholder: 'Faltou…' },
       longed_for: { icon: 'star', guia: 'O que você gostaria de ter tido?', vazio: { titulo: 'Nenhum desejo na estante', dica: 'Qual seria o cenário ideal na próxima sprint?' }, placeholder: 'Desejei…' },
-      actionItems: { icon: 'listchecks', guia: 'Que passo concreto sai desta conversa?', vazio: { titulo: 'Nenhuma anotação final', dica: 'Escolha o que sai da estante e vira prática.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Que passo concreto sai desta conversa?', vazio: { titulo: 'Nenhuma anotação final', dica: 'Escolha o que sai da estante e vira prática.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   daki: {
@@ -178,7 +178,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       add: { icon: 'sprout', guia: 'Que prática vale plantar?', vazio: { titulo: 'Canteiro livre', dica: 'Que prática nova a squad poderia plantar?' }, placeholder: 'Adicionar…' },
       keep: { icon: 'shield', guia: 'Que prática está florescendo?', vazio: { titulo: 'Nenhuma planta firme ainda', dica: 'O que dá resultado e precisa de cuidado?' }, placeholder: 'Manter…' },
       improve: { icon: 'trend', guia: 'Que prática pede mais cuidado?', vazio: { titulo: 'Nada para regar', dica: 'O que funciona, mas poderia render mais?' }, placeholder: 'Melhorar…' },
-      actionItems: { icon: 'listchecks', guia: 'O que podamos, plantamos ou regamos primeiro?', vazio: { titulo: 'Nenhuma tarefa no jardim', dica: 'Transforme as ideias mais votadas em ações.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que podamos, plantamos ou regamos primeiro?', vazio: { titulo: 'Nenhuma tarefa no jardim', dica: 'Transforme as ideias mais votadas em ações.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   mad_sad_glad: {
@@ -205,7 +205,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       rose: { icon: 'flower', guia: 'O que floresceu nesta sprint?', vazio: { titulo: 'Nenhuma rosa aberta', dica: 'O que deu certo e merece ser celebrado?' }, placeholder: 'Floresceu…' },
       thorn: { icon: 'spike', guia: 'O que machucou ou incomodou?', vazio: { titulo: 'Nenhum espinho', dica: 'Descreva o fato, não a pessoa.' }, placeholder: 'Machucou…' },
       bud: { icon: 'bud', guia: 'O que pode nascer daqui?', vazio: { titulo: 'Nenhum broto', dica: 'Que oportunidade começa a aparecer?' }, placeholder: 'Pode nascer…' },
-      actionItems: { icon: 'listchecks', guia: 'O que vamos regar nesta semana?', vazio: { titulo: 'Nada para regar', dica: 'Que ação ajuda um broto a abrir?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que vamos regar nesta semana?', vazio: { titulo: 'Nada para regar', dica: 'Que ação ajuda um broto a abrir?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   kudos: {
@@ -219,7 +219,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       thanks: { icon: 'heart', guia: 'Quem ou o que merece um agradecimento?', vazio: { titulo: 'Ninguém na festa ainda', dica: 'Quem ajudou você nesta sprint?' }, placeholder: 'Obrigado, [nome], por…' },
       learned: { icon: 'book', guia: 'O que você aprendeu com alguém?', vazio: { titulo: 'Nenhum aprendizado ainda', dica: 'O que alguém ensinou, mesmo sem querer?' }, placeholder: 'Aprendi com [nome]…' },
       help: { icon: 'lifebuoy', guia: 'Com o que você precisa de uma mão?', vazio: { titulo: 'Nenhum pedido', dica: 'Pedir ajuda também é entregar.' }, placeholder: 'Preciso de ajuda com…' },
-      actionItems: { icon: 'listchecks', guia: 'Como mantemos esse clima vivo?', vazio: { titulo: 'Nenhuma ação', dica: 'Que gesto pequeno mantém a gratidão rolando?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Como mantemos esse clima vivo?', vazio: { titulo: 'Nenhuma ação', dica: 'Que gesto pequeno mantém a gratidão rolando?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   sailboat: {
@@ -234,7 +234,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       sun: { icon: 'sun', guia: 'O que alegrou a tripulação?', vazio: { titulo: 'Céu fechado', dica: 'O que fez a tripulação sorrir?' }, placeholder: 'O que aqueceu a tripulação…' },
       anchor: { icon: 'anchor', guia: 'O que nos segurou no lugar?', vazio: { titulo: 'Âncora recolhida', dica: 'O que nos deixou parados ou lentos?' }, placeholder: 'A âncora foi…' },
       rocks: { icon: 'mountain', guia: 'Que riscos aparecem no horizonte?', vazio: { titulo: 'Mar limpo à frente', dica: 'Que riscos você enxerga antes de chegarmos neles?' }, placeholder: 'À frente vejo…' },
-      actionItems: { icon: 'listchecks', guia: 'Que manobra corrige a rota?', vazio: { titulo: 'Nenhuma manobra traçada', dica: 'Quem assume o leme de cada ajuste?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Que manobra corrige a rota?', vazio: { titulo: 'Nenhuma manobra traçada', dica: 'Quem assume o leme de cada ajuste?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   hot_air_balloon: {
@@ -249,7 +249,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       ballast: { icon: 'weight', guia: 'O que nos segurou no chão?', vazio: { titulo: 'Nenhum saco de areia', dica: 'O que pesou e atrasou a subida?' }, placeholder: 'Nos segurou…' },
       storm: { icon: 'cloudbolt', guia: 'Que tempestades vemos adiante?', vazio: { titulo: 'Céu aberto', dica: 'Que riscos estão se formando à frente?' }, placeholder: 'Vejo tempestade em…' },
       sky: { icon: 'compass', guia: 'Aonde queremos chegar?', vazio: { titulo: 'Destino em branco', dica: 'Descreva o destino que queremos alcançar.' }, placeholder: 'Queremos chegar a…' },
-      actionItems: { icon: 'listchecks', guia: 'O que fazemos para subir mais?', vazio: { titulo: 'Nenhuma ação a bordo', dica: 'Quem solta qual saco de areia?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que fazemos para subir mais?', vazio: { titulo: 'Nenhuma ação a bordo', dica: 'Quem solta qual saco de areia?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   three_little_pigs: {
@@ -263,7 +263,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       straw: { icon: 'straw', guia: 'O que está frágil e cai com um sopro?', vazio: { titulo: 'Nenhuma palha', dica: 'Que processo cai ao primeiro vento?' }, placeholder: 'É de palha: …' },
       wood: { icon: 'planks', guia: 'O que aguenta, mas pode ficar mais forte?', vazio: { titulo: 'Nenhuma tábua', dica: 'O que resiste, mas já mostra rachaduras?' }, placeholder: 'É de madeira: …' },
       brick: { icon: 'bricks', guia: 'O que está sólido e deve ser protegido?', vazio: { titulo: 'Nenhum tijolo ainda', dica: 'Que prática nem o lobo derruba?' }, placeholder: 'É de tijolo: …' },
-      actionItems: { icon: 'listchecks', guia: 'O que reforçamos primeiro?', vazio: { titulo: 'Nenhuma obra planejada', dica: 'Por onde começamos a reforçar?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que reforçamos primeiro?', vazio: { titulo: 'Nenhuma obra planejada', dica: 'Por onde começamos a reforçar?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   speed_car: {
@@ -276,7 +276,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
     colunas: {
       engine: { icon: 'gauge', guia: 'O que nos fez acelerar?', vazio: { titulo: 'Motor frio', dica: 'O que deu velocidade à squad?' }, placeholder: 'Acelerou quando…' },
       parachute: { icon: 'parachute', guia: 'O que nos freou?', vazio: { titulo: 'Paraquedas fechado', dica: 'O que puxou o freio na hora errada?' }, placeholder: 'Freou quando…' },
-      actionItems: { icon: 'listchecks', guia: 'O que soltamos e o que acionamos?', vazio: { titulo: 'Nada no painel', dica: 'Que ajuste solta o paraquedas ou aperta o acelerador?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que soltamos e o que acionamos?', vazio: { titulo: 'Nada no painel', dica: 'Que ajuste solta o paraquedas ou aperta o acelerador?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   lean_coffee: {
@@ -290,7 +290,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       toDiscuss: { icon: 'bubble', guia: 'Que assunto vale a conversa?', vazio: { titulo: 'Mesa sem pauta', dica: 'Que tema você levaria para o café?' }, placeholder: 'Quero discutir…' },
       discussing: { icon: 'coffee', guia: 'Qual tema estamos discutindo agora?', vazio: { titulo: 'Nenhum tema na xícara', dica: 'Arraste para cá o tema mais votado.' }, placeholder: 'Anote o que foi dito…' },
       discussed: { icon: 'checkcircle', guia: 'O que ficou decidido?', vazio: { titulo: 'Nada discutido', dica: 'Os temas concluídos descansam aqui.' }, placeholder: 'Decidimos…' },
-      actionItems: { icon: 'listchecks', guia: 'O que fazemos com o que foi decidido?', vazio: { titulo: 'Nenhuma ação do café', dica: 'Cada tema discutido pode virar uma ação.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que fazemos com o que foi decidido?', vazio: { titulo: 'Nenhuma ação do café', dica: 'Cada tema discutido pode virar uma ação.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   sprint_goal: {
@@ -305,7 +305,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       blockers: { icon: 'ban', guia: 'O que se pôs no caminho?', vazio: { titulo: 'Trilha livre', dica: 'Que pedras apareceram no caminho da meta?' }, placeholder: 'Atrapalhou…' },
       helped: { icon: 'link', guia: 'O que nos ajudou a avançar?', vazio: { titulo: 'Nenhuma corda ainda', dica: 'O que facilitou a subida?' }, placeholder: 'Ajudou…' },
       nextGoal: { icon: 'flag', guia: 'Qual é o próximo pico?', vazio: { titulo: 'Próximo pico na névoa', dica: 'O que a próxima meta precisa ter para ser alcançável?' }, placeholder: 'Na próxima meta…' },
-      actionItems: { icon: 'listchecks', guia: 'O que muda na trilha da próxima sprint?', vazio: { titulo: 'Trilha sem marcos', dica: 'Que ajuste marca o caminho até o próximo pico?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'O que muda na trilha da próxima sprint?', vazio: { titulo: 'Trilha sem marcos', dica: 'Que ajuste marca o caminho até o próximo pico?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   workflow: {
@@ -320,7 +320,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       stuck: { icon: 'hourglass', guia: 'Onde ele ficou esperando ou bloqueado?', vazio: { titulo: 'Nenhuma represa', dica: 'Onde as tarefas esperaram por alguém ou algo?' }, placeholder: 'Ficou parado…' },
       rework: { icon: 'undo', guia: 'O que voltou para ser refeito?', vazio: { titulo: 'Nada voltou', dica: 'O que precisou ser refeito, e por quê?' }, placeholder: 'Voltou porque…' },
       tryNext: { icon: 'flask', guia: 'Que experimento testamos na próxima sprint?', vazio: { titulo: 'Nenhum experimento', dica: 'Qual mudança no fluxo vale um teste?' }, placeholder: 'Testar…' },
-      actionItems: { icon: 'listchecks', guia: 'Que ajuste destrava o fluxo?', vazio: { titulo: 'Nenhum ajuste', dica: 'Quem cuida de cada ajuste e até quando?' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Que ajuste destrava o fluxo?', vazio: { titulo: 'Nenhum ajuste', dica: 'Quem cuida de cada ajuste e até quando?' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
   incident: {
@@ -335,7 +335,7 @@ export const RETRO_FORMAT_THEMES: Record<RetroThemedFormat, RetroFormatTheme> = 
       factors: { icon: 'search', guia: 'Que fatores levaram a isso? (sistema, não pessoas)', vazio: { titulo: 'Nenhum fator listado', dica: 'Foque em processos e sistemas, não em culpados.' }, placeholder: 'Contribuiu…' },
       wentWell: { icon: 'shieldcheck', guia: 'O que ajudou na resposta?', vazio: { titulo: 'Nada anotado', dica: 'O que nos fez resolver mais rápido ou sofrer menos?' }, placeholder: 'Ajudou…' },
       prevent: { icon: 'shield', guia: 'Como evitamos que se repita?', vazio: { titulo: 'Nenhuma barreira', dica: 'Que mudanças impedem o mesmo problema?' }, placeholder: 'Para evitar…' },
-      actionItems: { icon: 'listchecks', guia: 'Quais ações assumimos e quem leva?', vazio: { titulo: 'Nenhuma ação', dica: 'Cada barreira precisa de dono e prazo.' }, placeholder: 'Ação com responsável e prazo…' },
+      actionItems: { icon: 'listchecks', guia: 'Quais ações assumimos e quem leva?', vazio: { titulo: 'Nenhuma ação', dica: 'Cada barreira precisa de dono e prazo.' }, placeholder: 'Descreva a ação (responsável e prazo vêm depois)…' },
     },
   },
 };

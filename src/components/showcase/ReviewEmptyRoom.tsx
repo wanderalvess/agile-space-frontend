@@ -26,20 +26,20 @@ export function ReviewEmptyRoom({ onOpenJira, onAddManualTask }: { onOpenJira: (
           </div>
           <p className="m-0 text-xs leading-relaxed text-muted-foreground">Traga as issues da sprint direto do Jira ou crie os cards à mão.</p>
           <div className="mt-auto flex flex-col gap-2">
-            <ModalButton variant="primary" className="gap-2" onClick={onOpenJira}>
+            <ModalButton variant="primary" className="gap-2 max-sm:h-11" onClick={onOpenJira}>
               <CloudDownload className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
             </ModalButton>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className={cn('inline-flex h-10 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-colors', OUTLINE_BUTTON, FOCUS_RING)}>
+                <button type="button" className={cn('inline-flex h-10 items-center justify-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-colors max-sm:h-11', OUTLINE_BUTTON, FOCUS_RING)}>
                   <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar card manual <ChevronDown className="h-3.5 w-3.5 opacity-60" strokeWidth={1.5} aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => onAddManualTask('story')} className="gap-2">
+                <DropdownMenuItem onClick={() => onAddManualTask('story')} className="gap-2 max-sm:min-h-11">
                   <FileText className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card padrão
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddManualTask('metrics')} className="gap-2">
+                <DropdownMenuItem onClick={() => onAddManualTask('metrics')} className="gap-2 max-sm:min-h-11">
                   <TrendingUp className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card de métricas
                 </DropdownMenuItem>
               </DropdownMenuContent>

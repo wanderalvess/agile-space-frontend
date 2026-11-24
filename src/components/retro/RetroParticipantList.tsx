@@ -57,7 +57,7 @@ export function RetroParticipantList({ participants, onlineIds, currentUserId, i
         {!isCreator && item.isYou && onClaimCreator && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Assumir o controle da retro" onClick={() => setClaimOpen(true)} className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-300">
+              <Button variant="ghost" size="icon" aria-label="Assumir o controle da retro" onClick={() => setClaimOpen(true)} className="relative h-7 w-7 shrink-0 text-amber-600 max-sm:before:absolute max-sm:before:-inset-2 max-sm:before:content-[''] dark:text-amber-300">
                 <Crown className="h-3.5 w-3.5" strokeWidth={1.5} />
               </Button>
             </TooltipTrigger>
@@ -72,7 +72,7 @@ export function RetroParticipantList({ participants, onlineIds, currentUserId, i
                 size="icon"
                 aria-label={`Remover ${item.name} da retro`}
                 onClick={() => setToRemove(person)}
-                className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:text-red-300 [@media(hover:none)]:opacity-100"
+                className="relative h-7 w-7 shrink-0 text-muted-foreground opacity-0 max-sm:before:absolute max-sm:before:-inset-2 max-sm:before:content-[''] hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:text-red-300 [@media(hover:none)]:opacity-100"
               >
                 <UserX className="h-3.5 w-3.5" strokeWidth={1.5} />
               </Button>

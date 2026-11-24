@@ -63,7 +63,7 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
           rel="noopener noreferrer"
           title="Abrir PDF em nova aba"
           className={cn(
-            "absolute top-6 left-10 z-20 flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full border transition-colors",
+            "absolute top-6 left-10 z-20 flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full border transition-colors max-sm:min-h-11",
             isLight ? "bg-card/80 hover:bg-card text-foreground border-border shadow-md" : "bg-foreground/10 hover:bg-foreground/20 border-border text-muted-foreground hover:text-foreground"
           )}
         >
@@ -114,7 +114,7 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
               variant="ghost"
               size="icon"
               onClick={() => setExpanded(false)}
-              className="absolute top-6 right-8 h-10 w-10 rounded-xl bg-foreground/10 text-foreground hover:bg-foreground/20"
+              className="absolute top-6 right-8 h-10 w-10 rounded-xl max-sm:h-11 max-sm:w-11 bg-foreground/10 text-foreground hover:bg-foreground/20"
             >
               <X className="h-4 w-4" />
             </Button>

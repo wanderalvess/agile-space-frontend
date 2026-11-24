@@ -6,7 +6,7 @@ import { ControlledInput, ControlledTextarea } from './ControlledFields';
 
 /** Campo de uma linha dentro do card (dev, QA, versões, links, métricas). */
 export const CARD_INPUT =
-  'h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground ' +
+  'h-9 max-sm:h-11 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground ' +
   'transition-colors focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 /** Bloco com fundo suave que agrupa campos (execução, métricas). */
@@ -47,7 +47,7 @@ export function TextField({
       {multiline ? (
         <ControlledTextarea id={id} value={value} onChange={onChange} placeholder={placeholder} rows={minRows} className={cn(baseClass, 'resize-none py-2.5')} />
       ) : (
-        <ControlledInput id={id} value={value} onChange={onChange} placeholder={placeholder} className={cn(baseClass, 'h-9 py-0')} />
+        <ControlledInput id={id} value={value} onChange={onChange} placeholder={placeholder} className={cn(baseClass, 'h-9 py-0 max-sm:h-11')} />
       )}
     </div>
   );

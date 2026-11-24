@@ -47,10 +47,10 @@ export function ReportResults({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <ModalButton variant="primary" onClick={onDownload} disabled={busy} className="h-9 gap-2 text-[13px]">
+          <ModalButton variant="primary" onClick={onDownload} disabled={busy} className="h-9 gap-2 text-[13px] max-sm:h-11">
             <FileDown className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> {busy ? 'Gerando…' : 'Baixar página (PDF)'}
           </ModalButton>
-          <ModalButton onClick={onPrint} className="h-9 gap-2 text-[13px]">
+          <ModalButton onClick={onPrint} className="h-9 gap-2 text-[13px] max-sm:h-11">
             <Printer className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Imprimir página
           </ModalButton>
         </div>

@@ -161,7 +161,7 @@ export function ModalButton({
     <Button
       type="button"
       variant="ghost"
-      className={cn('h-10 rounded-[10px] px-4 text-sm', variant === 'primary' || variant === 'danger' ? 'font-semibold' : 'font-medium', styles, className)}
+      className={cn('h-10 rounded-[10px] px-4 text-sm max-sm:min-h-11', variant === 'primary' || variant === 'danger' ? 'font-semibold' : 'font-medium', styles, className)}
       {...props}
     />
   );

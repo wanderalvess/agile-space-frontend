@@ -73,7 +73,7 @@ export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="-my-1 -mr-1 flex min-h-6 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative -my-1 -mr-1 flex min-h-6 items-center gap-1 rounded px-1.5 text-xs max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-2.5 max-sm:before:content-[''] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Copiar código"
         >
           {copied ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" strokeWidth={1.5} />}

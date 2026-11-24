@@ -52,7 +52,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
         )}
 
         {/* Chave */}
-        <div className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted pl-2.5 pr-1">
+        <div className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted pl-2.5 pr-1 max-sm:h-11">
           <ControlledInput
             id={`key-${task.id}`}
             aria-label="Chave da issue"
@@ -60,7 +60,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
             onChange={(v: string) => onUpdate({ key: v.toUpperCase() })}
             placeholder="CHAVE-00"
             style={{ width: `${keyWidthCh}ch` }}
-            className="h-6 border-none bg-transparent text-[13px] font-bold uppercase tabular-nums text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+            className="h-6 max-sm:h-11 border-none bg-transparent text-[13px] font-bold uppercase tabular-nums text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
           />
           {jiraUrl && (
             <a
@@ -69,7 +69,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
               rel="noopener noreferrer"
               title="Abrir no Jira"
               aria-label="Abrir no Jira"
-              className={cn('flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground', FOCUS_RING)}
+              className={cn('flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors max-sm:h-11 max-sm:w-11 hover:bg-background hover:text-foreground', FOCUS_RING)}
             >
               <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             </a>
@@ -83,7 +83,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
           onChange={(v) => onUpdate({ type: v })}
           options={typeOptions.map((t) => ({ value: t, label: t }))}
           placeholder="Tipo"
-          className="h-8 w-auto min-w-[7.5rem] shrink-0 rounded-lg px-2.5 text-[13px] font-medium"
+          className="h-8 w-auto min-w-[7.5rem] shrink-0 rounded-lg px-2.5 text-[13px] font-medium max-sm:h-11"
         />
 
         {decided && (
@@ -105,7 +105,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
             value={task.preparationStatus || 'todo'}
             onChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
             options={PREP_OPTIONS}
-            className={cn('h-8 w-auto min-w-[8.5rem] rounded-lg border px-2.5 text-[13px] font-semibold', prep.cls, prep.border)}
+            className={cn('h-8 w-auto min-w-[8.5rem] rounded-lg border px-2.5 text-[13px] font-semibold max-sm:h-11', prep.cls, prep.border)}
           />
         </div>
 
@@ -150,7 +150,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
         value={task.title}
         onChange={(v: string) => onUpdate({ title: v })}
         placeholder="Título da entrega"
-        className="min-h-6 w-full border-none bg-transparent text-base font-bold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:text-primary [.theme-totvs:not(.dark)_&]:focus:text-foreground"
+        className="min-h-6 max-sm:min-h-11 w-full border-none bg-transparent text-base font-bold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:text-primary [.theme-totvs:not(.dark)_&]:focus:text-foreground"
       />
     </div>
   );

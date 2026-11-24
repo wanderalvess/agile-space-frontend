@@ -241,7 +241,7 @@ export function RetroCard({
                   placeholder="Responsável"
                   value={editedAssignee}
                   onChange={(e) => setEditedAssignee(e.target.value)}
-                  className={cn(FIELD, 'h-9')}
+                  className={cn(FIELD, 'h-9 max-sm:h-11')}
                 />
                 <datalist id={`retro-assignees-${card.id}`}>
                   {participants.map((p) => <option key={p.id} value={p.nickname} />)}
@@ -250,7 +250,7 @@ export function RetroCard({
               <label className="flex items-center gap-2.5 text-sm">
                 <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
                 <span className="sr-only">Prazo</span>
-                <input type="date" value={editedDueDate} onChange={(e) => setEditedDueDate(e.target.value)} className={cn(FIELD, 'h-9')} />
+                <input type="date" value={editedDueDate} onChange={(e) => setEditedDueDate(e.target.value)} className={cn(FIELD, 'h-9 max-sm:h-11')} />
               </label>
             </div>
           )}
@@ -275,7 +275,7 @@ export function RetroCard({
           </span>
           <span aria-hidden="true" className="h-2 w-14 shrink-0 rounded bg-border" />
           {isCreator && !readOnly && (
-            <span {...attributes} {...listeners} aria-label="Arrastar cartão" className={cn('inline-flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md hover:bg-accent active:cursor-grabbing', FOCUS_RING)}>
+            <span {...attributes} {...listeners} aria-label="Arrastar cartão" className={cn("relative inline-flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md hover:bg-accent active:cursor-grabbing max-sm:before:absolute max-sm:before:-inset-x-2.5 max-sm:before:-inset-y-1.5 max-sm:before:content-['']", FOCUS_RING)}>
               <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </span>
           )}
@@ -292,10 +292,10 @@ export function RetroCard({
     <div ref={setNodeRef} style={style} className={cn('select-none', isDragging && 'scale-95 opacity-50')}>
       <article onClick={onCardClick} className={shell}>
         {isMergeSource && (
-          <span className="absolute -top-2 right-3 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">Origem</span>
+          <span className="pointer-events-none absolute -top-2 right-3 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">Origem</span>
         )}
         {isMergeTarget && (
-          <span className="absolute -top-2 right-3 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100 [.theme-totvs:not(.dark)_&]:text-foreground">Destino</span>
+          <span className="pointer-events-none absolute -top-2 right-3 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100 [.theme-totvs:not(.dark)_&]:text-foreground">Destino</span>
         )}
 
         {/* Texto */}
@@ -322,8 +322,8 @@ export function RetroCard({
             {card.content}
           </p>
           {!readOnly && (
-          <div className="-mr-1 -mt-1 flex shrink-0 items-center opacity-0 transition-opacity duration-fast focus-within:opacity-100 group-hover:opacity-100 data-[open=true]:opacity-100 [@media(hover:none)]:opacity-100" data-open={menuOpen}>
-            <span {...attributes} {...listeners} aria-label="Arrastar cartão" title="Arrastar cartão" className={cn('inline-flex h-8 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:cursor-grabbing max-sm:h-9', FOCUS_RING)}>
+          <div className="-mr-1 -mt-1 flex shrink-0 items-center max-sm:-mb-3 max-sm:-mr-2 max-sm:-mt-3 opacity-0 transition-opacity duration-fast focus-within:opacity-100 group-hover:opacity-100 data-[open=true]:opacity-100 [@media(hover:none)]:opacity-100" data-open={menuOpen}>
+            <span {...attributes} {...listeners} aria-label="Arrastar cartão" title="Arrastar cartão" className={cn('inline-flex h-8 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:cursor-grabbing max-sm:h-11 max-sm:w-11', FOCUS_RING)}>
               <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </span>
             {(canEdit || isCardsRevealed) && (
@@ -334,26 +334,26 @@ export function RetroCard({
                     aria-label="Mais ações do cartão"
                     title="Mais ações do cartão"
                     onClick={(e) => e.stopPropagation()}
-                    className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent max-sm:h-9 max-sm:w-9', FOCUS_RING)}
+                    className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent max-sm:h-11 max-sm:w-11', FOCUS_RING)}
                   >
                     <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
                   {canEdit && (
-                    <DropdownMenuItem onClick={() => setIsEditing(true)} className="gap-2">
+                    <DropdownMenuItem onClick={() => setIsEditing(true)} className="gap-2 max-sm:min-h-11">
                       <Pencil className="h-4 w-4" strokeWidth={1.5} /> Editar cartão
                     </DropdownMenuItem>
                   )}
                   {isCardsRevealed && !isMergeSource && (
-                    <DropdownMenuItem onClick={() => onStartMerge(card.id)} className="gap-2">
+                    <DropdownMenuItem onClick={() => onStartMerge(card.id)} className="gap-2 max-sm:min-h-11">
                       <GitMerge className="h-4 w-4" strokeWidth={1.5} /> Juntar com outro cartão
                     </DropdownMenuItem>
                   )}
                   {canEdit && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="gap-2 text-red-700 focus:text-red-700 dark:text-red-300 dark:focus:text-red-300">
+                      <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="gap-2 max-sm:min-h-11 text-red-700 focus:text-red-700 dark:text-red-300 dark:focus:text-red-300">
                         <Trash2 className="h-4 w-4" strokeWidth={1.5} /> Excluir cartão
                       </DropdownMenuItem>
                     </>
@@ -418,7 +418,7 @@ export function RetroCard({
                   aria-label={`${hasVoted ? 'Remover meu voto' : 'Votar neste cartão'} (${card.votes.length} ${card.votes.length === 1 ? 'voto' : 'votos'})`}
                   onClick={(e) => { e.stopPropagation(); onToggleVote(card.id, card.votes); }}
                   className={cn(
-                    'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold tabular-nums transition-colors max-sm:h-9',
+                    "relative inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold tabular-nums transition-colors max-sm:h-9 max-sm:min-w-11 max-sm:justify-center max-sm:before:absolute max-sm:before:-inset-y-1 max-sm:before:inset-x-0 max-sm:before:content-['']",
                     hasVoted
                       ? 'bg-primary/15 text-primary ring-1 ring-primary/40 [.theme-totvs:not(.dark)_&]:text-foreground'
                       : 'bg-muted text-muted-foreground enabled:hover:bg-accent',
@@ -446,7 +446,7 @@ export function RetroCard({
                     disabled={readOnly}
                     onClick={() => onToggleReaction(card.id, key, userIds)}
                     className={cn(
-                      'inline-flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold tabular-nums transition-colors max-sm:h-8',
+                      "relative inline-flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold tabular-nums transition-colors max-sm:h-8 max-sm:min-w-11 max-sm:justify-center max-sm:before:absolute max-sm:before:-inset-y-1.5 max-sm:before:inset-x-0 max-sm:before:content-['']",
                       on ? REACTION_ON[key] : cn('border-transparent bg-muted/60 text-muted-foreground', !readOnly && 'hover:bg-accent'),
                       'disabled:cursor-default',
                       FOCUS_RING

@@ -384,11 +384,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
           {loadError !== 'notfound' && (
-            <ModalButton variant="primary" className="gap-2" onClick={retryLoad}>
+            <ModalButton variant="primary" className="gap-2 max-sm:h-11" onClick={retryLoad}>
               <RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Tentar de novo
             </ModalButton>
           )}
-          <ModalButton onClick={() => router.push('/showcase')}>Voltar para as Reviews</ModalButton>
+          <ModalButton className="max-sm:h-11" onClick={() => router.push('/showcase')}>Voltar para as Reviews</ModalButton>
         </div>
       </div>
     </div>

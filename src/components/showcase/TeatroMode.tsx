@@ -494,7 +494,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   href={l.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={cn("flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline", isLight ? "text-foreground" : "text-cyan-300")}
+                  className={cn("flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline max-sm:min-h-11", isLight ? "text-foreground" : "text-cyan-300")}
                 >
                   <FileText className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />{l.label}
                 </a>
@@ -505,7 +505,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             {!isMetricsCard && (
             <button
               onClick={() => setShowDetails(v => !v)}
-              className={cn("flex items-center gap-1.5 text-xs font-semibold transition-colors", "text-muted-foreground hover:text-foreground")}
+              className={cn("flex items-center gap-1.5 text-xs font-semibold transition-colors max-sm:min-h-11", "text-muted-foreground hover:text-foreground")}
             >
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
               {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
@@ -831,7 +831,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               onClick={() => goToEvidence(safeIndex - 1)}
               disabled={safeIndex === 0}
               title="Evidência anterior"
-              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-muted-foreground hover:bg-muted" : "text-muted-foreground hover:bg-foreground/10")}
+              className={cn("h-9 w-9 rounded-xl max-sm:h-11 max-sm:w-11 disabled:opacity-30", isLight ? "text-muted-foreground hover:bg-muted" : "text-muted-foreground hover:bg-foreground/10")}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -844,7 +844,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               onClick={() => goToEvidence(safeIndex + 1)}
               disabled={safeIndex === evidenceCount - 1}
               title="Próxima evidência"
-              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-muted-foreground hover:bg-muted" : "text-muted-foreground hover:bg-foreground/10")}
+              className={cn("h-9 w-9 rounded-xl max-sm:h-11 max-sm:w-11 disabled:opacity-30", isLight ? "text-muted-foreground hover:bg-muted" : "text-muted-foreground hover:bg-foreground/10")}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -878,7 +878,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               variant="ghost"
               size="icon"
               onClick={() => setImageExpanded(false)}
-              className="absolute top-6 right-8 h-10 w-10 rounded-xl bg-foreground/10 text-foreground hover:bg-foreground/20"
+              className="absolute top-6 right-8 h-10 w-10 rounded-xl max-sm:h-11 max-sm:w-11 bg-foreground/10 text-foreground hover:bg-foreground/20"
             >
               <X className="h-4 w-4" />
             </Button>

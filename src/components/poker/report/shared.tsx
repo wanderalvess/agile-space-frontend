@@ -44,7 +44,9 @@ export function TaskKey({ task, className }: { task: Pick<ReportTask, 'key' | 'j
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn(base, 'inline-flex items-center gap-0.5 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+      className={cn(base, 'inline-flex items-center gap-0.5 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        // Celular: área de toque de 44 px (16 px do link + 14 px acima e abaixo) sem mudar o desenho.
+        "max-sm:relative max-sm:before:absolute max-sm:before:-inset-x-2 max-sm:before:-inset-y-3.5 max-sm:before:content-['']")}
       aria-label={`Abrir ${task.key} no Jira`}
     >
       {task.key}

@@ -99,10 +99,10 @@ function ConflictNotice({ onReapply, onDiscard }: { onReapply: () => void; onDis
         Outra pessoa alterou este campo enquanto você digitava. O seu texto continua aqui e ainda não foi gravado.
       </p>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={onDiscard} className="h-7 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted">
+        <button type="button" onClick={onDiscard} className="h-7 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted max-sm:h-11">
           Descartar
         </button>
-        <button type="button" onClick={onReapply} className="h-7 rounded-lg bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+        <button type="button" onClick={onReapply} className="h-7 rounded-lg bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:opacity-90 max-sm:h-11">
           Reaplicar a minha
         </button>
       </div>

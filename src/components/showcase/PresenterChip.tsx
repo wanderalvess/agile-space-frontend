@@ -25,7 +25,7 @@ const SURFACE = {
 export function PresenterChip({ presenter, following, onToggle, surface = 'room', className }: PresenterChipProps) {
   const s = SURFACE[surface];
   return (
-    <div className={cn('inline-flex min-h-9 max-w-full items-center gap-2 rounded-xl border py-1 pl-3 pr-1 text-xs font-semibold max-sm:min-h-11', s.wrap, className)} role="group" aria-label="Quem está apresentando">
+    <div className={cn('inline-flex min-h-9 max-w-full items-center gap-2 rounded-xl border py-1 pl-3 pr-1 text-xs font-semibold max-sm:min-h-11 max-sm:py-0', s.wrap, className)} role="group" aria-label="Quem está apresentando">
       <Radio className={cn('h-3.5 w-3.5 shrink-0', s.icon)} strokeWidth={1.5} aria-hidden="true" />
       <span className="min-w-0 truncate">
         Apresentando: <span className={cn('font-bold', s.name)}>{presenter.displayName || 'Alguém'}</span>
@@ -34,7 +34,7 @@ export function PresenterChip({ presenter, following, onToggle, surface = 'room'
         type="button"
         onClick={onToggle}
         aria-pressed={following}
-        className={cn('inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition-colors max-sm:h-9', following ? s.on : s.idle, FOCUS_RING)}
+        className={cn('inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition-colors max-sm:h-11', following ? s.on : s.idle, FOCUS_RING)}
         title={following ? 'Parar de acompanhar: você volta a navegar sozinho' : 'O Teatro passa a seguir o card do apresentador'}
       >
         {following && <Check className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />}

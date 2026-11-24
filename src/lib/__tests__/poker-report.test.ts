@@ -260,6 +260,12 @@ describe('ordenação e participantes', () => {
   it('resume participantes por papel', () => {
     expect(summarizeParticipants([P('a', 'dev', 'Developer'), P('b', 'dev', 'Developer')])).toEqual([{ label: 'DEV', count: 2 }]);
   });
+  it('quem está sem cargo é observador, não DEV (o papel "dev" é só o padrão da entrada)', () => {
+    expect(summarizeParticipants([P('a', 'dev', 'Developer'), P('b', 'dev', '')])).toEqual([
+      { label: 'DEV', count: 1 },
+      { label: 'Observadores', count: 1 },
+    ]);
+  });
 });
 
 describe('exportações batem com a tela', () => {

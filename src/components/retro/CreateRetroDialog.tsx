@@ -151,6 +151,10 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
       toast({ title: 'Revise as colunas', description: 'Dê nome a pelo menos 2 colunas, sem nomes repetidos.', variant: 'destructive' });
       return;
     }
+    if (problem === 'custom-no-action') {
+      toast({ title: 'Falta uma coluna de Ações', description: 'Marque pelo menos uma coluna como "Ações" (e dê nome a ela) para a fase Agir ter onde guardar o que o time combinar.', variant: 'destructive' });
+      return;
+    }
 
     setCreating(true);
     const newBoard = buildNewRetroBoard({
