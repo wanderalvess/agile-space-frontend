@@ -84,7 +84,7 @@ function HowContent() {
       <Notice tone="warn" icon={TriangleAlert} role="note" className="text-[13px]">
         <strong>Seus dados saem do navegador.</strong> A execução acontece no servidor do portal: a entrada e a spec
         são enviadas para lá quando você executa ou gera uma spec, e é preciso estar logado. Prefira dados de exemplo.
-        Layouts salvos e rascunhos ficam só neste navegador.
+        Layouts salvos ficam na sua conta; só o rascunho do que você está digitando fica neste navegador.
       </Notice>
     </div>
   );

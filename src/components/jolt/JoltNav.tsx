@@ -14,8 +14,8 @@ const TABS = [
 
 export type JoltTab = (typeof TABS)[number]['id'];
 
-/** Barra do módulo: Início, Sandbox e Gerador, e o atalho para o JSON Studio. */
-export function JoltNav({ active }: { active: JoltTab }) {
+/** Barra do módulo: Início, Sandbox e Gerador, ações da página (opcionais) e o atalho para o JSON Studio. */
+export function JoltNav({ active, actions }: { active: JoltTab; actions?: React.ReactNode }) {
   return (
     <nav aria-label="Seções do Jolt" className="-mt-1 flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
       {TABS.map((t) => (
@@ -33,6 +33,7 @@ export function JoltNav({ active }: { active: JoltTab }) {
         </Link>
       ))}
       <span className="flex-1" />
+      {actions}
       <Link
         href="/devtools/data-studio"
         className={cn('inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[13px] text-muted-foreground hover:text-foreground', FOCUS_RING)}

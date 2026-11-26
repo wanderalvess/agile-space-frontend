@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.31.0",
+    "date": "26 de Novembro, 2026",
+    "title": "Jolt: layouts salvos na sua conta e Sandbox sem rolagem",
+    "description": "Os layouts do Jolt deixam de ficar só no navegador, e o Sandbox passou a caber na tela, com o Executar ao lado da Saída.",
+    "changes": [
+      "Jolt: os layouts salvos agora ficam na sua conta, no servidor, e aparecem em qualquer navegador. Os que estavam só no seu navegador sobem sozinhos na primeira vez que você abre o Jolt.",
+      "Jolt Sandbox: o botão Executar foi para o cabeçalho da Saída, e os três editores acompanham a altura da janela, sem rolar a página para achar o resultado.",
+      "Jolt Sandbox: o layout, o nome e a URL ficaram numa barra de uma linha, com o nome e a URL em Detalhes, e a busca no GitHub abre numa gaveta lateral.",
+      "Jolt Sandbox: em janela estreita ou no celular, Entrada, Spec e Saída viram abas, com o Executar na mesma barra, e a Saída abre sozinha ao executar.",
+      "Salas: no celular, o nome da sala que dá para editar ganhou área de toque de 44 px."
+    ]
+  }, {
     "tag": "v4.30.8",
     "date": "24 de Novembro, 2026",
     "title": "Celular: botões maiores nas salas e ajustes da Retro e da Review",

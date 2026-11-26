@@ -189,7 +189,7 @@ function RoomTitle({ title, onTitleChange }: { title: string; onTitleChange?: (t
             setEditing(false);
           }
         }}
-        className={cn('h-7 w-full min-w-[8rem] rounded-md border border-border bg-background px-2 text-[15px] font-semibold', FOCUS_RING)}
+        className={cn('h-7 w-full min-w-[8rem] rounded-md border border-border bg-background px-2 text-[15px] font-semibold max-sm:h-11', FOCUS_RING)}
       />
     );
   }
@@ -203,7 +203,12 @@ function RoomTitle({ title, onTitleChange }: { title: string; onTitleChange?: (t
       }}
       title="Editar o nome da sala"
       aria-label={`Nome da sala: ${title}. Ativar para editar`}
-      className={cn('group -mx-1 flex min-w-0 items-center gap-1.5 rounded-md px-1 text-left hover:bg-accent', FOCUS_RING)}
+      className={cn(
+        'group relative -mx-1 flex min-w-0 items-center gap-1.5 rounded-md px-1 text-left hover:bg-accent',
+        // Celular: o título segue de 19 px; before:-inset-y-3.5 amplia a área de toque para 47 px.
+        "max-sm:before:absolute max-sm:before:inset-x-0 max-sm:before:-inset-y-3.5 max-sm:before:content-['']",
+        FOCUS_RING
+      )}
     >
       <h1 className="m-0 truncate text-[15px] font-semibold leading-tight text-foreground">{title}</h1>
       <Pencil aria-hidden="true" className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" strokeWidth={1.5} />

@@ -2,11 +2,13 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, ChevronDown, Copy, Download, Layers, Loader2, Lock, Play, Save, TriangleAlert, Wand2, Wrench } from 'lucide-react';
-import { PageHeader, PageShell } from '@/components/page';
+import { BookOpen, ChevronDown, Copy, Download, Github, Layers, Loader2, Lock, Play, Save, TriangleAlert, Wand2, Wrench } from 'lucide-react';
+import { PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ConfirmDialog, Kbd, Modal, ModalButton, StatusChip } from '@/components/room-kit';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ConfirmDialog, Kbd, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
 import { FOCUS_RING } from '@/components/room-kit/tokens';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -17,16 +19,15 @@ import { parseLayoutData, parseLayoutText } from '@/lib/jolt-maintenance';
 import { routeFormFromRecord } from '@/lib/jolt-route-record';
 import {
   adoptGuestDrafts,
-  readLayouts,
   readSandboxDraft,
   sendToGerador,
   storeFailureMessage,
   takeFromGerador,
-  writeLayouts,
   writeSandboxDraft,
   type SavedLayout,
   type StoreFailure,
 } from '@/lib/jolt-storage';
+import { createLayout, deleteLayout as deleteLayoutApi, importLocalLayouts, listLayouts, updateLayout } from '@/lib/jolt-layouts-api';
 import { MODEL_MENU, buildFullLayout, layoutSnapshot, modelSpecText, safeFileName, type ModelName } from '@/lib/jolt-sandbox';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
 import { useGithubLayouts, type LoadedGithubLayout } from '@/components/jolt/useGithubLayouts';
@@ -35,10 +36,12 @@ import { JoltHowItWorks } from '@/components/jolt/JoltHowItWorks';
 import { JoltMaintenancePanel } from '@/components/jolt/JoltMaintenancePanel';
 import { JoltNav, joltHeaderProps } from '@/components/jolt/JoltNav';
 import { JsonEditor, PaneButton, SyntaxErrorStrip } from '@/components/jolt/JsonEditor';
-import { LayoutCard } from '@/components/jolt/LayoutCard';
+import { LayoutDetails, NEW_LAYOUT_VALUE } from '@/components/jolt/LayoutCard';
 import { useJoltShortcuts } from '@/components/jolt/useJoltShortcuts';
 
 type RunState = 'idle' | 'running' | 'ok' | 'err';
+type Pane = 'entrada' | 'spec' | 'saida';
+const PANE_LABEL: Record<Pane, string> = { entrada: 'Entrada', spec: 'Spec', saida: 'Saída' };
 
 const kbdOnPrimary = 'inline-flex h-5 items-center rounded-md bg-primary-foreground/20 px-1.5 text-xs font-semibold text-current';
 
@@ -59,6 +62,12 @@ export default function JoltSandboxPage() {
   const [snapshot, setSnapshot] = useState(() => layoutSnapshot({ name: '', url: '', spec: '', input: '' }));
   const [justSaved, setJustSaved] = useState(false);
   const [draftIssue, setDraftIssue] = useState<StoreFailure | null>(null);
+  const [layoutsStatus, setLayoutsStatus] = useState<'loading' | 'ok' | 'erro'>('loading');
+  const [saving, setSaving] = useState(false);
+  const [pane, setPane] = useState<Pane>('entrada'); // janela estreita: uma bancada por vez
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
+  const savingRef = useRef(false);
 
   const [run, setRun] = useState<RunState>('idle');
   const [runError, setRunError] = useState<string | null>(null);
@@ -99,17 +108,29 @@ export default function JoltSandboxPage() {
     setJustSaved(false);
   }, [currentSnapshot]);
 
-  // ── Ao abrir: rascunho da pessoa, layout pedido pelo Hub ou o que o Gerador deixou ──
+  // ── Ao abrir: o que o Gerador deixou, o layout pedido pelo Hub ou o rascunho da pessoa ──
+  // Os layouts vêm do servidor; só depois de chegarem (ou falharem) a tela é "hidratada" e o rascunho passa a ser gravado.
   useEffect(() => {
     if (id.isLoading || hydratedRef.current) return;
     hydratedRef.current = true; // o modo estrito monta duas vezes: o que o Gerador deixou só pode ser lido uma
     if (id.userId) adoptGuestDrafts(id.userId);
-    const layouts = id.userId ? readLayouts(id.userId) : [];
-    setSavedLayouts(layouts);
 
     const fromGerador = takeFromGerador();
     const wanted = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('layout');
-    const wantedLayout = wanted ? layouts.find((l) => l.id === wanted) : undefined;
+
+    const restoreDraft = () => {
+      const draft = readSandboxDraft(id.userId);
+      if (draft && (draft.entrada || draft.spec || draft.saida || draft.nome || draft.url)) {
+        setInputText(draft.entrada);
+        setSpecText(draft.spec);
+        setOutputText(draft.saida);
+        setName(draft.nome);
+        setUrl(draft.url);
+        setLoadedDocument(draft.documento ?? null);
+        if (draft.saida) setRun('ok');
+        toast({ title: 'Rascunho recuperado', description: 'Entrada, spec e última saída voltaram como você deixou neste navegador.' });
+      }
+    };
 
     if (fromGerador) {
       // Vindo do modo manutenção: o editor mostra a transformação e o arquivo completo fica guardado para exportar.
@@ -122,27 +143,46 @@ export default function JoltSandboxPage() {
       }
       if (fromGerador.input) setInputText(fromGerador.input);
       toast({ title: 'Spec carregada', description: 'A especificação gerada foi colocada no editor.' });
-    } else if (wantedLayout) {
-      setSelectedId(wantedLayout.id);
-      setName(wantedLayout.name || '');
-      setUrl(wantedLayout.apiUrl || '');
-      setSpecText(wantedLayout.joltSpec || '');
-      setInputText(wantedLayout.lastInput || '');
-      setSnapshot(layoutSnapshot({ name: wantedLayout.name || '', url: wantedLayout.apiUrl || '', spec: wantedLayout.joltSpec || '', input: wantedLayout.lastInput || '' }));
-    } else {
-      const draft = readSandboxDraft(id.userId);
-      if (draft && (draft.entrada || draft.spec || draft.saida || draft.nome || draft.url)) {
-        setInputText(draft.entrada);
-        setSpecText(draft.spec);
-        setOutputText(draft.saida);
-        setName(draft.nome);
-        setUrl(draft.url);
-        setLoadedDocument(draft.documento ?? null);
-        if (draft.saida) setRun('ok');
-        toast({ title: 'Rascunho recuperado', description: 'Entrada, spec e última saída voltaram como você deixou neste navegador.' });
-      }
+    } else if (!wanted) {
+      restoreDraft();
     }
-    setHydrated(true);
+
+    const userId = id.userId;
+    if (!userId) {
+      setLayoutsStatus('ok');
+      setHydrated(true);
+      return;
+    }
+    void (async () => {
+      try {
+        const imported = await importLocalLayouts(userId);
+        const layouts = await listLayouts(userId);
+        setSavedLayouts(layouts);
+        setLayoutsStatus('ok');
+        if (imported > 0) {
+          toast({ title: 'Layouts guardados no servidor', description: `${imported} ${imported === 1 ? 'layout que estava' : 'layouts que estavam'} só neste navegador ${imported === 1 ? 'foi enviado' : 'foram enviados'} para a sua conta.` });
+        }
+        if (!fromGerador && wanted) {
+          const wantedLayout = layouts.find((l) => l.id === wanted);
+          if (wantedLayout) {
+            setSelectedId(wantedLayout.id);
+            setName(wantedLayout.name || '');
+            setUrl(wantedLayout.apiUrl || '');
+            setSpecText(wantedLayout.joltSpec || '');
+            setInputText(wantedLayout.lastInput || '');
+            setSnapshot(layoutSnapshot({ name: wantedLayout.name || '', url: wantedLayout.apiUrl || '', spec: wantedLayout.joltSpec || '', input: wantedLayout.lastInput || '' }));
+          } else {
+            restoreDraft();
+          }
+        }
+      } catch (e) {
+        setLayoutsStatus('erro');
+        toast({ title: 'Não foi possível carregar os seus layouts', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+        if (!fromGerador && wanted) restoreDraft();
+      } finally {
+        setHydrated(true);
+      }
+    })();
     // Só na primeira vez que a identidade fica pronta.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id.isLoading, id.userId]);
@@ -192,6 +232,7 @@ export default function JoltSandboxPage() {
     // Layout completo: o editor mostra a LAYOUTTRANSFORMACAO; outro formato vai inteiro.
     const specValue = parsed.ok ? parsed.parts.spec : layout.document;
     invalidateRun();
+    setGithubOpen(false);
     setSpecText(JSON.stringify(specValue, null, 2));
     setLoadedDocument(parsed.ok && parsed.parts.kind === 'envelope' ? layout.document : null);
     setSelectedId(null);
@@ -272,6 +313,7 @@ export default function JoltSandboxPage() {
     runningRef.current = true;
     setRun('running');
     setRunError(null);
+    setPane('saida');
     try {
       const result = await transformJoltBackend(parsedInput.value, parsedSpec.value, controller.signal);
       if (myRun !== runId.current) return; // resposta atrasada de uma execução abandonada
@@ -295,54 +337,39 @@ export default function JoltSandboxPage() {
     }
   };
 
-  const persistLayouts = (next: SavedLayout[]): boolean => {
-    const r = writeLayouts(id.userId, next);
-    if (!r.ok) {
-      toast({ title: 'Não foi possível guardar o layout', description: storeFailureMessage(r.reason, 'o layout'), variant: 'destructive' });
-      return false;
-    }
-    setSavedLayouts(next);
-    return true;
-  };
-
-  /** Salva (ou atualiza) o layout atual neste navegador. Devolve true se gravou. */
-  const salvar = (): boolean => {
+  /** Salva (ou atualiza) o layout atual no servidor. Devolve true se gravou. */
+  const salvar = async (): Promise<boolean> => {
     if (id.isGuest) {
       id.askLogin();
       return false;
     }
     if (!name.trim()) {
       toast({ title: 'Dê um nome ao layout', description: 'Preencha o nome do layout para salvar.', variant: 'destructive' });
-      document.getElementById('jolt-layout-nome')?.focus();
+      setDetailsOpen(true);
+      setTimeout(() => document.getElementById('jolt-layout-nome')?.focus(), 50);
       return false;
     }
-    const current = readLayouts(id.userId);
-    const data = {
-      toolType: 'jolt',
-      name: name.trim(),
-      apiUrl: url.trim(),
-      joltSpec: specText,
-      lastInput: inputText,
-      updatedAt: new Date().toISOString(),
-      creatorId: id.userId ?? undefined,
-      authorName: id.userName ?? undefined,
-    };
-    // Se o layout selecionado sumiu (apagado em outra aba), salva como novo em vez de fingir que atualizou.
-    const exists = !!selectedId && current.some((l) => l.id === selectedId);
-    let updated: SavedLayout[];
-    let savedId = selectedId;
-    if (exists) {
-      updated = current.map((l) => (l.id === selectedId ? { ...l, ...data, id: selectedId as string } : l));
-    } else {
-      savedId = crypto.randomUUID();
-      updated = [...current, { id: savedId, ...data }];
+    if (savingRef.current) return false; // clique ou atalho em sequência: já está salvando
+    savingRef.current = true;
+    setSaving(true);
+    const input = { name: name.trim(), apiUrl: url.trim(), joltSpec: specText, lastInput: inputText };
+    const snapshotAtClick = currentSnapshot;
+    const current = selectedId ? savedLayouts.find((l) => l.id === selectedId) : undefined;
+    try {
+      const saved = current ? await updateLayout(current.id, input, current.version) : await createLayout(input);
+      setSavedLayouts((prev) => (current ? prev.map((l) => (l.id === saved.id ? saved : l)) : [...prev, saved]));
+      setSelectedId(saved.id);
+      setSnapshot(snapshotAtClick);
+      setJustSaved(true);
+      toast({ title: current ? 'Layout atualizado' : 'Layout salvo' });
+      return true;
+    } catch (e) {
+      toast({ title: 'Não foi possível salvar o layout', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    if (!persistLayouts(updated)) return false;
-    setSelectedId(savedId);
-    setSnapshot(currentSnapshot);
-    setJustSaved(true);
-    toast({ title: exists ? 'Layout atualizado' : 'Layout salvo' });
-    return true;
   };
 
   const applyLayout = (layout: SavedLayout | null) => {
@@ -370,13 +397,18 @@ export default function JoltSandboxPage() {
     applyLayout(target ? savedLayouts.find((l) => l.id === target) ?? null : null);
   };
 
-  const deleteLayout = () => {
+  const deleteLayout = async () => {
     if (!selectedId) return;
-    const updated = readLayouts(id.userId).filter((l) => l.id !== selectedId);
-    if (!persistLayouts(updated)) return;
+    try {
+      await deleteLayoutApi(selectedId);
+    } catch (e) {
+      toast({ title: 'Não foi possível excluir o layout', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+      return;
+    }
+    setSavedLayouts((prev) => prev.filter((l) => l.id !== selectedId));
     setSelectedId(null);
     setSnapshot('');
-    toast({ title: 'Layout excluído', description: 'Ele saiu deste navegador. A spec e a entrada continuam no editor.' });
+    toast({ title: 'Layout excluído', description: 'A spec e a entrada continuam no editor.' });
   };
 
   const chooseModel = (model: ModelName) => {
@@ -483,22 +515,31 @@ export default function JoltSandboxPage() {
       </div>
     ) : null;
 
+  const layoutOptions = [
+    { value: NEW_LAYOUT_VALUE, label: 'Novo layout em branco' },
+    ...[...savedLayouts].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((l) => ({ value: l.id, label: l.name || 'Layout sem nome' })),
+  ];
+
+  // A bancada acompanha a altura da janela: sem rolar a página para achar o Executar nem a Saída.
+  const editorHeight = 'h-[calc(100dvh-19rem)] min-h-[420px] lg:h-[calc(100dvh-17rem)] lg:min-h-[480px]';
+  const paneClass = (which: Pane) => (pane === which ? undefined : 'max-lg:hidden');
+
+  const barButton = 'h-10 gap-2 max-sm:h-11';
+
   return (
-    <PageShell documentTitle="Sandbox" width="wide" header={joltHeaderProps(id.isGuest)}>
-      <JoltNav active="sandbox" />
-      <PageHeader
-        title="Sandbox"
-        module="jolt"
-        subtitle="Teste uma spec com a sua entrada e veja a saída na hora."
+    <PageShell documentTitle="Sandbox" width="wide" header={joltHeaderProps(id.isGuest)} contentClassName="gap-3 pb-6 pt-4 sm:pt-4">
+      <h1 className="sr-only">Sandbox</h1>
+      <JoltNav
+        active="sandbox"
         actions={
           <>
-            <Button variant="outline" onClick={openInGenerator} className="h-10 gap-2 rounded-[10px] px-4 font-semibold" title="Leva o JSON de entrada para o Gerador: cole a saída esperada e a spec é montada para você">
+            <Button variant="outline" onClick={openInGenerator} className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11" title="Leva o JSON de entrada para o Gerador: cole a saída esperada e a spec é montada para você">
               <Wand2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              Abrir no Gerador
+              <span className="max-md:sr-only">Abrir no Gerador</span>
             </Button>
-            <Button variant="outline" onClick={() => setHowOpen(true)} aria-label="Abrir Como funciona" className="h-10 gap-2 rounded-[10px] px-4 font-semibold">
+            <Button variant="outline" onClick={() => setHowOpen(true)} aria-label="Abrir Como funciona" className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11">
               <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              Como funciona
+              <span className="max-md:sr-only">Como funciona</span>
             </Button>
           </>
         }
@@ -510,18 +551,31 @@ export default function JoltSandboxPage() {
         </GuestBanner>
       )}
 
-      <div role="toolbar" aria-label="Ferramentas" className="flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl border border-border bg-card px-3 py-2.5 shadow-sm">
-        <ModalButton variant="primary" onClick={() => void executar()} disabled={running} aria-label={`Executar, atalho ${SHORTCUT_LABEL.executar}`} className="h-10 gap-2">
-          {running ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
-          {running ? 'Executando…' : 'Executar'}
-          <span className={kbdOnPrimary} aria-hidden="true">{SHORTCUT_LABEL.executar}</span>
-        </ModalButton>
-        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
-        <ModalButton onClick={() => void salvar()} aria-label={`Salvar layout, atalho ${SHORTCUT_LABEL.salvar}`} className="h-10 gap-2">
-          <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          Salvar
-          <Kbd>{SHORTCUT_LABEL.salvar}</Kbd>
-        </ModalButton>
+      <div role="toolbar" aria-label="Layout" className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <label htmlFor="jolt-layout-salvo" className="text-xs font-semibold text-muted-foreground">Layout</label>
+          <SelectField
+            id="jolt-layout-salvo"
+            aria-label="Layout salvo"
+            value={selectedId ?? NEW_LAYOUT_VALUE}
+            onChange={(v) => requestSwitch(v === NEW_LAYOUT_VALUE ? null : v)}
+            options={layoutOptions}
+            className="h-10 w-full sm:w-[300px] max-sm:h-11"
+          />
+        </div>
+
+        <Popover open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <PopoverTrigger asChild>
+            <ModalButton className={cn(barButton, FOCUS_RING)}>
+              Detalhes
+              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            </ModalButton>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[min(400px,calc(100vw-2rem))] rounded-xl p-4">
+            <LayoutDetails name={name} onName={setName} url={url} onUrl={setUrl} onDelete={() => { setDetailsOpen(false); setDeleteOpen(true); }} canDelete={!!selectedId} />
+          </PopoverContent>
+        </Popover>
+
         <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <span aria-hidden="true" className={cn('h-[7px] w-[7px] rounded-full', saveNote.dot)} />
           {saveNote.text}
@@ -532,23 +586,35 @@ export default function JoltSandboxPage() {
             Rascunho não guardado
           </span>
         )}
-        <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
+        {layoutsStatus === 'erro' && (
+          <span role="status" className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+            <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            Layouts salvos indisponíveis
+          </span>
+        )}
+
+        <span className="flex-1" />
+
+        <ModalButton onClick={() => setGithubOpen(true)} className={barButton}>
+          <Github className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          GitHub
+        </ModalButton>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <ModalButton className={cn('h-10 gap-2', FOCUS_RING)}>
+            <ModalButton className={cn(barButton, FOCUS_RING)}>
               <Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
               Modelos
               <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             </ModalButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-[340px] rounded-xl p-1.5">
+          <DropdownMenuContent align="end" className="w-[340px] rounded-xl p-1.5">
             <DropdownMenuLabel className="mb-1 flex items-center gap-2 rounded-lg bg-amber-500/10 px-2.5 py-2 text-[13px] font-normal text-amber-900 dark:text-amber-200">
               <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
               <span>Escolher um modelo <strong>substitui a spec</strong>.</span>
             </DropdownMenuLabel>
             {MODEL_MENU.map((m) => (
-              <DropdownMenuItem key={m.name} onSelect={() => chooseModel(m.name)} className="flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2">
+              <DropdownMenuItem key={m.name} onSelect={() => chooseModel(m.name)} className="flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
                 <span className="font-code text-sm font-bold">{m.name}</span>
                 <span className="text-xs text-muted-foreground">{m.description}</span>
               </DropdownMenuItem>
@@ -556,52 +622,72 @@ export default function JoltSandboxPage() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <ModalButton onClick={() => setMaintOpen(true)} className="h-10 gap-2">
+        <ModalButton onClick={() => setMaintOpen(true)} className={barButton}>
           <Wrench className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           Manutenção
         </ModalButton>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <ModalButton className={cn('h-10 gap-2', FOCUS_RING)}>
+            <ModalButton className={cn(barButton, FOCUS_RING)}>
               <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
               Layout completo
               <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             </ModalButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-[300px] rounded-xl p-1.5">
-            <DropdownMenuItem onSelect={() => void copyFullLayout()} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2">
-              <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          <DropdownMenuContent align="end" className="w-[300px] rounded-xl p-1.5">
+            <DropdownMenuItem onSelect={() => void copyFullLayout()} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
+              <Copy className="h-4 w-4" strokeWidth={1.5} />
               <span className="flex flex-col"><strong className="font-semibold">Copiar</strong><span className="text-xs text-muted-foreground">Registro da rota com a spec dentro</span></span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={downloadFullLayout} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2">
-              <Download className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            <DropdownMenuItem onSelect={downloadFullLayout} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
+              <Download className="h-4 w-4" strokeWidth={1.5} />
               <span className="flex flex-col"><strong className="font-semibold">Baixar .json</strong><span className="text-xs text-muted-foreground">{safeFileName(name)}.json</span></span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <ModalButton onClick={() => void salvar()} disabled={saving} aria-label={`Salvar layout, atalho ${SHORTCUT_LABEL.salvar}`} className={barButton}>
+          {saving ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+          Salvar
+          <span className="max-2xl:hidden"><Kbd>{SHORTCUT_LABEL.salvar}</Kbd></span>
+        </ModalButton>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <LayoutCard
-          layouts={savedLayouts}
-          selectedId={selectedId}
-          onSelect={requestSwitch}
-          name={name}
-          onName={setName}
-          url={url}
-          onUrl={setUrl}
-          onDelete={() => setDeleteOpen(true)}
-        />
-        <GithubIntegrationBar github={github} envelope={loadedDocument !== null} />
+      {/* Janela estreita: uma bancada por vez, com o Executar na mesma barra das abas */}
+      <div className="flex items-center gap-1 rounded-2xl border border-border bg-card pl-2 pr-2 shadow-sm lg:hidden">
+        <div role="tablist" aria-label="Editor" className="flex flex-1 items-center">
+          {(['entrada', 'spec', 'saida'] as const).map((which) => (
+            <button
+              key={which}
+              type="button"
+              role="tab"
+              aria-selected={pane === which}
+              onClick={() => setPane(which)}
+              className={cn(
+                '-mb-px inline-flex h-11 items-center gap-1.5 border-b-2 px-3 text-sm transition-colors duration-fast',
+                pane === which ? 'border-primary font-bold text-foreground' : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
+                FOCUS_RING,
+              )}
+            >
+              {PANE_LABEL[which]}
+              {which === 'saida' && run === 'ok' && <span aria-hidden="true" className="h-2 w-2 rounded-full bg-primary" />}
+            </button>
+          ))}
+        </div>
+        <ModalButton variant="primary" onClick={() => void executar()} disabled={running} aria-label="Executar" className="h-11 gap-2">
+          {running ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+          {running ? 'Executando…' : 'Executar'}
+        </ModalButton>
       </div>
 
-      <section aria-label="Editores" className="grid grid-cols-1 gap-3.5 xl:grid-cols-3">
+      <section aria-label="Editores" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <JsonEditor
           title="Entrada"
           value={inputText}
           onChange={setInputText}
-          heightClassName="h-[460px] xl:h-[640px]"
+          heightClassName={editorHeight}
+          className={paneClass('entrada')}
           onRun={() => void executar()}
           onSave={() => void salvar()}
           actions={
@@ -623,7 +709,8 @@ export default function JoltSandboxPage() {
           onChange={(v) => {
             setSpecText(v);
           }}
-          heightClassName="h-[460px] xl:h-[640px]"
+          heightClassName={editorHeight}
+          className={paneClass('spec')}
           onRun={() => void executar()}
           onSave={() => void salvar()}
           actions={
@@ -643,12 +730,13 @@ export default function JoltSandboxPage() {
           title="Saída"
           value={outputText}
           readOnly
-          heightClassName="h-[460px] xl:h-[640px]"
+          heightClassName={editorHeight}
+          className={paneClass('saida')}
           onRun={() => void executar()}
           onSave={() => void salvar()}
           titleExtra={
             run === 'ok' && elapsedMs !== null ? (
-              <StatusChip tone="brand" className="font-bold tabular-nums">{elapsedMs} ms</StatusChip>
+              <StatusChip tone="brand" className="font-bold tabular-nums max-lg:hidden">{elapsedMs} ms</StatusChip>
             ) : undefined
           }
           actions={
@@ -666,6 +754,11 @@ export default function JoltSandboxPage() {
                 Limpar
               </PaneButton>
               <PaneButton onClick={() => void copy(outputText, 'Saída')} aria-label="Copiar a saída" disabled={!outputText}>Copiar</PaneButton>
+              <ModalButton variant="primary" onClick={() => void executar()} disabled={running} aria-label={`Executar, atalho ${SHORTCUT_LABEL.executar}`} className="h-10 gap-2 max-lg:hidden">
+                {running ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+                {running ? 'Executando…' : 'Executar'}
+                <span className={kbdOnPrimary} aria-hidden="true">{SHORTCUT_LABEL.executar}</span>
+              </ModalButton>
             </>
           }
           overlay={outputOverlay}
@@ -678,6 +771,18 @@ export default function JoltSandboxPage() {
           }
         />
       </section>
+
+      <Sheet open={githubOpen} onOpenChange={setGithubOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[460px]">
+          <SheetHeader className="shrink-0 border-b border-border px-5 py-4 text-left">
+            <SheetTitle className="text-base font-bold">Buscar do GitHub</SheetTitle>
+            <SheetDescription className="text-[13px]">Traz um layout do repositório para o editor.</SheetDescription>
+          </SheetHeader>
+          <div className="p-4">
+            <GithubIntegrationBar github={github} envelope={loadedDocument !== null} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <JoltMaintenancePanel open={maintOpen} onOpenChange={setMaintOpen} specText={specText} inputText={inputText} onSpecChange={onMaintenanceChange} />
       <JoltHowItWorks open={howOpen} onOpenChange={setHowOpen} />
@@ -699,7 +804,9 @@ export default function JoltSandboxPage() {
             <ModalButton onClick={() => setPendingModel(null)}>Cancelar</ModalButton>
             <ModalButton
               onClick={() => {
-                if (pendingModel && salvar()) applyModel(pendingModel, true);
+                void (async () => {
+                  if (pendingModel && (await salvar())) applyModel(pendingModel, true);
+                })();
               }}
             >
               Salvar antes
@@ -714,9 +821,9 @@ export default function JoltSandboxPage() {
         onOpenChange={setDeleteOpen}
         tone="danger"
         title={`Excluir o layout «${name}»?`}
-        description="O nome, a URL, a spec e a última entrada saem deste navegador. Não dá para desfazer."
+        description="O nome, a URL, a spec e a última entrada saem da sua conta. Não dá para desfazer."
         confirmLabel="Excluir layout"
-        onConfirm={deleteLayout}
+        onConfirm={() => void deleteLayout()}
       />
 
       <ConfirmDialog

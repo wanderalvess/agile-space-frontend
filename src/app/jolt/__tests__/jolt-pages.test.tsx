@@ -1,3 +1,4 @@
+import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +11,10 @@ const h = vi.hoisted(() => ({
   toast: vi.fn(),
   transform: vi.fn(),
   generate: vi.fn(),
+  layouts: [] as Array<Record<string, unknown>>,
+  createLayout: vi.fn(),
+  updateLayout: vi.fn(),
+  deleteLayout: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -41,10 +46,23 @@ vi.mock('@monaco-editor/react', () => ({
   loader: { config: vi.fn() },
 }));
 
+vi.mock('../../../components/ui/popover', () => {
+  const passthrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+  return { Popover: passthrough, PopoverTrigger: passthrough, PopoverContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div> };
+});
+// Os layouts moram no servidor: aqui, um servidor em memória (h.layouts).
+vi.mock('../../../lib/jolt-layouts-api', () => ({
+  listLayouts: async () => h.layouts.map((l) => ({ ...l })),
+  createLayout: (...a: unknown[]) => h.createLayout(...a),
+  updateLayout: (...a: unknown[]) => h.updateLayout(...a),
+  deleteLayout: (...a: unknown[]) => h.deleteLayout(...a),
+  importLocalLayouts: async () => 0,
+}));
+
 import JoltHubPage from '../page';
 import JoltSandboxPage from '../sandbox/page';
 import JoltGeneratorPage from '../gerador/page';
-import { layoutsKey, writeSandboxDraft, writeGeradorDraft, readLayouts, HANDOFF_GERADOR_PARA_SANDBOX } from '../../../lib/jolt-storage';
+import { writeSandboxDraft, writeGeradorDraft, HANDOFF_GERADOR_PARA_SANDBOX } from '../../../lib/jolt-storage';
 
 const member = () => {
   h.auth.current = { isAuthenticated: true, isLoading: false, session: { id: 'u1', name: 'Ana', accessibleProjects: [] } };
@@ -78,10 +96,25 @@ beforeEach(() => {
   h.toast.mockClear();
   h.transform.mockReset();
   h.generate.mockReset();
+  h.layouts = [];
+  h.createLayout.mockReset().mockImplementation(async (input: Record<string, unknown>) => {
+    const l = { id: `n${h.layouts.length + 1}`, ...input, updatedAt: new Date().toISOString(), version: 0 };
+    h.layouts.push(l);
+    return { ...l };
+  });
+  h.updateLayout.mockReset().mockImplementation(async (id: string, input: Record<string, unknown>) => {
+    const i = h.layouts.findIndex((l) => l.id === id);
+    h.layouts[i] = { ...h.layouts[i], ...input, version: Number(h.layouts[i].version ?? 0) + 1 };
+    return { ...h.layouts[i] };
+  });
+  h.deleteLayout.mockReset().mockImplementation(async (id: string) => {
+    h.layouts = h.layouts.filter((l) => l.id !== id);
+  });
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -89,6 +122,12 @@ afterEach(() => {
 const savedLayout = (id: string, name: string, day: number) => ({
   id, name, apiUrl: `https://api.test/${id}`, joltSpec: '[]', lastInput: '{}', updatedAt: new Date(2026, 9, day, 10, 0).toISOString(),
 });
+
+// O nome e a URL do layout moram no popover "Detalhes"; no teste o popover fica sempre aberto (o do Radix deixa o jsdom
+// lento e as demais telas do projeto também o simulam).
+async function nameField(): Promise<HTMLInputElement> {
+  return document.getElementById('jolt-layout-nome') as HTMLInputElement;
+}
 
 async function flush() {
   await act(async () => {
@@ -124,9 +163,10 @@ describe('Hub', () => {
   });
 
   it('mostra no máximo 4 layouts, os mais recentes primeiro, e abre cada um na Sandbox', async () => {
-    localStorage.setItem(layoutsKey('u1'), JSON.stringify([1, 2, 3, 4, 5, 6].map((d) => savedLayout(`l${d}`, `Layout ${d}`, d))));
+    h.layouts = [1, 2, 3, 4, 5, 6].map((d) => ({ ...savedLayout(`l${d}`, `Layout ${d}`, d), creatorId: 'u1' }));
     render(<JoltHubPage />);
     await flush();
+    await screen.findByRole('region', { name: 'Seus layouts recentes' });
     const section = screen.getByRole('region', { name: 'Seus layouts recentes' });
     const items = within(section).getAllByRole('listitem');
     expect(items).toHaveLength(4);
@@ -165,7 +205,8 @@ describe('Sandbox', () => {
     render(<JoltSandboxPage />);
     await flush();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByText('Ainda não consultado.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'GitHub' }));
+    expect(await screen.findByText('Ainda não consultado.')).toBeTruthy();
 
     fetchMock.mockImplementation(async (url: string) =>
       new Response(JSON.stringify(url.includes('/tags') ? [{ name: '1.0' }] : { tree: [{ path: 'protheus/rotas/pedido.json', type: 'blob' }], truncated: false }), { status: 200 }),
@@ -187,7 +228,7 @@ describe('Sandbox', () => {
     expect(text).not.toMatch(/motor|JavaScript|Comparar/i);
     expect(screen.getByRole('button', { name: /Executar, atalho Ctrl\+Enter/ }).textContent).toContain('Ctrl+Enter');
     expect(screen.getByRole('button', { name: /Salvar layout, atalho Ctrl\+S/ }).textContent).toContain('Ctrl+S');
-    for (const label of ['Modelos', 'Manutenção', 'Layout completo', 'Buscar do GitHub']) expect(text).toContain(label);
+    for (const label of ['Modelos', 'Manutenção', 'Layout completo', 'GitHub', 'Detalhes']) expect(text).toContain(label);
   });
 
   it('visitante edita, mas Executar e Salvar abrem "Entre para executar" e nada vai ao servidor', async () => {
@@ -206,7 +247,7 @@ describe('Sandbox', () => {
 
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
     expect(await screen.findByRole('alertdialog')).toBeTruthy();
-    expect(readLayouts(null)).toEqual([]);
+    expect(h.createLayout).not.toHaveBeenCalled();
   });
 
   it('Ctrl+Enter executa uma vez só mesmo com cliques em sequência; o selo mostra só o tempo', async () => {
@@ -274,42 +315,43 @@ describe('Sandbox', () => {
   it('Ctrl+S salva o layout por usuário, mostra "Salvo agora" e não trava o botão', async () => {
     render(<JoltSandboxPage />);
     await flush();
-    fireEvent.change(screen.getByLabelText('Nome do layout'), { target: { value: 'Pedido' } });
+    fireEvent.change(await nameField(), { target: { value: 'Pedido' } });
     fireEvent.change(field('Spec'), { target: { value: '[]' } });
 
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
-    const saved = readLayouts('u1');
-    expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ name: 'Pedido', joltSpec: '[]' });
-    expect(screen.getByText('Salvo agora')).toBeTruthy();
+    expect(await screen.findByText('Salvo agora')).toBeTruthy();
+    expect(h.layouts).toHaveLength(1);
+    expect(h.layouts[0]).toMatchObject({ name: 'Pedido', joltSpec: '[]' });
     const button = screen.getByRole('button', { name: /Salvar layout/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
 
     fireEvent.change(field('Spec'), { target: { value: '[{"operation":"sort"}]' } });
     expect(screen.getByText('Alterações não salvas')).toBeTruthy();
     fireEvent.click(button);
-    expect(readLayouts('u1')).toHaveLength(1); // atualizou o mesmo layout, não criou outro
-    expect(readLayouts('u1')[0].joltSpec).toBe('[{"operation":"sort"}]');
+    await waitFor(() => expect(h.layouts[0].joltSpec).toBe('[{"operation":"sort"}]'));
+    expect(h.layouts).toHaveLength(1); // atualizou o mesmo layout, não criou outro
   });
 
   it('salvar sem nome avisa e não grava', async () => {
     render(<JoltSandboxPage />);
     await flush();
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
-    expect(readLayouts('u1')).toEqual([]);
+    expect(h.layouts).toEqual([]);
     expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Dê um nome ao layout' }));
   });
 
-  it('cota do navegador cheia ao salvar: avisa com o motivo (não falha em silêncio)', async () => {
+  it('servidor recusa ao salvar: avisa com o motivo e mantém "Alterações não salvas"', async () => {
     render(<JoltSandboxPage />);
     await flush();
-    fireEvent.change(screen.getByLabelText('Nome do layout'), { target: { value: 'Pedido' } });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('quota', 'QuotaExceededError');
-    });
+    fireEvent.change(await nameField(), { target: { value: 'Pedido' } });
+    fireEvent.change(field('Spec'), { target: { value: '[]' } });
+    h.createLayout.mockRejectedValueOnce(new Error('Este projeto foi alterado em outra aba.'));
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
-    expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Não foi possível guardar o layout', variant: 'destructive' }));
-    vi.restoreAllMocks();
+    await waitFor(() =>
+      expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Não foi possível salvar o layout', description: 'Este projeto foi alterado em outra aba.', variant: 'destructive' }))
+    );
+    expect(screen.getByText('Alterações não salvas')).toBeTruthy();
+    expect(h.layouts).toEqual([]);
   });
 
   it('o rascunho (entrada, spec e última saída) volta ao recarregar, por usuário', async () => {
@@ -320,7 +362,7 @@ describe('Sandbox', () => {
     expect((field('Entrada') as HTMLTextAreaElement).value).toBe('{"a":1}');
     expect((field('Spec') as HTMLTextAreaElement).value).toBe('[]');
     expect((field('Saída') as HTMLTextAreaElement).value).toBe('{"b":2}');
-    expect((screen.getByLabelText('Nome do layout') as HTMLInputElement).value).toBe('Pedido');
+    expect((await nameField()).value).toBe('Pedido');
     expect(h.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Rascunho recuperado' }));
   });
 
@@ -363,12 +405,12 @@ describe('Sandbox', () => {
   });
 
   it('abrir pelo Hub (?layout=) carrega o layout salvo', async () => {
-    localStorage.setItem(layoutsKey('u1'), JSON.stringify([{ ...savedLayout('abc', 'Cliente', 5), joltSpec: '[{"operation":"sort"}]', lastInput: '{"k":1}' }]));
+    h.layouts = [{ ...savedLayout('abc', 'Cliente', 5), creatorId: 'u1', joltSpec: '[{"operation":"sort"}]', lastInput: '{"k":1}' }];
     window.history.pushState({}, '', '/jolt/sandbox?layout=abc');
     render(<JoltSandboxPage />);
     await flush();
+    await waitFor(async () => expect((await nameField()).value).toBe('Cliente'));
     window.history.pushState({}, '', '/');
-    expect((screen.getByLabelText('Nome do layout') as HTMLInputElement).value).toBe('Cliente');
     expect((field('Spec') as HTMLTextAreaElement).value).toBe('[{"operation":"sort"}]');
   });
 

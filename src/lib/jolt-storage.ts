@@ -105,6 +105,8 @@ export interface SavedLayout {
   toolType?: string;
   creatorId?: string;
   authorName?: string;
+  /** Versão de edição no servidor (lock otimista). */
+  version?: number;
 }
 
 export function readLayouts(userId: string | null | undefined): SavedLayout[] {

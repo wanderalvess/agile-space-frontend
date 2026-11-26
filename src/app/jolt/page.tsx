@@ -10,7 +10,8 @@ import { Kbd } from '@/components/room-kit';
 import { FOCUS_RING, OUTLINE_BUTTON } from '@/components/room-kit/tokens';
 import { cn } from '@/lib/utils';
 import { SHORTCUT_LABEL } from '@/lib/jolt-shortcuts';
-import { formatRecent, readLayouts, recentLayouts, type SavedLayout } from '@/lib/jolt-storage';
+import { formatRecent, recentLayouts, type SavedLayout } from '@/lib/jolt-storage';
+import { importLocalLayouts, listLayouts } from '@/lib/jolt-layouts-api';
 import { GuestBanner, LoginRequiredDialog, useJoltIdentity } from '@/components/jolt/JoltBits';
 import { JoltHowItWorks } from '@/components/jolt/JoltHowItWorks';
 import { JoltNav, joltHeaderProps } from '@/components/jolt/JoltNav';
@@ -159,10 +160,34 @@ export default function JoltHubPage() {
   const id = useJoltIdentity();
   const [howOpen, setHowOpen] = useState(false);
   const [layouts, setLayouts] = useState<SavedLayout[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id.isLoading) return;
-    setLayouts(id.userId ? readLayouts(id.userId) : []);
+    const userId = id.userId;
+    if (!userId) {
+      setLayouts([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        await importLocalLayouts(userId); // layouts que ficaram só neste navegador sobem uma vez para a conta
+        const list = await listLayouts(userId);
+        if (alive) {
+          setLayouts(list);
+          setLoadError(null);
+        }
+      } catch (e) {
+        if (alive) {
+          setLayouts([]);
+          setLoadError(e instanceof Error ? e.message : 'Não foi possível carregar os seus layouts.');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [id.isLoading, id.userId]);
 
   const recent = layouts ? recentLayouts(layouts, 4) : [];
@@ -207,19 +232,23 @@ export default function JoltHubPage() {
             <span aria-hidden="true" className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-muted text-muted-foreground"><Lock className="h-[22px] w-[22px]" strokeWidth={1.5} /></span>
             <div className="flex min-w-[260px] flex-1 flex-col gap-1">
               <strong className="text-base text-foreground">Entre para ver os seus layouts</strong>
-              <span className="text-sm leading-relaxed text-muted-foreground">Os layouts salvos ficam ligados ao seu usuário neste navegador.</span>
+              <span className="text-sm leading-relaxed text-muted-foreground">Os layouts salvos ficam na sua conta, em qualquer navegador.</span>
             </div>
             <Button variant="outline" onClick={id.askLogin} className="h-10 rounded-[10px] px-4 font-semibold">Entrar</Button>
           </div>
         )}
 
-        {!id.isGuest && layouts && layouts.length === 0 && (
+        {!id.isGuest && loadError && (
+          <p role="alert" className="m-0 rounded-2xl border border-red-500/40 px-4 py-3 text-sm text-red-700 dark:text-red-300">{loadError}</p>
+        )}
+
+        {!id.isGuest && !loadError && layouts && layouts.length === 0 && (
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-8">
             <span aria-hidden="true" className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-muted text-muted-foreground"><FileText className="h-[22px] w-[22px]" strokeWidth={1.5} /></span>
             <div className="flex min-w-[260px] flex-1 flex-col gap-1">
               <strong className="text-base text-foreground">Nenhum layout salvo ainda</strong>
               <span className="text-sm leading-relaxed text-muted-foreground">
-                Na Sandbox, aperte <Kbd>{SHORTCUT_LABEL.salvar}</Kbd> para guardar a spec e a última entrada. Os layouts ficam neste navegador, ligados ao seu usuário.
+                Na Sandbox, aperte <Kbd>{SHORTCUT_LABEL.salvar}</Kbd> para guardar a spec e a última entrada. Os layouts ficam na sua conta.
               </span>
             </div>
             <Button onClick={() => router.push('/jolt/sandbox')} className="h-10 rounded-[10px] px-4 font-bold">Abrir Sandbox</Button>
