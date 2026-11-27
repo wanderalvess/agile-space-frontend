@@ -2,7 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, ChevronDown, Copy, Download, Github, Layers, Loader2, Lock, Play, Save, TriangleAlert, Wand2, Wrench } from 'lucide-react';
+import { BookOpen, ChevronDown, Copy, Download, Github, Layers, Loader2, Play, Save, TriangleAlert, Wand2, Wrench } from 'lucide-react';
 import { PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -303,10 +303,6 @@ export default function JoltSandboxPage() {
   };
 
   const executar = async () => {
-    if (id.isGuest) {
-      id.askLogin();
-      return;
-    }
     if (runningRef.current) return; // clique em sequência: já está executando
     if (!inputText.trim() || !specText.trim()) {
       toast({ title: 'Falta conteúdo', description: !inputText.trim() ? 'Cole o JSON de entrada para executar.' : 'Escreva ou cole a spec Jolt para executar.', variant: 'destructive' });
@@ -505,14 +501,7 @@ export default function JoltSandboxPage() {
   const running = run === 'running';
 
   const outputOverlay =
-    id.isGuest ? (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2.5 p-6 text-center text-sm text-muted-foreground">
-        <Lock className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-        <strong className="text-foreground">Entre para executar</strong>
-        <span>A transformação roda no servidor do portal e pede login.</span>
-        <ModalButton variant="primary" onClick={id.askLogin} className="h-10">Entrar</ModalButton>
-      </div>
-    ) : run === 'idle' || (run === 'ok' && !outputText) ? (
+    run === 'idle' || (run === 'ok' && !outputText) ? (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
         <Play className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
         <span>Aperte Executar ou <Kbd>{SHORTCUT_LABEL.executar}</Kbd> para ver a saída.</span>
@@ -673,7 +662,7 @@ export default function JoltSandboxPage() {
 
       {id.isGuest && (
         <GuestBanner onLogin={id.askLogin}>
-          <strong>Entre para executar.</strong> Você pode editar a entrada e a spec, mas Executar e Salvar pedem login.
+          <strong>Executar não pede conta.</strong> Salvar layouts na sua conta pede login; sem entrar, o rascunho fica só neste navegador.
         </GuestBanner>
       )}
 

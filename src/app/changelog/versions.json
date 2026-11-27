@@ -1,5 +1,15 @@
 [
   {
+    "tag": "v4.31.2",
+    "date": "27 de Novembro, 2026",
+    "title": "Jolt: executar sem precisar de conta",
+    "description": "O Sandbox do Jolt agora executa a transformação sem login.",
+    "changes": [
+      "Jolt Sandbox: o Executar funciona sem entrar. Gerar spec e salvar layouts na conta continuam pedindo login, e o rascunho de quem não entrou fica só neste navegador.",
+      "Jolt: a execução sem conta tem limite de requisições por IP e de tamanho da entrada."
+    ]
+  },
+  {
     "tag": "v4.31.1",
     "date": "27 de Novembro, 2026",
     "title": "Jolt: mais espaço para o código e gaveta do GitHub sem cortes",

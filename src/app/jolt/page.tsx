@@ -209,7 +209,7 @@ export default function JoltHubPage() {
 
       {id.isGuest && (
         <GuestBanner onLogin={id.askLogin}>
-          <strong>Entre para executar.</strong> Você pode ver os modos e ler o guia sem entrar. Executar, gerar e salvar layouts pedem login.
+          <strong>O Sandbox executa sem entrar.</strong> Gerar uma spec e salvar layouts na sua conta pedem login.
         </GuestBanner>
       )}
 

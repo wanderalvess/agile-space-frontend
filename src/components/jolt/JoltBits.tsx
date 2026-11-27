@@ -31,7 +31,7 @@ export function useJoltIdentity() {
   };
 }
 
-/** "Entre para executar": aparece quando um visitante tenta executar, salvar ou gerar. */
+/** "Entre para continuar": aparece quando um visitante tenta salvar um layout ou gerar uma spec. */
 export function LoginRequiredDialog({ open, onOpenChange, onLogin }: { open: boolean; onOpenChange: (open: boolean) => void; onLogin: () => void }) {
   return (
     <ConfirmDialog
@@ -39,8 +39,8 @@ export function LoginRequiredDialog({ open, onOpenChange, onLogin }: { open: boo
       onOpenChange={onOpenChange}
       tone="brand"
       icon={Lock}
-      title="Entre para executar"
-      description="Você pode ler, editar e conhecer o Jolt sem entrar. Para executar uma transformação, gerar uma spec ou salvar um layout, entre com a sua conta do portal."
+      title="Entre para continuar"
+      description="O Sandbox do Jolt executa sem entrar. Para gerar uma spec ou salvar um layout na sua conta, entre com a sua conta do portal."
       cancelLabel="Agora não"
       confirmLabel="Entrar"
       onConfirm={onLogin}

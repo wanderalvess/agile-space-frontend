@@ -152,12 +152,12 @@ describe('Hub', () => {
     render(<JoltHubPage />);
     await flush();
     expect(screen.getByText('Sandbox', { selector: 'h2' })).toBeTruthy();
-    expect(screen.getByText(/Entre para executar\./)).toBeTruthy();
+    expect(screen.getByText(/O Sandbox executa sem entrar\./)).toBeTruthy();
     expect(screen.getByText('Entre para ver os seus layouts')).toBeTruthy();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' })[0]);
     const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText('Entre para executar')).toBeTruthy();
+    expect(within(dialog).getByText('Entre para continuar')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Entrar' }));
     expect(h.push).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?returnUrl=/));
   });
@@ -231,19 +231,20 @@ describe('Sandbox', () => {
     for (const label of ['Modelos', 'Manutenção', 'Layout completo', 'GitHub', 'Detalhes']) expect(text).toContain(label);
   });
 
-  it('visitante edita, mas Executar e Salvar abrem "Entre para executar" e nada vai ao servidor', async () => {
+  it('visitante executa sem login, mas Salvar abre "Entre para continuar" e nada é gravado', async () => {
     guest();
+    h.transform.mockResolvedValue({ success: true, output: { b: 1 }, executionTimeMs: 3 });
     render(<JoltSandboxPage />);
     await flush();
-    expect(screen.getByText(/Executar e Salvar pedem login/)).toBeTruthy();
+    expect(screen.getByText(/Executar não pede conta/)).toBeTruthy();
     fireEvent.change(field('Entrada'), { target: { value: '{"a":1}' } });
+    fireEvent.change(field('Spec'), { target: { value: '[{"operation":"shift","spec":{"a":"b"}}]' } });
     expect((field('Entrada') as HTMLTextAreaElement).value).toBe('{"a":1}');
 
     fireEvent.click(screen.getByRole('button', { name: /Executar, atalho/ }));
-    expect(await screen.findByRole('alertdialog')).toBeTruthy();
-    expect(h.transform).not.toHaveBeenCalled();
-    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await flush();
+    expect(h.transform).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alertdialog')).toBeNull();
 
     fireEvent.keyDown(window, { key: 's', ctrlKey: true });
     expect(await screen.findByRole('alertdialog')).toBeTruthy();
