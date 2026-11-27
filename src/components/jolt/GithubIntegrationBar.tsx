@@ -22,7 +22,7 @@ function formatTime(d: Date): string {
  * Cartão "Buscar do GitHub": Integração → Rota → Versão, e "Carregar layout". A página não consulta o GitHub
  * sozinha: o botão "Buscar layouts do GitHub" é quem faz a primeira consulta.
  */
-export function GithubIntegrationBar({ github, envelope }: { github: Github; envelope: boolean }) {
+export function GithubIntegrationBar({ github, envelope, stacked = false }: { github: Github; envelope: boolean; stacked?: boolean }) {
   const {
     repo, repoInput, setRepoInput, submitRepo, repoError, clearRepoError, status, errorMessage, resetAt, truncated, search,
     tags, version, integrations, integration, routes, routePath, routeName, missingRoute, loadingTree, loadingLayout, loaded,
@@ -44,9 +44,9 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
   };
 
   return (
-    <section aria-label="Buscar do GitHub" className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <section aria-label="Buscar do GitHub" className={cn('flex flex-col gap-3', !stacked && 'rounded-2xl border border-border bg-card p-4 shadow-sm')}>
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <h2 className="inline-flex items-center gap-2 text-[15px] font-bold text-foreground">
+        <h2 className={cn('inline-flex items-center gap-2 text-[15px] font-bold text-foreground', stacked && 'sr-only')}>
           <Github className="h-[17px] w-[17px]" strokeWidth={1.5} aria-hidden="true" />
           Buscar do GitHub
         </h2>
@@ -117,7 +117,7 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
             <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
             Consultando {repo}…
           </span>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_1.4fr_1fr]" aria-hidden="true">
+          <div className={cn('grid grid-cols-1 gap-2.5', !stacked && 'sm:grid-cols-[1fr_1.4fr_1fr]')} aria-hidden="true">
             {[0, 1, 2].map((i) => (
               <span key={i} className="h-10 rounded-[10px] border border-border bg-muted/50 motion-safe:animate-pulse" />
             ))}
@@ -168,7 +168,7 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
               <strong>Esta versão não tem a rota «{missingRoute}».</strong> Escolha outra rota ou outra versão.
             </Notice>
           )}
-          <div className="grid grid-cols-1 items-end gap-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
+          <div className={cn('grid grid-cols-1 items-end gap-2.5', !stacked && 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]')}>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="jolt-gh-integracao" className={FIELD_LABEL}>Integração</label>
               <SelectField
@@ -198,16 +198,16 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
                       missingRoute && 'border-amber-500/60',
                     )}
                   >
-                    <span className={cn('truncate', !routeName && !missingRoute && 'font-sans text-muted-foreground')}>
+                    <span title={routeName || undefined} className={cn('truncate', !routeName && !missingRoute && 'font-sans text-muted-foreground')}>
                       {routeName || missingRoute || (!integration ? 'Escolha a integração' : routes.length === 0 ? 'Sem rotas' : 'Buscar rota…')}
                     </span>
                     <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden="true" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[min(320px,90vw)] p-0" align="start">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[min(340px,92vw)] max-w-[92vw] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Digite para buscar…" aria-label="Buscar rota" />
-                    <CommandList className="max-h-[240px]">
+                    <CommandList className="max-h-[min(55vh,440px)]">
                       <CommandEmpty className="py-3 text-center text-[13px] text-muted-foreground">Nenhuma rota com esse nome.</CommandEmpty>
                       <CommandGroup>
                         {routes.map((r) => (
@@ -218,10 +218,10 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
                               selectRoute(r.path);
                               setRouteOpen(false);
                             }}
-                            className="flex items-center justify-between gap-2 font-code text-[13px]"
+                            className="flex items-start justify-between gap-2 py-2 font-code text-[13px]"
                           >
-                            <span className="truncate">{r.name}</span>
-                            <Check className={cn('h-3.5 w-3.5 shrink-0 text-primary', routePath === r.path ? 'opacity-100' : 'opacity-0')} aria-hidden="true" />
+                            <span className="min-w-0 break-words">{r.name}</span>
+                            <Check className={cn('mt-0.5 h-3.5 w-3.5 shrink-0 text-primary', routePath === r.path ? 'opacity-100' : 'opacity-0')} aria-hidden="true" />
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -242,7 +242,7 @@ export function GithubIntegrationBar({ github, envelope }: { github: Github; env
                 className="h-10"
               />
             </div>
-            <Button type="button" onClick={() => void loadSelected()} disabled={!canLoad} className="h-10 rounded-[10px] px-4 font-bold">
+            <Button type="button" onClick={() => void loadSelected()} disabled={!canLoad} className={cn('h-10 rounded-[10px] px-4 font-bold', stacked && 'h-11 w-full')}>
               {loadingLayout && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
               {loadingLayout ? 'Baixando…' : 'Carregar layout'}
             </Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, ChevronDown, Copy, Download, Github, Layers, Loader2, Lock, Play, Save, TriangleAlert, Wand2, Wrench } from 'lucide-react';
 import { PageShell } from '@/components/page';
@@ -67,6 +67,26 @@ export default function JoltSandboxPage() {
   const [pane, setPane] = useState<Pane>('entrada'); // janela estreita: uma bancada por vez
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [githubOpen, setGithubOpen] = useState(false);
+  // A bancada vai do topo dela até o pé da janela: quanto mais código na tela, melhor. Mede ao abrir, ao redimensionar e
+  // quando algo acima muda de altura (aviso, barra que quebra de linha).
+  const workbenchRef = useRef<HTMLElement>(null);
+  const [workbenchHeight, setWorkbenchHeight] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = workbenchRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setWorkbenchHeight(Math.max(360, Math.round(window.innerHeight - top - 12)));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(document.body);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  }, []);
   const savingRef = useRef(false);
 
   const [run, setRun] = useState<RunState>('idle');
@@ -521,29 +541,135 @@ export default function JoltSandboxPage() {
   ];
 
   // A bancada acompanha a altura da janela: sem rolar a página para achar o Executar nem a Saída.
-  const editorHeight = 'h-[calc(100dvh-19rem)] min-h-[420px] lg:h-[calc(100dvh-17rem)] lg:min-h-[480px]';
-  const paneClass = (which: Pane) => (pane === which ? undefined : 'max-lg:hidden');
+  const editorHeight = 'h-full min-h-0';
 
-  const barButton = 'h-10 gap-2 max-sm:h-11';
+  const paneClass = (which: Pane) => (pane === which ? undefined : 'max-xl:hidden');
+
+  const barButton = 'h-9 gap-2 px-3 max-sm:h-11';
 
   return (
-    <PageShell documentTitle="Sandbox" width="wide" header={joltHeaderProps(id.isGuest)} contentClassName="gap-3 pb-6 pt-4 sm:pt-4">
+    <PageShell documentTitle="Sandbox" width="wide" header={joltHeaderProps(id.isGuest)} contentClassName="gap-2 pb-4 pt-2 sm:pt-2">
       <h1 className="sr-only">Sandbox</h1>
-      <JoltNav
-        active="sandbox"
-        actions={
-          <>
-            <Button variant="outline" onClick={openInGenerator} className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11" title="Leva o JSON de entrada para o Gerador: cole a saída esperada e a spec é montada para você">
-              <Wand2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              <span className="max-md:sr-only">Abrir no Gerador</span>
-            </Button>
-            <Button variant="outline" onClick={() => setHowOpen(true)} aria-label="Abrir Como funciona" className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11">
-              <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              <span className="max-md:sr-only">Como funciona</span>
-            </Button>
-          </>
-        }
-      />
+      <div className="flex flex-wrap items-center gap-x-3 border-b border-border">
+        <JoltNav
+          bare
+          active="sandbox"
+          actions={
+            <>
+              <Button variant="outline" onClick={openInGenerator} className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11" title="Leva o JSON de entrada para o Gerador: cole a saída esperada e a spec é montada para você">
+                <Wand2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                <span className="max-2xl:sr-only">Abrir no Gerador</span>
+              </Button>
+              <Button variant="outline" onClick={() => setHowOpen(true)} aria-label="Abrir Como funciona" className="h-9 gap-2 rounded-[10px] px-3 font-semibold max-sm:h-11">
+                <BookOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                <span className="max-2xl:sr-only">Como funciona</span>
+              </Button>
+            </>
+          }
+        />
+        <div role="toolbar" aria-label="Layout" className="flex flex-wrap items-center gap-x-2 gap-y-1.5 py-1.5 xl:ml-auto xl:flex-nowrap">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <label htmlFor="jolt-layout-salvo" className="text-xs font-semibold text-muted-foreground">Layout</label>
+            <SelectField
+              id="jolt-layout-salvo"
+              aria-label="Layout salvo"
+              value={selectedId ?? NEW_LAYOUT_VALUE}
+              onChange={(v) => requestSwitch(v === NEW_LAYOUT_VALUE ? null : v)}
+              options={layoutOptions}
+              className="h-10 w-full sm:w-[200px] xl:w-[240px] 2xl:w-[300px] max-sm:h-11"
+            />
+          </div>
+
+          <Popover open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <PopoverTrigger asChild>
+              <ModalButton className={cn(barButton, FOCUS_RING)}>
+                Detalhes
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              </ModalButton>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[min(400px,calc(100vw-2rem))] rounded-xl p-4">
+              <LayoutDetails name={name} onName={setName} url={url} onUrl={setUrl} onDelete={() => { setDetailsOpen(false); setDeleteOpen(true); }} canDelete={!!selectedId} />
+            </PopoverContent>
+          </Popover>
+
+          <span role="status" title={saveNote.text} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span aria-hidden="true" className={cn('h-[7px] w-[7px] rounded-full', saveNote.dot)} />
+            <span className="max-lg:sr-only">{saveNote.text}</span>
+          </span>
+          {draftIssue && (
+            <span role="status" className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              Rascunho não guardado
+            </span>
+          )}
+          {layoutsStatus === 'erro' && (
+            <span role="status" className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+              <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              Layouts salvos indisponíveis
+            </span>
+          )}
+
+          <span className="flex-1" />
+
+          <ModalButton onClick={() => setGithubOpen(true)} title="Buscar do GitHub" className={barButton}>
+            <Github className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            <span className="max-2xl:sr-only">GitHub</span>
+          </ModalButton>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <ModalButton title="Modelos" className={cn(barButton, FOCUS_RING)}>
+                <Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                <span className="max-2xl:sr-only">Modelos</span>
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              </ModalButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[340px] rounded-xl p-1.5">
+              <DropdownMenuLabel className="mb-1 flex items-center gap-2 rounded-lg bg-amber-500/10 px-2.5 py-2 text-[13px] font-normal text-amber-900 dark:text-amber-200">
+                <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                <span>Escolher um modelo <strong>substitui a spec</strong>.</span>
+              </DropdownMenuLabel>
+              {MODEL_MENU.map((m) => (
+                <DropdownMenuItem key={m.name} onSelect={() => chooseModel(m.name)} className="flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
+                  <span className="font-code text-sm font-bold">{m.name}</span>
+                  <span className="text-xs text-muted-foreground">{m.description}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <ModalButton onClick={() => setMaintOpen(true)} title="Manutenção" className={barButton}>
+            <Wrench className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            <span className="max-2xl:sr-only">Manutenção</span>
+          </ModalButton>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <ModalButton title="Layout completo" className={cn(barButton, FOCUS_RING)}>
+                <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                <span className="max-2xl:sr-only">Layout completo</span>
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              </ModalButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[300px] rounded-xl p-1.5">
+              <DropdownMenuItem onSelect={() => void copyFullLayout()} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
+                <Copy className="h-4 w-4" strokeWidth={1.5} />
+                <span className="flex flex-col"><strong className="font-semibold">Copiar</strong><span className="text-xs text-muted-foreground">Registro da rota com a spec dentro</span></span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={downloadFullLayout} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
+                <Download className="h-4 w-4" strokeWidth={1.5} />
+                <span className="flex flex-col"><strong className="font-semibold">Baixar .json</strong><span className="text-xs text-muted-foreground">{safeFileName(name)}.json</span></span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <ModalButton onClick={() => void salvar()} disabled={saving} aria-label={`Salvar layout, atalho ${SHORTCUT_LABEL.salvar}`} className={barButton}>
+            {saving ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+            Salvar
+            <span className="max-2xl:hidden"><Kbd>{SHORTCUT_LABEL.salvar}</Kbd></span>
+          </ModalButton>
+        </div>
+      </div>
 
       {id.isGuest && (
         <GuestBanner onLogin={id.askLogin}>
@@ -551,111 +677,8 @@ export default function JoltSandboxPage() {
         </GuestBanner>
       )}
 
-      <div role="toolbar" aria-label="Layout" className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <label htmlFor="jolt-layout-salvo" className="text-xs font-semibold text-muted-foreground">Layout</label>
-          <SelectField
-            id="jolt-layout-salvo"
-            aria-label="Layout salvo"
-            value={selectedId ?? NEW_LAYOUT_VALUE}
-            onChange={(v) => requestSwitch(v === NEW_LAYOUT_VALUE ? null : v)}
-            options={layoutOptions}
-            className="h-10 w-full sm:w-[300px] max-sm:h-11"
-          />
-        </div>
-
-        <Popover open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <PopoverTrigger asChild>
-            <ModalButton className={cn(barButton, FOCUS_RING)}>
-              Detalhes
-              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            </ModalButton>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-[min(400px,calc(100vw-2rem))] rounded-xl p-4">
-            <LayoutDetails name={name} onName={setName} url={url} onUrl={setUrl} onDelete={() => { setDetailsOpen(false); setDeleteOpen(true); }} canDelete={!!selectedId} />
-          </PopoverContent>
-        </Popover>
-
-        <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span aria-hidden="true" className={cn('h-[7px] w-[7px] rounded-full', saveNote.dot)} />
-          {saveNote.text}
-        </span>
-        {draftIssue && (
-          <span role="status" className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-            <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            Rascunho não guardado
-          </span>
-        )}
-        {layoutsStatus === 'erro' && (
-          <span role="status" className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
-            <TriangleAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            Layouts salvos indisponíveis
-          </span>
-        )}
-
-        <span className="flex-1" />
-
-        <ModalButton onClick={() => setGithubOpen(true)} className={barButton}>
-          <Github className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          GitHub
-        </ModalButton>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <ModalButton className={cn(barButton, FOCUS_RING)}>
-              <Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              Modelos
-              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            </ModalButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[340px] rounded-xl p-1.5">
-            <DropdownMenuLabel className="mb-1 flex items-center gap-2 rounded-lg bg-amber-500/10 px-2.5 py-2 text-[13px] font-normal text-amber-900 dark:text-amber-200">
-              <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
-              <span>Escolher um modelo <strong>substitui a spec</strong>.</span>
-            </DropdownMenuLabel>
-            {MODEL_MENU.map((m) => (
-              <DropdownMenuItem key={m.name} onSelect={() => chooseModel(m.name)} className="flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
-                <span className="font-code text-sm font-bold">{m.name}</span>
-                <span className="text-xs text-muted-foreground">{m.description}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <ModalButton onClick={() => setMaintOpen(true)} className={barButton}>
-          <Wrench className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          Manutenção
-        </ModalButton>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <ModalButton className={cn(barButton, FOCUS_RING)}>
-              <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              Layout completo
-              <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-            </ModalButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[300px] rounded-xl p-1.5">
-            <DropdownMenuItem onSelect={() => void copyFullLayout()} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
-              <Copy className="h-4 w-4" strokeWidth={1.5} />
-              <span className="flex flex-col"><strong className="font-semibold">Copiar</strong><span className="text-xs text-muted-foreground">Registro da rota com a spec dentro</span></span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={downloadFullLayout} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 max-sm:min-h-11">
-              <Download className="h-4 w-4" strokeWidth={1.5} />
-              <span className="flex flex-col"><strong className="font-semibold">Baixar .json</strong><span className="text-xs text-muted-foreground">{safeFileName(name)}.json</span></span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <ModalButton onClick={() => void salvar()} disabled={saving} aria-label={`Salvar layout, atalho ${SHORTCUT_LABEL.salvar}`} className={barButton}>
-          {saving ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
-          Salvar
-          <span className="max-2xl:hidden"><Kbd>{SHORTCUT_LABEL.salvar}</Kbd></span>
-        </ModalButton>
-      </div>
-
       {/* Janela estreita: uma bancada por vez, com o Executar na mesma barra das abas */}
-      <div className="flex items-center gap-1 rounded-2xl border border-border bg-card pl-2 pr-2 shadow-sm lg:hidden">
+      <div className="flex items-center gap-1 sticky top-2 z-30 lg:top-[4.75rem] rounded-2xl border border-border bg-card pl-2 pr-2 shadow-sm xl:hidden">
         <div role="tablist" aria-label="Editor" className="flex flex-1 items-center">
           {(['entrada', 'spec', 'saida'] as const).map((which) => (
             <button
@@ -681,7 +704,7 @@ export default function JoltSandboxPage() {
         </ModalButton>
       </div>
 
-      <section aria-label="Editores" className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <section ref={workbenchRef} aria-label="Editores" style={workbenchHeight ? { height: workbenchHeight } : undefined} className="grid min-h-[360px] grid-cols-1 grid-rows-1 gap-2 xl:grid-cols-3">
         <JsonEditor
           title="Entrada"
           value={inputText}
@@ -736,7 +759,7 @@ export default function JoltSandboxPage() {
           onSave={() => void salvar()}
           titleExtra={
             run === 'ok' && elapsedMs !== null ? (
-              <StatusChip tone="brand" className="font-bold tabular-nums max-lg:hidden">{elapsedMs} ms</StatusChip>
+              <StatusChip tone="brand" className="font-bold tabular-nums max-xl:hidden">{elapsedMs} ms</StatusChip>
             ) : undefined
           }
           actions={
@@ -754,10 +777,10 @@ export default function JoltSandboxPage() {
                 Limpar
               </PaneButton>
               <PaneButton onClick={() => void copy(outputText, 'Saída')} aria-label="Copiar a saída" disabled={!outputText}>Copiar</PaneButton>
-              <ModalButton variant="primary" onClick={() => void executar()} disabled={running} aria-label={`Executar, atalho ${SHORTCUT_LABEL.executar}`} className="h-10 gap-2 max-lg:hidden">
+              <ModalButton variant="primary" onClick={() => void executar()} disabled={running} aria-label={`Executar, atalho ${SHORTCUT_LABEL.executar}`} className="h-8 gap-2 px-3 max-xl:hidden">
                 {running ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
                 {running ? 'Executando…' : 'Executar'}
-                <span className={kbdOnPrimary} aria-hidden="true">{SHORTCUT_LABEL.executar}</span>
+                <span className={cn(kbdOnPrimary, 'max-2xl:hidden')} aria-hidden="true">{SHORTCUT_LABEL.executar}</span>
               </ModalButton>
             </>
           }
@@ -779,7 +802,7 @@ export default function JoltSandboxPage() {
             <SheetDescription className="text-[13px]">Traz um layout do repositório para o editor.</SheetDescription>
           </SheetHeader>
           <div className="p-4">
-            <GithubIntegrationBar github={github} envelope={loadedDocument !== null} />
+            <GithubIntegrationBar github={github} envelope={loadedDocument !== null} stacked />
           </div>
         </SheetContent>
       </Sheet>

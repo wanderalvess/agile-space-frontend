@@ -19,7 +19,7 @@ function applyPortalTheme(monaco: Monaco) {
 
 /** Botão de texto do cabeçalho do painel (Colar, Formatar, Copiar...). */
 export function PaneButton({ className, ...props }: React.ComponentProps<typeof Button>) {
-  return <Button type="button" variant="outline" size="xs" className={cn('h-8 rounded-lg px-2.5 text-[13px] font-semibold', className)} {...props} />;
+  return <Button type="button" variant="outline" size="xs" className={cn('h-7 rounded-lg px-2.5 text-[13px] font-semibold', className)} {...props} />;
 }
 
 export interface JsonEditorProps {
@@ -85,7 +85,7 @@ export function JsonEditor({
       aria-label={title}
       className={cn('flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm', heightClassName, className)}
     >
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-1.5">
         <div className="flex min-w-0 flex-col">
           <span className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-[15px] font-bold leading-tight text-foreground">{title}</h2>
@@ -113,7 +113,7 @@ export function JsonEditor({
             ariaLabel: title,
             minimap: { enabled: false },
             fontSize: 13,
-            lineHeight: 22,
+            lineHeight: 20,
             fontFamily: 'var(--font-jetbrains-mono), ui-monospace, Menlo, Consolas, monospace',
             fontLigatures: false,
             tabSize: 2,
@@ -122,7 +122,7 @@ export function JsonEditor({
             readOnly,
             scrollBeyondLastLine: false,
             lineNumbersMinChars: 3,
-            padding: { top: 10, bottom: 10 },
+            padding: { top: 6, bottom: 6 },
             renderLineHighlight: readOnly ? 'none' : 'line',
             smoothScrolling: true,
             cursorBlinking: 'smooth',

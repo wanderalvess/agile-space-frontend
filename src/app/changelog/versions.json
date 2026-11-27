@@ -1,5 +1,16 @@
 [
   {
+    "tag": "v4.31.1",
+    "date": "27 de Novembro, 2026",
+    "title": "Jolt: mais espaço para o código e gaveta do GitHub sem cortes",
+    "description": "O Sandbox do Jolt passou a mostrar muito mais linhas na tela do notebook, e a busca no GitHub deixou de cortar campos e nomes.",
+    "changes": [
+      "Jolt Sandbox: as abas e a barra de layout agora ficam na mesma linha, os cabeçalhos dos painéis ficaram mais baixos e os editores ocupam toda a altura da janela, acompanhando o zoom. No notebook, de umas 10 para umas 26 linhas visíveis.",
+      "Jolt Sandbox: abaixo de 1280 px de largura (notebook com zoom), Entrada, Spec e Saída viram abas, com o Executar fixo na barra das abas.",
+      "Jolt Sandbox: os botões da barra de layout viram ícones em telas médias, com o nome ao passar o mouse.",
+      "Jolt, busca no GitHub: Integração, Rota e Versão aparecem empilhados na gaveta, sem corte, e a lista de rotas tem a largura do campo, é mais alta e quebra nomes longos em vez de cortá-los."
+    ]
+  }, {
     "tag": "v4.31.0",
     "date": "26 de Novembro, 2026",
     "title": "Jolt: layouts salvos na sua conta e Sandbox sem rolagem",
