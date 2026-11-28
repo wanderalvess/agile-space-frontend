@@ -69,7 +69,12 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) throw new Error(`Admin API error ${res.status}`);
   if (res.status === 204) return undefined as T;
-  return res.json();
+  // Vários endpoints de admin (ex.: revoke) respondem 200 SEM corpo (ResponseEntity.ok().build() no
+  // backend); .json() em corpo vazio lança "Unexpected end of JSON input" e a tela mostrava erro
+  // mesmo com a operação já feita no servidor.
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export const adminApi = {
